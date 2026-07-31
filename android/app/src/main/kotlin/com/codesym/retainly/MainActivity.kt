@@ -18,7 +18,7 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         if (focusShieldActive) {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.interruptionFilter = previousInterruptionFilter
+            notificationManager.setInterruptionFilter(previousInterruptionFilter)
         }
         super.onDestroy()
     }
@@ -45,9 +45,9 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent?.let { processIntent(it) }
+        processIntent(intent)
     }
 
     private fun processIntent(intent: Intent) {
@@ -74,7 +74,7 @@ class MainActivity : FlutterActivity() {
                 return false
             }
             if (enable) {
-                previousInterruptionFilter = notificationManager.interruptionFilter
+                previousInterruptionFilter = notificationManager.currentInterruptionFilter
                 notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_NONE)
                 startFocusShieldService()
             } else {
