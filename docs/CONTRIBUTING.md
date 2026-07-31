@@ -321,8 +321,7 @@ The CI pipeline runs on push to `main` / `develop` and on pull requests to
 | `build-android` | push to main/develop, PR to main | Same as `test` + Android build (AAB for pushes, debug APK for PRs) |
 | `build-linux` | push to main/develop | Same as `test` + `flutter build linux --release` |
 
-**Note**: CI runs in a subdirectory `./retainly` — ensure your working
-directory matches (`working-directory: ./retainly`).
+**Note**: CI runs from the repository root — no subdirectory is required.
 
 ### 4.3 Functions Verification
 
