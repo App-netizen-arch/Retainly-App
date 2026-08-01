@@ -22,6 +22,39 @@ class $UserProfilesTable extends UserProfiles
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
+  static const VerificationMeta _studentNameMeta = const VerificationMeta(
+    'studentName',
+  );
+  @override
+  late final GeneratedColumn<String> studentName = GeneratedColumn<String>(
+    'student_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _studentIdMeta = const VerificationMeta(
+    'studentId',
+  );
+  @override
+  late final GeneratedColumn<String> studentId = GeneratedColumn<String>(
+    'student_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _institutionMeta = const VerificationMeta(
+    'institution',
+  );
+  @override
+  late final GeneratedColumn<String> institution = GeneratedColumn<String>(
+    'institution',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
   static const VerificationMeta _classLevelMeta = const VerificationMeta(
     'classLevel',
   );
@@ -100,6 +133,9 @@ class $UserProfilesTable extends UserProfiles
   @override
   List<GeneratedColumn> get $columns => [
     id,
+    studentName,
+    studentId,
+    institution,
     classLevel,
     board,
     examDate,
@@ -122,6 +158,36 @@ class $UserProfilesTable extends UserProfiles
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('student_name')) {
+      context.handle(
+        _studentNameMeta,
+        studentName.isAcceptableOrUnknown(
+          data['student_name']!,
+          _studentNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_studentNameMeta);
+    }
+    if (data.containsKey('student_id')) {
+      context.handle(
+        _studentIdMeta,
+        studentId.isAcceptableOrUnknown(data['student_id']!, _studentIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_studentIdMeta);
+    }
+    if (data.containsKey('institution')) {
+      context.handle(
+        _institutionMeta,
+        institution.isAcceptableOrUnknown(
+          data['institution']!,
+          _institutionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_institutionMeta);
     }
     if (data.containsKey('class_level')) {
       context.handle(
@@ -192,6 +258,21 @@ class $UserProfilesTable extends UserProfiles
             DriftSqlType.int,
             data['${effectivePrefix}id'],
           )!,
+      studentName:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}student_name'],
+          )!,
+      studentId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}student_id'],
+          )!,
+      institution:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}institution'],
+          )!,
       classLevel:
           attachedDatabase.typeMapping.read(
             DriftSqlType.string,
@@ -238,6 +319,9 @@ class $UserProfilesTable extends UserProfiles
 
 class UserProfile extends DataClass implements Insertable<UserProfile> {
   final int id;
+  final String studentName;
+  final String studentId;
+  final String institution;
   final String classLevel;
   final String board;
   final String examDate;
@@ -247,6 +331,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   final String updatedAt;
   const UserProfile({
     required this.id,
+    required this.studentName,
+    required this.studentId,
+    required this.institution,
     required this.classLevel,
     required this.board,
     required this.examDate,
@@ -259,6 +346,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    map['student_name'] = Variable<String>(studentName);
+    map['student_id'] = Variable<String>(studentId);
+    map['institution'] = Variable<String>(institution);
     map['class_level'] = Variable<String>(classLevel);
     map['board'] = Variable<String>(board);
     map['exam_date'] = Variable<String>(examDate);
@@ -272,6 +362,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   UserProfilesCompanion toCompanion(bool nullToAbsent) {
     return UserProfilesCompanion(
       id: Value(id),
+      studentName: Value(studentName),
+      studentId: Value(studentId),
+      institution: Value(institution),
       classLevel: Value(classLevel),
       board: Value(board),
       examDate: Value(examDate),
@@ -289,6 +382,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return UserProfile(
       id: serializer.fromJson<int>(json['id']),
+      studentName: serializer.fromJson<String>(json['studentName']),
+      studentId: serializer.fromJson<String>(json['studentId']),
+      institution: serializer.fromJson<String>(json['institution']),
       classLevel: serializer.fromJson<String>(json['classLevel']),
       board: serializer.fromJson<String>(json['board']),
       examDate: serializer.fromJson<String>(json['examDate']),
@@ -303,6 +399,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'studentName': serializer.toJson<String>(studentName),
+      'studentId': serializer.toJson<String>(studentId),
+      'institution': serializer.toJson<String>(institution),
       'classLevel': serializer.toJson<String>(classLevel),
       'board': serializer.toJson<String>(board),
       'examDate': serializer.toJson<String>(examDate),
@@ -315,6 +414,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
 
   UserProfile copyWith({
     int? id,
+    String? studentName,
+    String? studentId,
+    String? institution,
     String? classLevel,
     String? board,
     String? examDate,
@@ -324,6 +426,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     String? updatedAt,
   }) => UserProfile(
     id: id ?? this.id,
+    studentName: studentName ?? this.studentName,
+    studentId: studentId ?? this.studentId,
+    institution: institution ?? this.institution,
     classLevel: classLevel ?? this.classLevel,
     board: board ?? this.board,
     examDate: examDate ?? this.examDate,
@@ -335,6 +440,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   UserProfile copyWithCompanion(UserProfilesCompanion data) {
     return UserProfile(
       id: data.id.present ? data.id.value : this.id,
+      studentName:
+          data.studentName.present ? data.studentName.value : this.studentName,
+      studentId: data.studentId.present ? data.studentId.value : this.studentId,
+      institution:
+          data.institution.present ? data.institution.value : this.institution,
       classLevel:
           data.classLevel.present ? data.classLevel.value : this.classLevel,
       board: data.board.present ? data.board.value : this.board,
@@ -353,6 +463,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   String toString() {
     return (StringBuffer('UserProfile(')
           ..write('id: $id, ')
+          ..write('studentName: $studentName, ')
+          ..write('studentId: $studentId, ')
+          ..write('institution: $institution, ')
           ..write('classLevel: $classLevel, ')
           ..write('board: $board, ')
           ..write('examDate: $examDate, ')
@@ -367,6 +480,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   @override
   int get hashCode => Object.hash(
     id,
+    studentName,
+    studentId,
+    institution,
     classLevel,
     board,
     examDate,
@@ -380,6 +496,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       identical(this, other) ||
       (other is UserProfile &&
           other.id == this.id &&
+          other.studentName == this.studentName &&
+          other.studentId == this.studentId &&
+          other.institution == this.institution &&
           other.classLevel == this.classLevel &&
           other.board == this.board &&
           other.examDate == this.examDate &&
@@ -391,6 +510,9 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
 
 class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   final Value<int> id;
+  final Value<String> studentName;
+  final Value<String> studentId;
+  final Value<String> institution;
   final Value<String> classLevel;
   final Value<String> board;
   final Value<String> examDate;
@@ -400,6 +522,9 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   final Value<String> updatedAt;
   const UserProfilesCompanion({
     this.id = const Value.absent(),
+    this.studentName = const Value.absent(),
+    this.studentId = const Value.absent(),
+    this.institution = const Value.absent(),
     this.classLevel = const Value.absent(),
     this.board = const Value.absent(),
     this.examDate = const Value.absent(),
@@ -410,6 +535,9 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   });
   UserProfilesCompanion.insert({
     this.id = const Value.absent(),
+    required String studentName,
+    required String studentId,
+    required String institution,
     required String classLevel,
     required String board,
     required String examDate,
@@ -417,13 +545,19 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     this.theme = const Value.absent(),
     required String createdAt,
     required String updatedAt,
-  }) : classLevel = Value(classLevel),
+  }) : studentName = Value(studentName),
+       studentId = Value(studentId),
+       institution = Value(institution),
+       classLevel = Value(classLevel),
        board = Value(board),
        examDate = Value(examDate),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<UserProfile> custom({
     Expression<int>? id,
+    Expression<String>? studentName,
+    Expression<String>? studentId,
+    Expression<String>? institution,
     Expression<String>? classLevel,
     Expression<String>? board,
     Expression<String>? examDate,
@@ -434,6 +568,9 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (studentName != null) 'student_name': studentName,
+      if (studentId != null) 'student_id': studentId,
+      if (institution != null) 'institution': institution,
       if (classLevel != null) 'class_level': classLevel,
       if (board != null) 'board': board,
       if (examDate != null) 'exam_date': examDate,
@@ -446,6 +583,9 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
 
   UserProfilesCompanion copyWith({
     Value<int>? id,
+    Value<String>? studentName,
+    Value<String>? studentId,
+    Value<String>? institution,
     Value<String>? classLevel,
     Value<String>? board,
     Value<String>? examDate,
@@ -456,6 +596,9 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   }) {
     return UserProfilesCompanion(
       id: id ?? this.id,
+      studentName: studentName ?? this.studentName,
+      studentId: studentId ?? this.studentId,
+      institution: institution ?? this.institution,
       classLevel: classLevel ?? this.classLevel,
       board: board ?? this.board,
       examDate: examDate ?? this.examDate,
@@ -471,6 +614,15 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (studentName.present) {
+      map['student_name'] = Variable<String>(studentName.value);
+    }
+    if (studentId.present) {
+      map['student_id'] = Variable<String>(studentId.value);
+    }
+    if (institution.present) {
+      map['institution'] = Variable<String>(institution.value);
     }
     if (classLevel.present) {
       map['class_level'] = Variable<String>(classLevel.value);
@@ -500,6 +652,9 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   String toString() {
     return (StringBuffer('UserProfilesCompanion(')
           ..write('id: $id, ')
+          ..write('studentName: $studentName, ')
+          ..write('studentId: $studentId, ')
+          ..write('institution: $institution, ')
           ..write('classLevel: $classLevel, ')
           ..write('board: $board, ')
           ..write('examDate: $examDate, ')
@@ -7060,6 +7215,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$UserProfilesTableCreateCompanionBuilder =
     UserProfilesCompanion Function({
       Value<int> id,
+      required String studentName,
+      required String studentId,
+      required String institution,
       required String classLevel,
       required String board,
       required String examDate,
@@ -7071,6 +7229,9 @@ typedef $$UserProfilesTableCreateCompanionBuilder =
 typedef $$UserProfilesTableUpdateCompanionBuilder =
     UserProfilesCompanion Function({
       Value<int> id,
+      Value<String> studentName,
+      Value<String> studentId,
+      Value<String> institution,
       Value<String> classLevel,
       Value<String> board,
       Value<String> examDate,
@@ -7091,6 +7252,21 @@ class $$UserProfilesTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get studentName => $composableBuilder(
+    column: $table.studentName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get studentId => $composableBuilder(
+    column: $table.studentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get institution => $composableBuilder(
+    column: $table.institution,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7144,6 +7320,21 @@ class $$UserProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get studentName => $composableBuilder(
+    column: $table.studentName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get studentId => $composableBuilder(
+    column: $table.studentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get institution => $composableBuilder(
+    column: $table.institution,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get classLevel => $composableBuilder(
     column: $table.classLevel,
     builder: (column) => ColumnOrderings(column),
@@ -7191,6 +7382,19 @@ class $$UserProfilesTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get studentName => $composableBuilder(
+    column: $table.studentName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get studentId =>
+      $composableBuilder(column: $table.studentId, builder: (column) => column);
+
+  GeneratedColumn<String> get institution => $composableBuilder(
+    column: $table.institution,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get classLevel => $composableBuilder(
     column: $table.classLevel,
@@ -7251,6 +7455,9 @@ class $$UserProfilesTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                Value<String> studentName = const Value.absent(),
+                Value<String> studentId = const Value.absent(),
+                Value<String> institution = const Value.absent(),
                 Value<String> classLevel = const Value.absent(),
                 Value<String> board = const Value.absent(),
                 Value<String> examDate = const Value.absent(),
@@ -7260,6 +7467,9 @@ class $$UserProfilesTableTableManager
                 Value<String> updatedAt = const Value.absent(),
               }) => UserProfilesCompanion(
                 id: id,
+                studentName: studentName,
+                studentId: studentId,
+                institution: institution,
                 classLevel: classLevel,
                 board: board,
                 examDate: examDate,
@@ -7271,6 +7481,9 @@ class $$UserProfilesTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
+                required String studentName,
+                required String studentId,
+                required String institution,
                 required String classLevel,
                 required String board,
                 required String examDate,
@@ -7280,6 +7493,9 @@ class $$UserProfilesTableTableManager
                 required String updatedAt,
               }) => UserProfilesCompanion.insert(
                 id: id,
+                studentName: studentName,
+                studentId: studentId,
+                institution: institution,
                 classLevel: classLevel,
                 board: board,
                 examDate: examDate,

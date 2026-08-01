@@ -18,6 +18,9 @@ part 'app_database.g.dart';
 
 class UserProfiles extends Table {
   IntColumn get id => integer().autoIncrement()();
+  TextColumn get studentName => text()();
+  TextColumn get studentId => text()();
+  TextColumn get institution => text()();
   TextColumn get classLevel => text()();
   TextColumn get board => text()();
   TextColumn get examDate => text()();

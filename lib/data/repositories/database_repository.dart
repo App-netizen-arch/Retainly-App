@@ -569,19 +569,18 @@ class DatabaseRepository {
     int result;
     if (_useDrift) {
       final companion = ChaptersCompanion(
-        title: Value(data['title'] as String? ?? ''),
-        status: Value(data['status'] as String? ?? 'not_started'),
-        priority: Value(data['priority'] as int? ?? 2),
-        estimatedMinutes: Value(data['estimatedMinutes'] as int? ?? 30),
-        revisionDates: Value(data['revisionDates'] as String? ?? '[]'),
-        completedAt: Value(data['completedAt'] as int?),
-        examWeight: Value(data['examWeight'] as int?),
-        confidence: Value(data['confidence'] as int?),
-        contentSource: Value(data['contentSource'] as String?),
-        contentVersion: Value(data['contentVersion'] as String?),
-        reviewDate: Value(data['reviewDate'] as String?),
-        isWeakTopic: Value(data['isWeakTopic'] as int? ?? 0),
-        contentTier: Value(data['contentTier'] as String? ?? 'official'),
+        contentSource: data.containsKey('content_source')
+            ? Value(data['content_source'] as String?)
+            : const Value.absent(),
+        contentVersion: data.containsKey('content_version')
+            ? Value(data['content_version'] as String?)
+            : const Value.absent(),
+        reviewDate: data.containsKey('review_date')
+            ? Value(data['review_date'] as String?)
+            : const Value.absent(),
+        contentTier: data.containsKey('content_tier')
+            ? Value(data['content_tier'] as String? ?? 'official')
+            : const Value.absent(),
       );
       result = await (driftDb!.update(driftDb!.chapters)
             ..where((c) => c.id.equals(id))

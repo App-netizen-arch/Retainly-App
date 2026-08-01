@@ -40,6 +40,24 @@ class DatabaseHelper {
 
   Future<void> _extendSchema(Database db) async {
     await db.transaction((txn) async {
+      final profileColumns = await txn.rawQuery("PRAGMA table_info(user_profiles)");
+      final profileNames = profileColumns.map((c) => c['name'] as String).toList();
+      if (!profileNames.contains('student_name')) {
+        await txn.execute(
+          "ALTER TABLE user_profiles ADD COLUMN student_name TEXT NOT NULL DEFAULT ''",
+        );
+      }
+      if (!profileNames.contains('student_id')) {
+        await txn.execute(
+          "ALTER TABLE user_profiles ADD COLUMN student_id TEXT NOT NULL DEFAULT ''",
+        );
+      }
+      if (!profileNames.contains('institution')) {
+        await txn.execute(
+          "ALTER TABLE user_profiles ADD COLUMN institution TEXT NOT NULL DEFAULT ''",
+        );
+      }
+
       final columns = await txn.rawQuery("PRAGMA table_info(focus_sessions)");
       final names = columns.map((c) => c['name'] as String).toList();
       if (!names.contains('notes')) {
@@ -280,6 +298,9 @@ class DatabaseHelper {
     await db.execute('''
       CREATE TABLE user_profiles(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_name TEXT NOT NULL,
+        student_id TEXT NOT NULL,
+        institution TEXT NOT NULL,
         class_level TEXT NOT NULL,
         board TEXT NOT NULL,
         exam_date TEXT NOT NULL,

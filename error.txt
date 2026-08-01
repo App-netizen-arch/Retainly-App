@@ -1,0 +1,21 @@
++ set -e
++ unset GIT_DIR
++ unset GIT_INDEX_FILE
++ unset GIT_WORK_TREE
+++++ dirname /home/amanoy/flutter/bin/internal/update_engine_version.sh
++++ dirname /home/amanoy/flutter/bin/internal
+++ dirname /home/amanoy/flutter/bin
++ FLUTTER_ROOT=/home/amanoy/flutter
++ mkdir -p /home/amanoy/flutter/bin/cache
++ '[' -n '' ']'
+++ git -C /home/amanoy/flutter ls-files bin/internal/engine.version
++ '[' -n bin/internal/engine.version ']'
++ ENGINE_VERSION=0cd610717bde95fd88343c64f81c11ba4e5c0010
++ pid=66411
++ es_tmp=/home/amanoy/flutter/bin/cache/engine.stamp.tmp.66411
++ trap 'rm -f "$es_tmp"' EXIT
++ echo 0cd610717bde95fd88343c64f81c11ba4e5c0010
++ mv /home/amanoy/flutter/bin/cache/engine.stamp.tmp.66411 /home/amanoy/flutter/bin/cache/engine.stamp
++ trap - EXIT
++ '[' -n '' ']'
++ echo ''
