@@ -1,32 +1,13 @@
-// Copyright 2026 CodeSym
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
-
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'connectivity_service.dart';
 
 class AIService {
   static const String _consentKey = 'ai_consent';
-  static const String _ocrConsentKey = 'ocr_consent';
   static const String _costWarningKey = 'ai_cost_warning_accepted';
   static const String _usageQuotaKey = 'ai_daily_usage';
   static const String _quotaDateKey = 'ai_quota_date';
@@ -37,21 +18,60 @@ class AIService {
   static const String _estimatedCostKey = 'ai_estimated_cost';
   static const int _dailyQuota = 50;
   static const double _costPerRequest = 0.002;
-  static const String _vercelProxyUrl = 'https://vercel-pi-weld.vercel.app/api/ai-proxy';
+  static const String _vercelProxyUrl =
+      'https://vercel-pi-weld.vercel.app/api/ai-proxy';
   static const String _defaultModel = 'openrouter/free';
 
-  FirebaseFirestore? _firestore;
-  FirebaseFunctions? _functions;
-  FirebaseStorage? _storage;
   final ConnectivityService _connectivity = ConnectivityService();
 
-  Future<void> _ensureFirebase() async {
-    if (_firestore != null) return;
-    try {
-      _firestore = FirebaseFirestore.instance;
-      _functions = FirebaseFunctions.instance;
-      _storage = FirebaseStorage.instance;
-    } catch (_) {}
+  Future<String?> generateTaskBreakdown(String userId, String taskTitle) async {
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt:
+          'You are a helpful study assistant for Pakistani Matric students. Break study tasks into 3-5 actionable 15-minute sub-tasks.',
+      userPrompt:
+          'Break this Matric study task into 3-5 15-minute sub-tasks: $taskTitle',
+    );
+  }
+
+  Future<String?> generateRevisionDraft(
+    String userId,
+    String chapterTitle,
+  ) async {
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt:
+          'You are a helpful study assistant for Pakistani Matric students. Create concise revision plans with 3 spaced-repetition review slots.',
+      userPrompt:
+          'Create a revision plan for: $chapterTitle. Include 3 spaced-repetition review slots.',
+    );
+  }
+
+  Future<String?> generateFlashcards(String userId, String sourceText) async {
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt:
+          'You are a helpful study assistant for Pakistani Matric students. Generate clear flashcards in Question / Answer format.',
+      userPrompt: 'Generate 5 flashcards from this text. Format: Question / Answer.\n\n$sourceText',
+    );
+  }
+
+  Future<String?> generateQuizDraft(
+    String userId,
+    String chapterTitle,
+    int questionCount,
+  ) async {
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt:
+          'You are a helpful study assistant for Pakistani Matric students. Create multiple-choice quizzes with answers and brief explanations.',
+      userPrompt:
+          'Generate $questionCount multiple-choice questions for: $chapterTitle. Include answers and brief explanations.',
+    );
   }
 
   Future<String?> _callAiProxy({
@@ -115,6 +135,26 @@ class AIService {
     await prefs.setString(_providerKey, provider);
   }
 
+  Future<bool> hasOcrConsent() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('ocr_consent') ?? false;
+  }
+
+  Future<void> setOcrConsent(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('ocr_consent', value);
+  }
+
+  Future<String?> uploadPdfToStorage(
+    String userId,
+    String filePath, {
+    String? destination,
+  }) async {
+    return 'PDF upload is not available in this offline-first release build.';
+  }
+
+  Future<void> ensureConsentRecord(String userId) async {}
+
   Future<bool> hasAiConsent() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_consentKey) ?? false;
@@ -123,16 +163,6 @@ class AIService {
   Future<void> setAiConsent(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_consentKey, value);
-  }
-
-  Future<bool> hasOcrConsent() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_ocrConsentKey) ?? false;
-  }
-
-  Future<void> setOcrConsent(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_ocrConsentKey, value);
   }
 
   Future<bool> hasAcceptedCostWarning() async {
@@ -153,20 +183,6 @@ class AIService {
   Future<void> acceptAiPolicy() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_aiPolicyKey, true);
-  }
-
-  Future<void> ensureConsentRecord(String userId) async {
-    await _ensureFirebase();
-    if (_firestore == null) return;
-    try {
-      final consent = await hasAiConsent();
-      await _firestore!.collection('ai_consents').doc(userId).set({
-        'userId': userId,
-        'aiAssistance': consent,
-        'ocrScanning': await hasOcrConsent(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } on FirebaseException catch (_) {}
   }
 
   Future<void> _resetQuotaIfNewDay() async {
@@ -197,49 +213,6 @@ class AIService {
     return null;
   }
 
-  Future<String?> generateTaskBreakdown(String userId, String taskTitle) async {
-    return _callAiProxy(
-      userId: userId,
-      model: _defaultModel,
-      systemPrompt: 'You are a helpful study assistant for Pakistani Matric students. Break study tasks into 3-5 actionable 15-minute sub-tasks.',
-      userPrompt: 'Break this Matric study task into 3-5 15-minute sub-tasks: $taskTitle',
-    );
-  }
-
-  Future<String?> generateRevisionDraft(
-    String userId,
-    String chapterTitle,
-  ) async {
-    return _callAiProxy(
-      userId: userId,
-      model: _defaultModel,
-      systemPrompt: 'You are a helpful study assistant for Pakistani Matric students. Create concise revision plans with 3 spaced-repetition review slots.',
-      userPrompt: 'Create a revision plan for: $chapterTitle. Include 3 spaced-repetition review slots.',
-    );
-  }
-
-  Future<String?> generateFlashcards(String userId, String sourceText) async {
-    return _callAiProxy(
-      userId: userId,
-      model: _defaultModel,
-      systemPrompt: 'You are a helpful study assistant for Pakistani Matric students. Generate clear flashcards in Question / Answer format.',
-      userPrompt: 'Generate 5 flashcards from this text. Format: Question / Answer.\n\n$sourceText',
-    );
-  }
-
-  Future<String?> generateQuizDraft(
-    String userId,
-    String chapterTitle,
-    int questionCount,
-  ) async {
-    return _callAiProxy(
-      userId: userId,
-      model: _defaultModel,
-      systemPrompt: 'You are a helpful study assistant for Pakistani Matric students. Create multiple-choice quizzes with answers and brief explanations.',
-      userPrompt: 'Generate $questionCount multiple-choice questions for: $chapterTitle. Include answers and brief explanations.',
-    );
-  }
-
   Future<void> estimateCost(String userId, dynamic resultData) async {
     final output = resultData is Map ? resultData['output'] as String? : null;
     if (output == null) return;
@@ -266,66 +239,24 @@ class AIService {
     await prefs.remove(_estimatedCostKey);
   }
 
-  Future<String?> uploadPdfToStorage(String userId, String localPath) async {
-    await _ensureFirebase();
-    if (_storage == null) return null;
-    try {
-      final file = File(localPath);
-      if (!await file.exists()) return null;
-      final fileName = file.uri.pathSegments.last;
-      final ref = _storage!.ref('ocr_pdfs/$userId/$fileName');
-      await ref.putFile(file);
-      return ref.fullPath;
-    } catch (e) {
-      return null;
-    }
-  }
-
   Future<String?> startOcrJob(
     String userId,
     String filePath, {
     String language = 'en',
     String? storagePath,
   }) async {
-    if (!await hasOcrConsent()) {
-      return 'OCR requires explicit consent in Settings.';
-    }
-    if (!await _connectivity.isOnline) {
-      return 'No internet connection. Connect to use OCR.';
-    }
-    await _ensureFirebase();
-    if (_functions == null) return 'OCR is unavailable in local-only mode.';
-    try {
-      final effectivePath = storagePath ?? filePath;
-      final callable = _functions!.httpsCallable('ocrProcess');
-      final result = await callable.call(<String, dynamic>{
-        'filePath': effectivePath,
-        'language': language,
-      });
-      final data = result.data as Map<String, dynamic>?;
-      return data?['jobId'] as String?;
-    } on FirebaseFunctionsException catch (e) {
-      return 'OCR request failed: ${e.message ?? "unknown error"}';
-    } catch (e) {
-      return 'Unexpected error: $e';
-    }
+    return 'OCR is disabled in this release build. Use the online AI assistant instead.';
   }
 
   Future<Map<String, dynamic>?> getOcrResult(
     String userId,
     String jobId,
   ) async {
-    await _ensureFirebase();
-    if (_firestore == null) return null;
-    try {
-      final doc = await _firestore!.collection('ocr_jobs').doc(jobId).get();
-      if (!doc.exists) return null;
-      final data = doc.data()!;
-      if (data['userId'] != userId) return null;
-      return data;
-    } catch (e) {
-      return null;
-    }
+    return <String, dynamic>{
+      'status': 'completed',
+      'extractedText': 'OCR is disabled in this release build. Use the online AI assistant instead.',
+      'jobId': jobId,
+    };
   }
 
   Future<int> getAiUsageQuota(String userId) async {
@@ -349,21 +280,15 @@ class AIService {
   ) async {
     final prefs = await SharedPreferences.getInstance();
     final citationsJson = prefs.getString(_sourceCitationKey) ?? '{}';
-    final citations = Map<String, dynamic>.from(() {
-      try {
-        return Map<String, dynamic>.from(
-          RegExp(r'^\{.*\}$').hasMatch(citationsJson)
-              ? Map<String, dynamic>.from(
-                Map<String, dynamic>.from(
-                  const JsonDecoder().convert(citationsJson),
-                ),
-              )
-              : <String, dynamic>{},
-        );
-      } catch (_) {
-        return <String, dynamic>{};
+    final citations = <String, dynamic>{};
+    try {
+      final decoded = const JsonDecoder().convert(citationsJson);
+      if (decoded is Map) {
+        citations.addAll(Map<String, dynamic>.from(decoded));
       }
-    }());
+    } catch (_) {
+      citations.clear();
+    }
     citations[contentId] = {
       'textbookRef': textbookRef,
       'attachedAt': DateTime.now().toIso8601String(),
@@ -375,12 +300,12 @@ class AIService {
     final prefs = await SharedPreferences.getInstance();
     final citationsJson = prefs.getString(_sourceCitationKey) ?? '{}';
     try {
-      return Map<String, dynamic>.from(
-        const JsonDecoder().convert(citationsJson),
-      );
-    } catch (_) {
-      return {};
-    }
+      final decoded = const JsonDecoder().convert(citationsJson);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {}
+    return <String, dynamic>{};
   }
 
   Future<void> reportHallucination(
@@ -405,16 +330,6 @@ class AIService {
       _hallucinationReportKey,
       const JsonEncoder().convert(reports),
     );
-    await _ensureFirebase();
-    if (_firestore == null) return;
-    try {
-      await _firestore!.collection('ai_hallucination_reports').add({
-        'userId': userId,
-        'contentId': contentId,
-        'feedback': feedback,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    } on FirebaseException catch (_) {}
   }
 
   Future<List<dynamic>> getHallucinationReports(String userId) async {

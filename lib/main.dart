@@ -14,7 +14,7 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,10 +22,6 @@ import 'package:retainly/l10n/app_localizations.dart';
 import 'package:retainly/navigation/app_router.dart';
 import 'package:retainly/core/theme/app_theme.dart';
 import 'package:retainly/providers/database_provider.dart';
-import 'package:retainly/services/analytics_service.dart';
-import 'package:retainly/services/crashlytics_service.dart';
-import 'package:retainly/services/remote_config_service.dart';
-import 'package:retainly/services/sync_worker_service.dart';
 import 'package:retainly/services/shortcut_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,22 +35,8 @@ Future<void> main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  try {
-    await Firebase.initializeApp();
-    await AnalyticsService.instance.initialize();
-    await CrashlyticsService.instance.initialize();
-    await RemoteConfigService.instance.initialize();
-    await SyncWorkerService().initialize();
-  } catch (_) {
-    // Firebase not available; services degrade to local-only mode
-  }
-
   FlutterError.onError = (details) {
     FlutterError.dumpErrorToConsole(details);
-    CrashlyticsService.instance.recordError(
-      details.exception,
-      details.stack ?? StackTrace.current,
-    );
   };
 
   runApp(
