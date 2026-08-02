@@ -52,7 +52,7 @@ function getGeminiClient(): GoogleGenerativeAI | null {
 }
 
 function getProvider(): string {
-  return process.env.AI_PROVIDER || functions.config().ai?.provider || 'openai';
+  return process.env.AI_PROVIDER || functions.config().ai?.provider || 'openrouter';
 }
 
 function resolveModel(model: string | undefined, provider?: string): string {
@@ -77,10 +77,16 @@ function resolveModel(model: string | undefined, provider?: string): string {
 }
 
 export const aiProxy = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be signed in');
+  const providedUserId = (data as any)?.userId as string | undefined;
+  let userId: string | undefined;
+  if (context.auth) {
+    userId = context.auth.uid;
+  } else if (providedUserId && typeof providedUserId === 'string' && providedUserId.trim().length > 0) {
+    userId = providedUserId.trim();
   }
-  const userId = context.auth.uid;
+  if (!userId) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be signed in or provide a userId');
+  }
   const consentDoc = await db.collection('ai_consents').doc(userId).get();
   const consent = consentDoc.data();
   if (!consent?.aiAssistance) {

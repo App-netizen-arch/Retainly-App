@@ -56,3 +56,9 @@ functions/tsconfig.tsbuildinfo
 
 # OS files
 Thumbs.db
+.apikey
+.playwright-mcp/
+grant_role.sh
+grant_role.js
+test_ai.dart
+*.png

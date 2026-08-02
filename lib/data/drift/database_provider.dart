@@ -13,7 +13,7 @@ class DatabaseProvider {
 
   static Future<void> initialize() async {
     if (_driftDb != null) return;
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
       final docsDir = await getApplicationDocumentsDirectory();
       final path = p.join(docsDir.path, 'study_planner_drift.db');
       _driftDb = AppDatabase(
