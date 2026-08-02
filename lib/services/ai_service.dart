@@ -18,7 +18,10 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:http/http.dart' as http;
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'connectivity_service.dart';
 
 class AIService {
@@ -34,6 +37,8 @@ class AIService {
   static const String _estimatedCostKey = 'ai_estimated_cost';
   static const int _dailyQuota = 50;
   static const double _costPerRequest = 0.002;
+  static const String _vercelProxyUrl = 'https://vercel-pi-weld.vercel.app/api/ai-proxy';
+  static const String _defaultModel = 'openrouter/free';
 
   FirebaseFirestore? _firestore;
   FirebaseFunctions? _functions;
@@ -49,9 +54,60 @@ class AIService {
     } catch (_) {}
   }
 
-  Future<String> getAiProvider() async {
+  Future<String?> _callAiProxy({
+    required String userId,
+    required String model,
+    required String systemPrompt,
+    required String userPrompt,
+  }) async {
+    final gate = await _checkQuotaAndGate(userId);
+    if (gate != null) return gate;
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(_vercelProxyUrl),
+            headers: <String, String>{'Content-Type': 'application/json'},
+            body: jsonEncode(<String, dynamic>{
+              'model': model,
+              'messages': [
+                <String, dynamic>{'role': 'system', 'content': systemPrompt},
+                <String, dynamic>{'role': 'user', 'content': userPrompt},
+              ],
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 429) {
+        return 'AI rate limit reached. Please try again shortly.';
+      }
+      if (response.statusCode != 200) {
+        return 'AI request failed with status ${response.statusCode}.';
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final output = data['output'] as String?;
+      if (output == null || output.isEmpty) {
+        return 'AI returned an empty response.';
+      }
+
+      await recordAiUsage(userId);
+      await estimateCostFromOutput(output);
+      return output;
+    } on SocketException {
+      return 'No internet connection. Connect to use AI features.';
+    } on HttpException catch (e) {
+      return 'AI request failed: ${e.message}';
+    } on FormatException {
+      return 'AI returned an invalid response.';
+    } catch (e) {
+      return 'Unexpected AI error: $e';
+    }
+  }
+
+  Future<String?> getAiProvider() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_providerKey) ?? 'openai';
+    return prefs.getString(_providerKey) ?? 'openrouter';
   }
 
   Future<void> setAiProvider(String provider) async {
@@ -142,72 +198,33 @@ class AIService {
   }
 
   Future<String?> generateTaskBreakdown(String userId, String taskTitle) async {
-    await _ensureFirebase();
-    if (_functions == null) return 'AI is unavailable in local-only mode.';
-    final gate = await _checkQuotaAndGate(userId);
-    if (gate != null) return gate;
-    try {
-      final callable = _functions!.httpsCallable('aiProxy');
-      final result = await callable.call(<String, dynamic>{
-        'prompt':
-            'Break this Matric study task into 3-5 15-minute sub-tasks: $taskTitle',
-        'model': 'task-breakdown',
-      });
-      await recordAiUsage(userId);
-      await estimateCost(userId, result.data);
-      return result.data['output'] as String?;
-    } on FirebaseFunctionsException catch (e) {
-      return 'AI request failed: ${e.message ?? "unknown error"}';
-    } catch (e) {
-      return 'Unexpected error: $e';
-    }
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt: 'You are a helpful study assistant for Pakistani Matric students. Break study tasks into 3-5 actionable 15-minute sub-tasks.',
+      userPrompt: 'Break this Matric study task into 3-5 15-minute sub-tasks: $taskTitle',
+    );
   }
 
   Future<String?> generateRevisionDraft(
     String userId,
     String chapterTitle,
   ) async {
-    await _ensureFirebase();
-    if (_functions == null) return 'AI is unavailable in local-only mode.';
-    final gate = await _checkQuotaAndGate(userId);
-    if (gate != null) return gate;
-    try {
-      final callable = _functions!.httpsCallable('aiProxy');
-      final result = await callable.call(<String, dynamic>{
-        'prompt':
-            'Create a revision plan for: $chapterTitle. Include 3 spaced-repetition review slots.',
-        'model': 'revision-draft',
-      });
-      await recordAiUsage(userId);
-      await estimateCost(userId, result.data);
-      return result.data['output'] as String?;
-    } on FirebaseFunctionsException catch (e) {
-      return 'AI request failed: ${e.message ?? "unknown error"}';
-    } catch (e) {
-      return 'Unexpected error: $e';
-    }
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt: 'You are a helpful study assistant for Pakistani Matric students. Create concise revision plans with 3 spaced-repetition review slots.',
+      userPrompt: 'Create a revision plan for: $chapterTitle. Include 3 spaced-repetition review slots.',
+    );
   }
 
   Future<String?> generateFlashcards(String userId, String sourceText) async {
-    await _ensureFirebase();
-    if (_functions == null) return 'AI is unavailable in local-only mode.';
-    final gate = await _checkQuotaAndGate(userId);
-    if (gate != null) return gate;
-    try {
-      final callable = _functions!.httpsCallable('aiProxy');
-      final result = await callable.call(<String, dynamic>{
-        'prompt':
-            'Generate 5 flashcards from this text. Format: Question / Answer.\n\n$sourceText',
-        'model': 'flashcards',
-      });
-      await recordAiUsage(userId);
-      await estimateCost(userId, result.data);
-      return result.data['output'] as String?;
-    } on FirebaseFunctionsException catch (e) {
-      return 'AI request failed: ${e.message ?? "unknown error"}';
-    } catch (e) {
-      return 'Unexpected error: $e';
-    }
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt: 'You are a helpful study assistant for Pakistani Matric students. Generate clear flashcards in Question / Answer format.',
+      userPrompt: 'Generate 5 flashcards from this text. Format: Question / Answer.\n\n$sourceText',
+    );
   }
 
   Future<String?> generateQuizDraft(
@@ -215,30 +232,21 @@ class AIService {
     String chapterTitle,
     int questionCount,
   ) async {
-    await _ensureFirebase();
-    if (_functions == null) return 'AI is unavailable in local-only mode.';
-    final gate = await _checkQuotaAndGate(userId);
-    if (gate != null) return gate;
-    try {
-      final callable = _functions!.httpsCallable('aiProxy');
-      final result = await callable.call(<String, dynamic>{
-        'prompt':
-            'Generate $questionCount MCQs for $chapterTitle. Include answers and brief explanations.',
-        'model': 'quiz-draft',
-      });
-      await recordAiUsage(userId);
-      await estimateCost(userId, result.data);
-      return result.data['output'] as String?;
-    } on FirebaseFunctionsException catch (e) {
-      return 'AI request failed: ${e.message ?? "unknown error"}';
-    } catch (e) {
-      return 'Unexpected error: $e';
-    }
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt: 'You are a helpful study assistant for Pakistani Matric students. Create multiple-choice quizzes with answers and brief explanations.',
+      userPrompt: 'Generate $questionCount multiple-choice questions for: $chapterTitle. Include answers and brief explanations.',
+    );
   }
 
   Future<void> estimateCost(String userId, dynamic resultData) async {
     final output = resultData is Map ? resultData['output'] as String? : null;
     if (output == null) return;
+    await estimateCostFromOutput(output);
+  }
+
+  Future<void> estimateCostFromOutput(String output) async {
     final estimatedTokens = (output.length / 4).ceil();
     final rawCost = estimatedTokens * _costPerRequest;
     final cost = rawCost > 0.5 ? 0.5 : rawCost;
@@ -446,11 +454,7 @@ class AIService {
     String question, {
     String? subjectContext,
   }) async {
-    await _ensureFirebase();
-    if (_functions == null) return 'AI is unavailable in local-only mode.';
-    final gate = await _checkQuotaAndGate(userId);
-    if (gate != null) return gate;
-    final prompt =
+    final systemPrompt =
         'System Prompt: Matric Study Planner AI Assistant\n'
         'Role & Identity\n'
         'You are the built-in AI Study Assistant for the Matric Study Planner app, tailored specifically for Pakistani Class 9 and Class 10 (Matric) students. Your role is to help students break down complex topics, draft revision plans, generate practice quizzes/flashcards, and answer questions grounded directly in their provided study materials.\n'
@@ -489,19 +493,12 @@ class AIService {
         'Student subjects and chapters context:\n'
         '$subjectContext\n'
         'Now answer directly, following the rules above.';
-    try {
-      final callable = _functions!.httpsCallable('aiProxy');
-      final result = await callable.call(<String, dynamic>{
-        'prompt': prompt,
-        'model': 'subject-qna',
-      });
-      await recordAiUsage(userId);
-      await estimateCost(userId, result.data);
-      return result.data['output'] as String?;
-    } on FirebaseFunctionsException catch (e) {
-      return 'AI request failed: ${e.message ?? "unknown error"}';
-    } catch (e) {
-      return 'Unexpected error: $e';
-    }
+
+    return _callAiProxy(
+      userId: userId,
+      model: _defaultModel,
+      systemPrompt: systemPrompt,
+      userPrompt: question,
+    );
   }
 }
