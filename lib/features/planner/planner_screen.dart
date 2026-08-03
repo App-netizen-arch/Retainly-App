@@ -19,6 +19,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
   DateTime _weekStart = DateTime.now().subtract(
     Duration(days: DateTime.now().weekday - 1),
   );
+  int _weekViewRetryKey = 0;
+  Future<List<TaskModel>>? _weekTasksFuture;
 
   @override
   void initState() {
@@ -35,6 +37,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
+            tooltip: 'Search',
             onPressed: () => GoRouter.of(context).push('/search'),
           ),
           SegmentedButton<String>(
@@ -47,6 +50,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
               setState(() {
                 _viewMode = selection.first;
                 if (_viewMode == 'week') {
+                  _weekTasksFuture = null;
                   _weekStart = DateTime.now().subtract(
                     Duration(days: DateTime.now().weekday - 1),
                   );
@@ -64,18 +68,23 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           return _buildWeekView(context, db);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+        error:
+            (e, _) =>
+                Center(child: const Text('Something went wrong. Please try again.')),
       ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           FloatingActionButton(
             heroTag: 'reschedule',
+            tooltip: 'Reschedule tasks',
             onPressed: () async {
               final dbAsync = ref.read(databaseRepositoryProvider);
               if (dbAsync.isLoading) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Loading database...')),
                   );
                 }
@@ -93,7 +102,9 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                   }).toList();
               if (overdue.isEmpty) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
                     const SnackBar(
                       content: Text('No missed tasks to reschedule'),
                     ),
@@ -110,6 +121,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           const SizedBox(height: 12),
           FloatingActionButton(
             heroTag: 'add',
+            tooltip: 'Add task',
             onPressed: () => GoRouter.of(context).push('/tasks/add'),
             child: const Icon(Icons.add),
           ),
@@ -152,6 +164,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                   return Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: FilterChip(
+                      tooltip: 'Filter by status',
                       selected: isSelected,
                       onSelected: (selected) {
                         if (selected) {
@@ -194,7 +207,22 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => Center(
+        child: Column(
+          children: [
+            const Text('Something went wrong. Please try again.'),
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              onPressed: () {
+                final selectedDate = ref.read(selectedDateProvider);
+                ref.invalidate(tasksForDateProvider(selectedDate));
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -206,9 +234,39 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     final weekStart = weekDays.first;
     final weekEnd = weekDays.last;
 
+    _weekTasksFuture ??= db.getTasksForDateRange(weekStart, weekEnd);
+
     return FutureBuilder<List<TaskModel>>(
-      future: db.getTasksForDateRange(weekStart, weekEnd),
+      key: ValueKey(_weekViewRetryKey),
+      future: _weekTasksFuture,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              children: [
+                const Text('Something went wrong. Please try again.'),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _weekViewRetryKey++;
+                      final weekDays = List.generate(7, (index) {
+                        final day = _weekStart.add(Duration(days: index));
+                        return DateTime(day.year, day.month, day.day);
+                      });
+                      _weekTasksFuture = db.getTasksForDateRange(
+                        weekDays.first,
+                        weekDays.last,
+                      );
+                    });
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -221,16 +279,17 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           itemCount: weekDays.length,
           itemBuilder: (context, index) {
             final date = weekDays[index];
-            final tasks = allTasks.where((t) {
-              final scheduled = DateTime.tryParse(t.scheduledAt);
-              if (scheduled == null) return false;
-              final taskDay = DateTime(
-                scheduled.year,
-                scheduled.month,
-                scheduled.day,
-              );
-              return taskDay == date;
-            }).toList();
+            final tasks =
+                allTasks.where((t) {
+                  final scheduled = DateTime.tryParse(t.scheduledAt);
+                  if (scheduled == null) return false;
+                  final taskDay = DateTime(
+                    scheduled.year,
+                    scheduled.month,
+                    scheduled.day,
+                  );
+                  return taskDay == date;
+                }).toList();
             final totalMinutes = tasks.fold<int>(
               0,
               (sum, t) => sum + t.estimatedMinutes,
@@ -242,8 +301,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
               color:
                   isToday
                       ? Theme.of(
-                          context,
-                        ).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.3)
                       : null,
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -264,11 +323,11 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    if (tasks.isEmpty)
-                      const Text(
-                        'No tasks',
-                        style: TextStyle(color: Colors.grey),
-                      )
+                       if (tasks.isEmpty)
+                         Text(
+                           'No tasks',
+                           style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                         )
                     else
                       ...tasks.map(
                         (t) => Padding(
@@ -380,43 +439,49 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                   ),
                   margin: const EdgeInsets.only(right: 4),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.15),
+                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     '$originalEstimate→${task.estimatedMinutes}',
-                    style: const TextStyle(fontSize: 10, color: Colors.orange),
+                    style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.tertiary),
                   ),
                 ),
               IconButton(
-                icon: const Icon(Icons.autorenew, color: Colors.orange),
-                onPressed:
-                    task.id != null
-                        ? () async {
-                          final newDate = DateTime.now();
-                          await ref
-                              .read(databaseRepositoryProvider)
-                              .value
-                              ?.updateTask(task.id!, {
-                                'scheduled_at': newDate.toIso8601String(),
-                                'is_rescheduled': 1,
-                              });
-                          ref.invalidate(todayTasksProvider);
-                          ref.invalidate(allPendingTasksProvider);
-                          ref.invalidate(dashboardProvider);
-                          ref.invalidate(tasksForDateProvider(selectedDate));
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Task rescheduled to today'),
-                              ),
-                            );
-                          }
-                        }
+                 icon: Icon(Icons.autorenew, color: Theme.of(context).colorScheme.tertiary),
+                tooltip: 'Reschedule',
+onPressed:
+                     task.id != null
+                         ? () async {
+                           final selectedDate = ref.read(selectedDateProvider);
+                           await ref
+                               .read(databaseRepositoryProvider)
+                               .value
+                               ?.updateTask(task.id!, {
+                                 'scheduled_at': selectedDate.toIso8601String(),
+                                 'is_rescheduled': 1,
+                               });
+                           ref.invalidate(todayTasksProvider);
+                           ref.invalidate(allPendingTasksProvider);
+                           ref.invalidate(dashboardProvider);
+                           ref.invalidate(tasksForDateProvider(selectedDate));
+                           if (context.mounted) {
+                             final messenger = ScaffoldMessenger.of(context);
+                             messenger.hideCurrentSnackBar();
+                             messenger.showSnackBar(
+                               SnackBar(
+                                 content: Text(
+                                   'Task rescheduled to ${DateFormat('MMM d').format(selectedDate)}',
+                                 ),
+                               ),
+                             );
+                           }
+                         }
                         : null,
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                 icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                tooltip: 'Delete',
                 onPressed:
                     task.id != null
                         ? () async {
@@ -428,22 +493,22 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                                   content: const Text(
                                     'Are you sure you want to delete this plan? This action cannot be undone.',
                                   ),
-                                   actions: [
-                                     TextButton(
-                                       onPressed:
-                                           () => Navigator.pop(ctx, false),
-                                       child: const Text('Cancel'),
-                                     ),
-                                     FilledButton.icon(
-                                       onPressed: () => Navigator.pop(ctx, true),
-                                       icon: const Icon(Icons.delete_outline),
-                                       label: const Text('Delete'),
-                                       style: FilledButton.styleFrom(
-                                         backgroundColor:
-                                             Theme.of(context).colorScheme.error,
-                                       ),
-                                     ),
-                                   ],
+                                  actions: [
+                                    TextButton(
+                                      onPressed:
+                                          () => Navigator.pop(ctx, false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    FilledButton.icon(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      icon: const Icon(Icons.delete_outline),
+                                      label: const Text('Delete'),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor:
+                                            Theme.of(context).colorScheme.error,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                           );
                           if (confirmed != true) return;
@@ -456,21 +521,23 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                             ref.invalidate(allPendingTasksProvider);
                             ref.invalidate(dueRevisionsProvider);
                             ref.invalidate(dashboardProvider);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Plan deleted')),
-                              );
-                            }
-                          } on Exception catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Failed to delete: ${e.toString()}',
+                              if (context.mounted) {
+                                final messenger = ScaffoldMessenger.of(context);
+                                messenger.hideCurrentSnackBar();
+                                messenger.showSnackBar(
+                                  const SnackBar(content: Text('Plan deleted')),
+                                );
+                              }
+                            } on Exception catch (_) {
+                              if (context.mounted) {
+                                final messenger = ScaffoldMessenger.of(context);
+                                messenger.hideCurrentSnackBar();
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to delete plan. Please try again.'),
                                   ),
-                                ),
-                              );
-                            }
+                                );
+                              }
                           }
                         }
                         : null,
@@ -499,15 +566,17 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                     ref.invalidate(dashboardProvider);
                     ref.invalidate(tasksForDateProvider(selectedDate));
                     if (context.mounted) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(const SnackBar(content: Text('Updated')));
+                      final messenger = ScaffoldMessenger.of(context);
+                      messenger.hideCurrentSnackBar();
+                      messenger.showSnackBar(const SnackBar(content: Text('Updated')));
                     }
-                  } on Exception catch (e) {
+                  } on Exception catch (_) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to update: ${e.toString()}'),
+                      final messenger = ScaffoldMessenger.of(context);
+                      messenger.hideCurrentSnackBar();
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to update. Please try again.'),
                         ),
                       );
                     }

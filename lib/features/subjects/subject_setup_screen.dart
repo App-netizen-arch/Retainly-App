@@ -29,22 +29,22 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Subject Setup'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildContent(),
-            ),
+      appBar: AppBar(title: const Text('Subject Setup')),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildContent(),
+              ),
     );
   }
 
   Widget _buildContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
         const Text(
           'Academic Group',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -56,12 +56,13 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
-          items: MatricSubjects.electiveGroups.keys
-              .map((group) => DropdownMenuItem(
-                    value: group,
-                    child: Text(group),
-                  ))
-              .toList(),
+          items:
+              MatricSubjects.electiveGroups.keys
+                  .map(
+                    (group) =>
+                        DropdownMenuItem(value: group, child: Text(group)),
+                  )
+                  .toList(),
           onChanged: (value) {
             setState(() {
               _academicGroup = value;
@@ -102,47 +103,50 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
         const SizedBox(height: 8),
         Text(
           'Select your elective subjects:',
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: (MatricSubjects.electiveGroups[_academicGroup] ?? [])
-              .map((subject) => FilterChip(
-                    label: Text(subject['name']!),
-                    selected: _selectedElectives.contains(subject['name']),
-                    onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedElectives.add(subject['name']!);
-                        } else {
-                          _selectedElectives.remove(subject['name']!);
-                        }
-                      });
-                    },
-                  ))
-              .toList(),
+          children:
+              (MatricSubjects.electiveGroups[_academicGroup] ?? [])
+                  .map(
+                    (subject) => FilterChip(
+                      label: Text(subject['name']!),
+                      selected: _selectedElectives.contains(subject['name']),
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedElectives.add(subject['name']!);
+                          } else {
+                            _selectedElectives.remove(subject['name']!);
+                          }
+                        });
+                      },
+                    ),
+                  )
+                  .toList(),
         ),
         const SizedBox(height: 32),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _selectedElectives.isNotEmpty
-                ? _saveSubjects
-                : null,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save Subjects'),
+            onPressed: _selectedElectives.isNotEmpty ? _saveSubjects : null,
+            child:
+                _isLoading
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Text('Save Subjects'),
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _saveSubjects() async {
     setState(() => _isLoading = true);
@@ -162,21 +166,22 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
 
       // Build the subject list
       final List<Map<String, String>> allSubjects = [];
-      
+
       // Add compulsory subjects
       allSubjects.addAll(MatricSubjects.compulsorySubjects);
-      
+
       // Add Islamiyat or Ethics based on religion
       if (_religion == 'Muslim') {
         allSubjects.add({'id': 'islamiat', 'name': 'Islamiyat'});
       } else {
         allSubjects.add({'id': 'ethics', 'name': 'Ethics'});
       }
-      
+
       // Add selected electives
-      final selectedElectives = MatricSubjects.electiveGroups[_academicGroup]!
-          .where((subject) => _selectedElectives.contains(subject['name']!))
-          .toList();
+      final selectedElectives =
+          MatricSubjects.electiveGroups[_academicGroup]!
+              .where((subject) => _selectedElectives.contains(subject['name']!))
+              .toList();
       allSubjects.addAll(selectedElectives);
 
       // Clear existing subjects
@@ -205,13 +210,15 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
           const SnackBar(content: Text('Subjects updated successfully!')),
         );
         await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) GoRouter.of(context).pop();
+        if (mounted && GoRouter.of(context).canPop()) {
+          GoRouter.of(context).pop();
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving subjects: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving subjects. Please try again.')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

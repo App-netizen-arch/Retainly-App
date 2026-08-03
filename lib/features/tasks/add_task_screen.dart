@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/feature_flags.dart';
+import '../../core/utils/ai_utils.dart';
 import '../../providers/database_provider.dart';
 import '../../data/models/app_models.dart';
 import '../../data/repositories/database_repository.dart';
@@ -52,6 +53,17 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       setState(() => _aiBreakdownError = 'Enter a task title first.');
       return;
     }
+    try {
+      final service = AIService();
+      final gate = await service.checkAiGate('local_user');
+      if (gate != null) {
+        setState(() => _aiBreakdownError = gate);
+        return;
+      }
+    } on Exception catch (_) {
+      setState(() => _aiBreakdownError = 'Unable to verify AI readiness. Please retry.');
+      return;
+    }
     setState(() {
       _aiBreakdownLoading = true;
       _aiBreakdownError = null;
@@ -63,36 +75,41 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
     try {
       final result = await service.generateTaskBreakdown(userId, _title.trim());
       if (!mounted) return;
-      if (result == null ||
-          result.startsWith('AI') ||
-          result.startsWith('No internet') ||
-          result.startsWith('Accept') ||
-          result.startsWith('AI assistance')) {
+      if (result == null || result.startsWith('AI_ERROR:')) {
+        final message = result != null && result.startsWith('AI_ERROR:')
+            ? result.substring('AI_ERROR:'.length).trim()
+            : result;
         setState(
-          () => _aiBreakdownError = result ?? 'No result from AI service.',
+          () => _aiBreakdownError = message ?? 'No result from AI service.',
         );
         return;
       }
-      final lines =
-          result.split('\n').where((l) => l.trim().isNotEmpty).toList();
+
       final parsed = <String>[];
-      for (final line in lines) {
+      for (final line in result.split('\n')) {
         final trimmed = line.trim();
         if (trimmed.isEmpty) continue;
-        final withoutNumber = trimmed.replaceAll(RegExp(r'^\d+[\.\)]\s*'), '');
-        parsed.add(withoutNumber);
+        final cleaned = SubTaskCleaner.clean(trimmed);
+        if (cleaned.isNotEmpty) {
+          parsed.add(cleaned);
+        }
       }
+
+      final safeParsed = parsed.isNotEmpty ? parsed : ['No sub-tasks could be parsed from the AI response.'];
       setState(() {
-        _subTasks =
-            parsed.isNotEmpty
-                ? parsed
-                : ['No sub-tasks could be parsed from the AI response.'];
+        _subTasks = safeParsed;
         _aiBreakdownLoading = false;
+        _selectedSubTasks.clear();
+        if (parsed.isNotEmpty) {
+          _selectedSubTasks.addAll(
+            List.generate(parsed.length, (i) => i),
+          );
+        }
       });
-    } on Exception catch (e) {
+                         } on Exception catch (_) {
       if (!mounted) return;
       setState(() {
-        _aiBreakdownError = 'Breakdown failed: ${e.toString()}';
+         _aiBreakdownError = 'Breakdown failed. Please try again.';
         _aiBreakdownLoading = false;
       });
     }
@@ -100,11 +117,21 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
 
   void _saveSubTasks(DatabaseRepository db) async {
     if (_selectedSubTasks.isEmpty) return;
+    if (_subjectId == null) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Please select a subject before saving sub-tasks.'),
+        ),
+      );
+      return;
+    }
     for (final index in _selectedSubTasks) {
       if (index < 0 || index >= _subTasks.length) continue;
       final subTitle = _subTasks[index];
       final task = TaskModel(
-        subjectId: _subjectId ?? 0,
+        subjectId: _subjectId!,
         chapterId: null,
         title: subTitle,
         type: _type,
@@ -126,7 +153,9 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       }
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
         SnackBar(
           content: Text('Saved ${_selectedSubTasks.length} sub-task(s)'),
         ),
@@ -134,7 +163,9 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       ref.invalidate(todayTasksProvider);
       ref.invalidate(dueRevisionsProvider);
       ref.invalidate(allPendingTasksProvider);
-      GoRouter.of(context).pop();
+      if (GoRouter.of(context).canPop()) {
+        GoRouter.of(context).pop();
+      }
     }
   }
 
@@ -200,26 +231,45 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                   FutureBuilder<List<SubjectModel>>(
                     future: _loadSubjects(db),
                     builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Column(
+                            children: [
+                              const Text('Something went wrong. Please try again.'),
+                              const SizedBox(height: 8),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  if (context.mounted) {
+                                    setState(() {});
+                                  }
+                                },
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
                       if (!snapshot.hasData) {
-                        return const CircularProgressIndicator();
+                        return const Center(child: CircularProgressIndicator());
                       }
                       final subjects = snapshot.data!;
                       if (subjects.isEmpty) {
                         return const Text('No subjects found');
                       }
-                       return DropdownButtonFormField<int>(
-                         decoration: const InputDecoration(labelText: 'Subject'),
-                         hint: const Text('Select a subject'),
-                         items:
-                             subjects.map((s) {
-                               return DropdownMenuItem(
-                                 value: s.id,
-                                 child: Text(s.name),
-                               );
-                             }).toList(),
-                         onChanged: (v) => setState(() => _subjectId = v),
-                         validator: (v) => v == null ? 'Select subject' : null,
-                       );
+                      return DropdownButtonFormField<int>(
+                        decoration: const InputDecoration(labelText: 'Subject'),
+                        hint: const Text('Select a subject'),
+                        items:
+                            subjects.map((s) {
+                              return DropdownMenuItem(
+                                value: s.id,
+                                child: Text(s.name),
+                              );
+                            }).toList(),
+                        onChanged: (v) => setState(() => _subjectId = v),
+                        validator: (v) => v == null ? 'Select subject' : null,
+                      );
                     },
                   ),
                   const SizedBox(height: 16),
@@ -290,13 +340,13 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                     ),
                   if (_aiBreakdownError != null) ...[
                     const SizedBox(height: 8),
-                    Text(
-                      _aiBreakdownError!,
-                      style: TextStyle(
-                        color: Colors.red.shade700,
-                        fontSize: 13,
-                      ),
-                    ),
+                     Text(
+                       _aiBreakdownError!,
+                       style: TextStyle(
+                         color: Theme.of(context).colorScheme.error,
+                         fontSize: 13,
+                       ),
+                     ),
                   ],
                   if (_subTasks.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -330,51 +380,51 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                               );
                             }),
                             const SizedBox(height: 8),
-                             ElevatedButton(
-                               onPressed:
-                                   _selectedSubTasks.isEmpty
-                                       ? null
-                                       : () => _saveSubTasks(db),
-                               child: Text(
-                                 _selectedSubTasks.length == 1
-                                     ? 'Save 1 Sub-task'
-                                     : 'Save ${_selectedSubTasks.length} Sub-tasks',
-                               ),
-                             ),
+                            ElevatedButton(
+                              onPressed:
+                                  _selectedSubTasks.isEmpty
+                                      ? null
+                                      : () => _saveSubTasks(db),
+                              child: Text(
+                                _selectedSubTasks.length == 1
+                                    ? 'Save 1 Sub-task'
+                                    : 'Save ${_selectedSubTasks.length} Sub-tasks',
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
                   ],
                   const SizedBox(height: 16),
-                   TextFormField(
-                     decoration: const InputDecoration(
-                       labelText: 'Estimated minutes',
-                       helperText: 'e.g., 30',
-                     ),
-                     keyboardType: TextInputType.number,
-                     initialValue: '30',
-                     onChanged: (v) {
-                       final parsed = int.tryParse(v);
-                       _estimatedMinutes =
-                           (parsed != null && parsed > 0) ? parsed : 30;
-                     },
-                   ),
-                   const SizedBox(height: 16),
-                   DropdownButtonFormField<int>(
-                     decoration: const InputDecoration(
-                       labelText: 'Priority',
-                       helperText: 'Medium is recommended',
-                     ),
-                     items: const [
-                       DropdownMenuItem(value: 1, child: Text('Low')),
-                       DropdownMenuItem(value: 2, child: Text('Medium')),
-                       DropdownMenuItem(value: 3, child: Text('High')),
-                       DropdownMenuItem(value: 4, child: Text('Urgent')),
-                     ],
-                     initialValue: _priority,
-                     onChanged: (v) => setState(() => _priority = v ?? 2),
-                   ),
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      labelText: 'Estimated minutes',
+                      helperText: 'e.g., 30',
+                    ),
+                    keyboardType: TextInputType.number,
+                    initialValue: '30',
+                    onChanged: (v) {
+                      final parsed = int.tryParse(v);
+                      _estimatedMinutes =
+                          (parsed != null && parsed > 0) ? parsed : 30;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<int>(
+                    decoration: const InputDecoration(
+                      labelText: 'Priority',
+                      helperText: 'Medium is recommended',
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 1, child: Text('Low')),
+                      DropdownMenuItem(value: 2, child: Text('Medium')),
+                      DropdownMenuItem(value: 3, child: Text('High')),
+                      DropdownMenuItem(value: 4, child: Text('Urgent')),
+                    ],
+                    initialValue: _priority,
+                    onChanged: (v) => setState(() => _priority = v ?? 2),
+                  ),
                   const SizedBox(height: 16),
                   InkWell(
                     onTap: () async {
@@ -388,14 +438,14 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                       );
                       if (picked != null) setState(() => _dueAt = picked);
                     },
-                     child: InputDecorator(
-                       decoration: const InputDecoration(labelText: 'Due date'),
-                       child: Text(
-                         _dueAt == null
-                             ? 'Optional'
-                             : DateFormat('MMM d, y').format(_dueAt!),
-                       ),
-                     ),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(labelText: 'Due date'),
+                      child: Text(
+                        _dueAt == null
+                            ? 'Optional'
+                            : DateFormat('MMM d, y').format(_dueAt!),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
@@ -418,20 +468,26 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                         try {
                           await db.insertTask(task);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            final messenger = ScaffoldMessenger.of(context);
+                            messenger.hideCurrentSnackBar();
+                            messenger.showSnackBar(
                               const SnackBar(content: Text('Task saved')),
                             );
                           }
-                          ref.invalidate(todayTasksProvider);
-                          ref.invalidate(dueRevisionsProvider);
-                          ref.invalidate(allPendingTasksProvider);
-                          if (context.mounted) GoRouter.of(context).pop();
-                        } on Exception catch (e) {
+                           ref.invalidate(todayTasksProvider);
+                           ref.invalidate(dueRevisionsProvider);
+                           ref.invalidate(allPendingTasksProvider);
+                           if (context.mounted && GoRouter.of(context).canPop()) {
+                             GoRouter.of(context).pop();
+                           }
+                        } on Exception catch (_) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                            final messenger = ScaffoldMessenger.of(context);
+                            messenger.hideCurrentSnackBar();
+                            messenger.showSnackBar(
+                              const SnackBar(
                                 content: Text(
-                                  'Failed to save task: ${e.toString()}',
+                                  'Failed to save task. Please try again.',
                                 ),
                               ),
                             );

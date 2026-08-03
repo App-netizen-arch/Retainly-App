@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:file_picker/file_picker.dart';
 
 import 'package:go_router/go_router.dart';
@@ -19,7 +19,6 @@ import '../../data/models/app_models.dart';
 import '../../data/repositories/database_repository.dart';
 import '../../data/database_helper.dart';
 import '../../services/ai_service.dart';
-import '../../services/analytics_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -42,11 +41,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _dynamicType = false;
   bool _highContrast = false;
   bool _aiAssistance = false;
-  bool _ocrScanning = false;
   bool _costWarningAccepted = false;
-  int _aiRemainingQuota = 50;
-  final GlobalKey<ScaffoldMessengerState> _messengerKey =
-      GlobalKey<ScaffoldMessengerState>();
+  int _aiRemainingQuota = 10;
 
   @override
   void initState() {
@@ -83,30 +79,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('reduced_motion', value);
     setState(() => _reducedMotion = value);
+    ref.invalidate(reducedMotionProvider);
   }
 
   Future<void> _setDynamicType(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('dynamic_type', value);
     setState(() => _dynamicType = value);
+    ref.invalidate(dynamicTypeProvider);
   }
 
   Future<void> _setHighContrast(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('high_contrast', value);
-    setState(() => _highContrast = value);
+    if (mounted) setState(() => _highContrast = value);
+    ref.invalidate(highContrastProvider);
+  }
+
+  void _showTransientSnackBar(String message) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _loadAiSettings() async {
     final service = AIService();
     final ai = await service.hasAiConsent();
-    final ocr = await service.hasOcrConsent();
     final cost = await service.hasAcceptedCostWarning();
     final quota = await service.getAiUsageQuota('local_user');
     if (mounted) {
       setState(() {
         _aiAssistance = ai;
-        _ocrScanning = ocr;
         _costWarningAccepted = cost;
         _aiRemainingQuota = quota;
       });
@@ -119,20 +122,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _notificationsEnabled.value = enabled;
   }
 
-
   Future<void> _setAiAssistance(bool value) async {
     final service = AIService();
     await service.setAiConsent(value);
     if (mounted) {
       setState(() => _aiAssistance = value);
-    }
-  }
-
-  Future<void> _setOcrScanning(bool value) async {
-    final service = AIService();
-    await service.setOcrConsent(value);
-    if (mounted) {
-      setState(() => _ocrScanning = value);
     }
   }
 
@@ -153,96 +147,99 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.dispose();
   }
 
-  Future<void> _reportProblem() async {
-    final controller = TextEditingController();
-    if (mounted) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder:
-            (ctx) => AlertDialog(
-              title: const Text('Report a problem'),
-              content: TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  labelText: 'Describe the issue',
-                ),
-                maxLines: 4,
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Send'),
-                ),
-              ],
-            ),
-      );
-      if (confirmed == true && controller.text.isNotEmpty) {
-        await DatabaseHelper.instance.insertBackupRecord({
-          'created_at': DateTime.now().toIso8601String(),
-          'destination': 'support:problem',
-          'status': controller.text,
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Report submitted. Thank you.')),
-          );
-        }
-      }
-    }
-  }
+Future<void> _reportProblem() async {
+     final controller = TextEditingController();
+     if (mounted) {
+       final confirmed = await showDialog<bool>(
+         context: context,
+         builder:
+             (ctx) => AlertDialog(
+               title: const Text('Report a problem'),
+               content: TextField(
+                 controller: controller,
+                 decoration: const InputDecoration(
+                   labelText: 'Describe the issue',
+                 ),
+                 maxLines: 4,
+               ),
+               actions: [
+                 TextButton(
+                   onPressed: () => Navigator.pop(ctx, false),
+                   child: const Text('Cancel'),
+                 ),
+                 ElevatedButton(
+                   onPressed: () => Navigator.pop(ctx, true),
+                   child: const Text('Send'),
+                 ),
+               ],
+             ),
+       );
+       if (confirmed == true && controller.text.isNotEmpty) {
+         await DatabaseHelper.instance.insertBackupRecord({
+           'created_at': DateTime.now().toIso8601String(),
+           'destination': 'support:problem',
+           'status': controller.text,
+         });
+         if (mounted) {
+           final messenger = ScaffoldMessenger.of(context);
+           messenger.hideCurrentSnackBar();
+           messenger.showSnackBar(
+             const SnackBar(content: Text('Report submitted. Thank you.')),
+           );
+         }
+       }
+     }
+   }
 
-  Future<void> _reportOutdatedContent() async {
-    final controller = TextEditingController();
-    if (mounted) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder:
-            (ctx) => AlertDialog(
-              title: const Text('Report outdated content'),
-              content: TextField(
-                controller: controller,
-                decoration: const InputDecoration(
-                  labelText: 'What looks wrong?',
-                ),
-                maxLines: 4,
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Send'),
-                ),
-              ],
-            ),
-      );
-      if (confirmed == true && controller.text.isNotEmpty) {
-        await DatabaseHelper.instance.insertBackupRecord({
-          'created_at': DateTime.now().toIso8601String(),
-          'destination': 'content:report',
-          'status': controller.text,
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Content report submitted.')),
-          );
-        }
-      }
-    }
-  }
+Future<void> _reportOutdatedContent() async {
+     final controller = TextEditingController();
+     if (mounted) {
+       final confirmed = await showDialog<bool>(
+         context: context,
+         builder:
+             (ctx) => AlertDialog(
+               title: const Text('Report outdated content'),
+               content: TextField(
+                 controller: controller,
+                 decoration: const InputDecoration(
+                   labelText: 'What looks wrong?',
+                 ),
+                 maxLines: 4,
+               ),
+               actions: [
+                 TextButton(
+                   onPressed: () => Navigator.pop(ctx, false),
+                   child: const Text('Cancel'),
+                 ),
+                 ElevatedButton(
+                   onPressed: () => Navigator.pop(ctx, true),
+                   child: const Text('Send'),
+                 ),
+               ],
+             ),
+       );
+       if (confirmed == true && controller.text.isNotEmpty) {
+         await DatabaseHelper.instance.insertBackupRecord({
+           'created_at': DateTime.now().toIso8601String(),
+           'destination': 'content:report',
+           'status': controller.text,
+         });
+         if (mounted) {
+           final messenger = ScaffoldMessenger.of(context);
+           messenger.hideCurrentSnackBar();
+           messenger.showSnackBar(
+             const SnackBar(content: Text('Content report submitted.')),
+           );
+         }
+       }
+     }
+   }
 
   @override
   Widget build(BuildContext context) {
     final ref = this.ref;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      key: _messengerKey,
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
@@ -290,11 +287,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
+            child: TextFormField(
               controller: _dailyMinutesController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Default study session duration (minutes)',
                 border: OutlineInputBorder(),
+                errorText: _dailyMinutesController.text.isEmpty ? 'Enter a valid number' : null,
               ),
               keyboardType: TextInputType.number,
             ),
@@ -331,7 +329,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: const Text('Use dark theme'),
             value: isDark,
             onChanged: (v) async {
-              final messenger = ScaffoldMessenger.of(context);
               final db = ref.read(databaseRepositoryProvider).value;
               if (db == null) return;
               final profile = await db.getUserProfile();
@@ -354,12 +351,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ref.invalidate(userProfileProvider);
               ref.invalidate(themeModeProvider);
               if (mounted) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      v ? 'Dark mode enabled' : 'Light mode enabled',
-                    ),
-                  ),
+                _showTransientSnackBar(
+                  v ? 'Dark mode enabled' : 'Light mode enabled',
                 );
               }
             },
@@ -389,6 +382,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             value: _highContrast,
             onChanged: (v) async {
               await _setHighContrast(v);
+              if (mounted) {
+                _showTransientSnackBar(
+                  v ? 'High contrast enabled' : 'High contrast disabled',
+                );
+              }
             },
           ),
           ListTile(
@@ -415,87 +413,93 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-          ValueListenableBuilder<bool>(
-            valueListenable: _notificationsEnabled,
-            builder:
-                (context, enabled, _) => SwitchListTile(
-                  secondary: const Icon(Icons.notifications),
-                  title: const Text('Enable Notifications'),
-                  subtitle: const Text('Allow local reminders'),
-                  value: enabled,
-                  onChanged: (v) async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    if (!Platform.isAndroid) {
-                      if (mounted) {
+ValueListenableBuilder<bool>(
+             valueListenable: _notificationsEnabled,
+             builder:
+                 (context, enabled, _) => SwitchListTile(
+                   secondary: const Icon(Icons.notifications),
+                   title: const Text('Enable Notifications'),
+                   subtitle: const Text('Allow local reminders'),
+                   value: enabled,
+                   onChanged: (v) async {
+                     final messenger = ScaffoldMessenger.of(context);
+                     if (!Platform.isAndroid) {
+                       if (mounted) {
+                         messenger.hideCurrentSnackBar();
+                         messenger.showSnackBar(
+                           const SnackBar(
+                             content: Text(
+                               'Notifications are not supported on this platform.',
+                             ),
+                           ),
+                         );
+                       }
+                       return;
+                     }
+                      if (v) {
+                        final status = await Permission.notification.status;
+                        if (status.isPermanentlyDenied) {
+                          await openAppSettings();
+                          return;
+                        }
+                        final granted = await Permission.notification.request();
+                        if (granted.isGranted) {
+                          tz_data.initializeTimeZones();
+                          await _notifications.initialize(
+                            settings: const InitializationSettings(
+                              android: AndroidInitializationSettings(
+                                '@mipmap/ic_launcher',
+                              ),
+                              iOS: DarwinInitializationSettings(),
+                            ),
+                          );
+                          await _notifications.zonedSchedule(
+                            id: 0,
+                            title: 'Study Reminder',
+                            body: 'Time to focus!',
+                            scheduledDate: _nextInstanceOfTenAM(),
+                            notificationDetails: const NotificationDetails(
+                              android: AndroidNotificationDetails(
+                                'study_reminders',
+                                'Study Reminders',
+                                importance: Importance.max,
+                                priority: Priority.high,
+                              ),
+                              iOS: DarwinNotificationDetails(),
+                            ),
+                            androidScheduleMode:
+                                AndroidScheduleMode.exactAllowWhileIdle,
+                          );
+                          _notificationsEnabled.value = true;
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('notifications_enabled', true);
+                          messenger.hideCurrentSnackBar();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Notifications enabled'),
+                            ),
+                          );
+                        }
+                      } else {
+                        await _notifications.cancel(id: 0);
+                        _notificationsEnabled.value = false;
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool('notifications_enabled', false);
+                        messenger.hideCurrentSnackBar();
                         messenger.showSnackBar(
                           const SnackBar(
-                            content: Text(
-                              'Notifications are not supported on this platform.',
-                            ),
+                            content: Text('Notifications disabled'),
                           ),
                         );
                       }
-                      return;
-                    }
-                    if (v) {
-                      final status = await Permission.notification.status;
-                      if (status.isPermanentlyDenied) {
-                        await openAppSettings();
-                        return;
-                      }
-                      final granted = await Permission.notification.request();
-                      if (granted.isGranted) {
-                        await _notifications.initialize(
-                          settings: const InitializationSettings(
-                            android: AndroidInitializationSettings(
-                              '@mipmap/ic_launcher',
-                            ),
-                          ),
-                        );
-                        await _notifications.zonedSchedule(
-                          id: 0,
-                          title: 'Study Reminder',
-                          body: 'Time to focus!',
-                          scheduledDate: _nextInstanceOfTenAM(),
-                          notificationDetails: const NotificationDetails(
-                            android: AndroidNotificationDetails(
-                              'study_reminders',
-                              'Study Reminders',
-                              importance: Importance.max,
-                            ),
-                          ),
-                          androidScheduleMode:
-                              AndroidScheduleMode.exactAllowWhileIdle,
-                        );
-                        _notificationsEnabled.value = true;
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setBool('notifications_enabled', true);
-                      }
-                    } else {
-                      await _notifications.cancel(id: 0);
-                      _notificationsEnabled.value = false;
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setBool('notifications_enabled', false);
-                    }
-                    if (mounted) {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            v
-                                ? 'Notifications enabled'
-                                : 'Notifications disabled',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-          ),
+                    },
+                 ),
+           ),
           const Divider(height: 32),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'AI & OCR',
+              'AI',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
@@ -503,20 +507,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             secondary: const Icon(Icons.auto_awesome),
             title: const Text('AI Assistance'),
             subtitle: const Text(
-              'Enable AI task breakdown, quizzes, and flashcards',
+              'Requires internet. AI task breakdown, quizzes, and flashcards',
             ),
             value: _aiAssistance,
             onChanged: (v) async {
               await _setAiAssistance(v);
-            },
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.document_scanner),
-            title: const Text('OCR Scanning'),
-            subtitle: const Text('Extract text from PDF documents'),
-            value: _ocrScanning,
-            onChanged: (v) async {
-              await _setOcrScanning(v);
             },
           ),
           ListTile(
@@ -533,8 +528,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               (ctx) => AlertDialog(
                                 title: const Text('AI Usage Costs'),
                                 content: const Text(
-                                  'AI features use external APIs that may incur costs. '
-                                  'Quota: 50 requests per day. Verify AI responses with your textbook.',
+                                   'AI features use external APIs that may incur costs. '
+                                   'Quota: 10 requests per 24 hours. Verify AI responses with your textbook.',
                                 ),
                                 actions: [
                                   TextButton(
@@ -559,7 +554,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.speed),
             title: const Text('AI Quota Remaining'),
-            subtitle: Text('$_aiRemainingQuota / 50 requests today'),
+            subtitle: Text('$_aiRemainingQuota / 10 requests (resets after 24 hours)'),
           ),
           ListTile(
             leading: const Icon(Icons.report_problem),
@@ -575,58 +570,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-SwitchListTile(
-             secondary: const Icon(Icons.speed),
-             title: const Text('Performance Monitoring'),
-             subtitle: const Text(
-               'Track app startup time, render frames, and network requests',
-             ),
-             value: FeatureFlags.performanceMonitoring,
-             onChanged: (v) async {
-               await AnalyticsService.instance.setPerformanceCollectionEnabled(
-                 v,
-               );
-               if (mounted) setState(() {});
+          SwitchListTile(
+            secondary: const Icon(Icons.speed),
+            title: const Text('Performance Monitoring'),
+            subtitle: const Text(
+              'Track app startup time, render frames, and network requests',
+            ),
+            value: FeatureFlags.performanceMonitoring,
+            onChanged: (v) async {
+              if (mounted) setState(() {});
+            },
+          ),
+          const Divider(height: 32),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Data Management',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+ListTile(
+             leading: const Icon(Icons.table_chart),
+             title: const Text('Export to CSV'),
+             onTap: () async {
+               final messenger = ScaffoldMessenger.of(context);
+               final db = ref.read(databaseRepositoryProvider).value;
+               if (db == null) return;
+               final consent = await _requestThirdPartyExportConsent();
+               if (!consent) return;
+               final message = await _exportCsv(db);
+               if (message == null) return;
+               if (mounted) {
+                 messenger.hideCurrentSnackBar();
+                 messenger.showSnackBar(SnackBar(content: Text(message)));
+               }
              },
            ),
-           const Divider(height: 32),
-           Padding(
-             padding: const EdgeInsets.symmetric(horizontal: 16),
-             child: Text(
-               'Data Management',
-               style: Theme.of(context).textTheme.titleMedium,
-             ),
+ListTile(
+             leading: const Icon(Icons.file_download),
+             title: const Text('Export Syllabus Template'),
+             onTap: () async {
+               final messenger = ScaffoldMessenger.of(context);
+               final db = ref.read(databaseRepositoryProvider).value;
+               if (db == null) return;
+               final message = await _exportSyllabusTemplateWithMetadata(db);
+               if (message == null) return;
+               if (mounted) {
+                 messenger.hideCurrentSnackBar();
+                 messenger.showSnackBar(SnackBar(content: Text(message)));
+               }
+             },
            ),
-          ListTile(
-            leading: const Icon(Icons.table_chart),
-            title: const Text('Export to CSV'),
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final db = ref.read(databaseRepositoryProvider).value;
-              if (db == null) return;
-              final consent = await _requestThirdPartyExportConsent();
-              if (!consent) return;
-              final message = await _exportCsv(db);
-              if (message == null) return;
-              if (mounted) {
-                messenger.showSnackBar(SnackBar(content: Text(message)));
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_download),
-            title: const Text('Export Syllabus Template'),
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final db = ref.read(databaseRepositoryProvider).value;
-              if (db == null) return;
-              final message = await _exportSyllabusTemplateWithMetadata(db);
-              if (message == null) return;
-              if (mounted) {
-                messenger.showSnackBar(SnackBar(content: Text(message)));
-              }
-            },
-          ),
           ListTile(
             leading: const Icon(Icons.file_upload),
             title: const Text('Import Syllabus Template'),
@@ -642,36 +636,38 @@ SwitchListTile(
             subtitle: const Text('View imported templates'),
             onTap: _showTemplateHistory,
           ),
-          ListTile(
-            leading: const Icon(Icons.download),
-            title: const Text('Export Anki CSV'),
-            subtitle: const Text('Anki-compatible flashcard export'),
-            onTap: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              final db = ref.read(databaseRepositoryProvider).value;
-              if (db == null) return;
-              final message = await _exportAnkiCsv(db);
-              if (message == null) return;
-              if (mounted) {
-                messenger.showSnackBar(SnackBar(content: Text(message)));
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.upload_file),
-            title: const Text('Import Anki CSV'),
-            subtitle: const Text('Import flashcards from Anki-compatible CSV'),
-            onTap: () async {
-              final db = ref.read(databaseRepositoryProvider).value;
-              if (db == null) return;
-              final messenger = ScaffoldMessenger.of(context);
-              final message = await _importAnkiCsv(db);
-              if (message == null) return;
-              if (mounted) {
-                messenger.showSnackBar(SnackBar(content: Text(message)));
-              }
-            },
-          ),
+ListTile(
+             leading: const Icon(Icons.file_download),
+             title: const Text('Export Anki CSV'),
+             subtitle: const Text('Anki-compatible flashcard export'),
+             onTap: () async {
+               final messenger = ScaffoldMessenger.of(context);
+               final db = ref.read(databaseRepositoryProvider).value;
+               if (db == null) return;
+               final message = await _exportAnkiCsv(db);
+               if (message == null) return;
+               if (mounted) {
+                 messenger.hideCurrentSnackBar();
+                 messenger.showSnackBar(SnackBar(content: Text(message)));
+               }
+             },
+           ),
+ListTile(
+             leading: const Icon(Icons.upload_file),
+             title: const Text('Import Anki CSV'),
+             subtitle: const Text('Import flashcards from Anki-compatible CSV'),
+             onTap: () async {
+               final messenger = ScaffoldMessenger.of(context);
+               final db = ref.read(databaseRepositoryProvider).value;
+               if (db == null) return;
+               final message = await _importAnkiCsv(db);
+               if (message == null) return;
+               if (mounted) {
+                 messenger.hideCurrentSnackBar();
+                 messenger.showSnackBar(SnackBar(content: Text(message)));
+               }
+             },
+           ),
           ListTile(
             leading: const Icon(Icons.upload_file),
             title: const Text('Import Document'),
@@ -715,34 +711,34 @@ SwitchListTile(
           ListTile(
             leading: const Icon(Icons.privacy_tip),
             title: const Text('Privacy Policy'),
-            onTap: () => GoRouter.of(context).go('/legal/privacy_policy'),
+            onTap: () => GoRouter.of(context).push('/legal/privacy_policy'),
           ),
           ListTile(
             leading: const Icon(Icons.description),
             title: const Text('Terms of Service'),
-            onTap: () => GoRouter.of(context).go('/legal/terms_of_service'),
+            onTap: () => GoRouter.of(context).push('/legal/terms_of_service'),
           ),
           ListTile(
             leading: const Icon(Icons.lock_clock),
             title: const Text('Data Retention Policy'),
             onTap:
-                () => GoRouter.of(context).go('/legal/data_retention_policy'),
+                () => GoRouter.of(context).push('/legal/data_retention_policy'),
           ),
           ListTile(
             leading: const Icon(Icons.child_care),
             title: const Text('Age & Minor Policy'),
-            onTap: () => GoRouter.of(context).go('/legal/age_minor_policy'),
+            onTap: () => GoRouter.of(context).push('/legal/age_minor_policy'),
           ),
           ListTile(
             leading: const Icon(Icons.security),
             title: const Text('Threat Model'),
-            onTap: () => GoRouter.of(context).go('/legal/threat_model'),
+            onTap: () => GoRouter.of(context).push('/legal/threat_model'),
           ),
           ListTile(
-            leading: const Icon(Icons.delete_forever, color: Colors.red),
-            title: const Text(
+            leading: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error),
+            title: Text(
               'Delete All Local Data',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
             subtitle: const Text(
               'Permanently remove all study data on this device',
@@ -834,6 +830,7 @@ SwitchListTile(
     final resources = db.importAnkiCsv(content, subjectId);
     if (resources.isEmpty) {
       if (mounted) {
+        messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           const SnackBar(content: Text('No flashcards found in CSV')),
         );
@@ -909,6 +906,7 @@ SwitchListTile(
             : '';
     if (templateVersion != 1) {
       if (mounted) {
+        messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           SnackBar(
             content: Text('Incompatible template version $templateVersion'),
@@ -962,13 +960,13 @@ SwitchListTile(
       await db.insertChapter(ChapterModel.fromMap(c));
     }
     ref.invalidate(userProfileProvider);
-    ref.invalidate(databaseRepositoryProvider);
     ref.invalidate(todayTasksProvider);
     ref.invalidate(allPendingTasksProvider);
     ref.invalidate(dueRevisionsProvider);
     ref.invalidate(dashboardProvider);
     ref.invalidate(progressMetricsProvider);
     if (mounted) {
+      messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
         const SnackBar(content: Text('Syllabus template imported')),
       );
@@ -982,7 +980,9 @@ SwitchListTile(
     if (!mounted) return;
     if (templates.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
           const SnackBar(content: Text('No imported templates found')),
         );
       }
@@ -1077,6 +1077,7 @@ SwitchListTile(
     final sourceFile = File(file.path ?? '');
     if (!await sourceFile.exists()) {
       if (mounted) {
+        messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           const SnackBar(content: Text('Source file not found')),
         );
@@ -1088,6 +1089,7 @@ SwitchListTile(
     final fileSize = await sourceFile.length();
     if (fileSize > maxFileSizeBytes) {
       if (mounted) {
+        messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           SnackBar(
             content: Text(
@@ -1104,6 +1106,7 @@ SwitchListTile(
     final targetFile = File(targetPath);
     if (await targetFile.exists()) {
       if (mounted) {
+        messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           SnackBar(content: Text('${file.name} already exists. Skipped.')),
         );
@@ -1125,6 +1128,7 @@ SwitchListTile(
       ),
     );
     if (mounted) {
+      messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
         SnackBar(content: Text('Imported to $targetPath')),
       );
@@ -1155,19 +1159,6 @@ SwitchListTile(
     );
     if (confirmed != true) return;
 
-    try {
-      await _deleteCloudData();
-    } on Exception catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cloud deletion failed. Please try again.'),
-          ),
-        );
-      }
-      return;
-    }
-
     final rawDb = await DatabaseHelper.instance.database;
     await rawDb.delete('backup_records');
     await rawDb.delete('practical_records');
@@ -1188,6 +1179,7 @@ SwitchListTile(
     ref.invalidate(dashboardProvider);
     ref.invalidate(progressMetricsProvider);
     if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('All local data deleted')));
@@ -1195,49 +1187,14 @@ SwitchListTile(
     }
   }
 
-  Future<void> _deleteCloudData() async {
-    try {
-      final firestore = FirebaseFirestore.instance;
-      final collections = [
-        'user_profiles',
-        'subjects',
-        'chapters',
-        'study_tasks',
-        'focus_sessions',
-        'revision_items',
-        'resources',
-        'practical_records',
-        'sync_outbox',
-        'sync_tombstones',
-        'sync_conflicts',
-        'ai_consents',
-        'ocr_jobs',
-        'ai_requests',
-      ];
-      for (final collection in collections) {
-        try {
-          final snapshot = await firestore.collection(collection).get();
-          final batch = firestore.batch();
-          for (final doc in snapshot.docs) {
-            batch.delete(doc.reference);
-          }
-          if (snapshot.docs.isNotEmpty) {
-            await batch.commit();
-          }
-        } on FirebaseException catch (_) {
-          continue;
-        }
-      }
-    } on FirebaseException catch (_) {
-      rethrow;
-    } catch (_) {
-      return;
-    }
-  }
-
   Future<void> _loadProfile() async {
     final db = ref.read(databaseRepositoryProvider).value;
-    if (db == null) return;
+    if (db == null) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfile());
+      }
+      return;
+    }
     final profile = await db.getUserProfile();
     if (profile == null) return;
     _nameController.text = profile.studentName;
@@ -1253,7 +1210,15 @@ SwitchListTile(
     final profile = await db.getUserProfile();
     if (profile == null || profile.id == null) return;
 
-    final dailyMinutes = int.tryParse(_dailyMinutesController.text) ?? 120;
+    final dailyMinutes = int.tryParse(_dailyMinutesController.text);
+    if (dailyMinutes == null || dailyMinutes <= 0) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Please enter a valid number of minutes')),
+      );
+      return;
+    }
+
     final updated = UserModel(
       id: profile.id,
       studentName: _nameController.text.trim(),
@@ -1275,6 +1240,7 @@ SwitchListTile(
     ref.invalidate(dueRevisionsProvider);
     ref.invalidate(dashboardProvider);
     if (mounted) {
+      messenger.hideCurrentSnackBar();
       messenger.showSnackBar(const SnackBar(content: Text('Profile saved')));
     }
   }

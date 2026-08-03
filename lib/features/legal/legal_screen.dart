@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:retainly/l10n/app_localizations.dart';
 
 class LegalScreen extends ConsumerWidget {
@@ -46,18 +47,82 @@ class LegalScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     if (l10n == null) {
-      return Scaffold(
-        appBar: AppBar(),
-        body: const Center(child: Text('Loading...')),
+      return PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, result) async {},
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              tooltip: 'Close',
+              onPressed: () {
+                final router = GoRouter.of(context);
+                if (router.canPop()) {
+                  router.pop();
+                } else {
+                  router.go('/');
+                }
+              },
+            ),
+          ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Loading...'),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    final router = GoRouter.of(context);
+                    if (router.canPop()) {
+                      router.pop();
+                    } else {
+                      router.go('/');
+                    }
+                  },
+                  icon: const Icon(Icons.close),
+                  label: const Text('Close'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
-    return Scaffold(
-      appBar: AppBar(title: Text(_title(l10n))),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(_body(l10n), style: Theme.of(context).textTheme.bodyMedium),
-        ],
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          final router = GoRouter.of(context);
+          if (router.canPop()) {
+            router.pop();
+          } else {
+            router.go('/');
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Close',
+            onPressed: () {
+              final router = GoRouter.of(context);
+              if (router.canPop()) {
+                router.pop();
+              } else {
+                router.go('/');
+              }
+            },
+          ),
+          title: Text(_title(l10n)),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(_body(l10n), style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
       ),
     );
   }
@@ -69,25 +134,19 @@ Retainly ("the App") is built to help students plan their studies while respecti
 
 Data We Collect
 - Local device data: subjects, chapters, tasks, focus sessions, revisions, and preferences are stored primarily in local SQLite/Drift databases on your device.
-- Firebase Authentication: if you sign in with Google or email, Firebase Auth stores your UID and basic profile (email, display name).
-- Firestore / Cloud Storage: if cloud sync is enabled, study data is replicated to Firestore under your user ID and binary files are uploaded to Cloud Storage.
-- AI / OCR consents: if you enable AI features, consent flags and daily quota counters are stored locally and a quota record may be written to Firestore.
-- Crashlytics / Analytics: crash logs and usage events are sent to Firebase Crashlytics / Analytics on supported platforms.
+- AI / OCR consents: if you enable AI features, consent flags and daily quota counters are stored locally.
 
 How We Use Data
 - To provide core study-planning functionality (tasks, revisions, progress).
-- To sync data across devices when cloud sync is enabled.
-- To improve stability via crash reporting and aggregate usage analytics.
 - To provide AI-generated suggestions when you explicitly opt in.
 
 Data Sharing
 We do not sell your personal data. Third-party processors used by the App:
-- Google (Firebase): authentication, database, storage, crash reporting, analytics.
 - OpenAI (optional AI provider): task breakdowns, quiz generation, flashcard drafts when you enable AI assistance.
 
 Your Rights & Controls
 - You can export all local data at any time from Settings.
-- You can delete all data from Settings, which removes local databases and requests deletion of Firestore / Storage data where possible.
+- You can delete all data from Settings, which removes local databases.
 - You can disable AI assistance and OCR independently.
 - You can clear app data via your device OS settings.
 
@@ -106,9 +165,9 @@ Use License
 Permission is granted to use the App for personal, non-commercial study planning purposes only.
 
 Prohibited Uses
-- Reverse-engineering, scraping, or automated access to backend services.
+- Reverse-engineering, scraping, or automated access to app services.
 - Uploading illegal, harmful, or copyrighted content.
-- Circumventing access controls or security rules.
+- Circumventing access controls or security measures.
 
 AI-Generated Content
 AI-generated task breakdowns, quizzes, and flashcards are suggestions only. Verify all content against your official textbook or teacher guidance.
@@ -129,19 +188,18 @@ Local Data
 - Data persists until you delete it through the App or your device OS.
 
 Cloud Data
-- When cloud sync is enabled, data is retained in Firestore and Cloud Storage until you delete your account or disable sync.
-- Tombstone records are retained for up to 30 days to support conflict resolution, then pruned automatically.
+- When online sync is enabled, data is retained on your device until you delete your account or disable sync.
 
 AI / OCR Data
-- AI request logs are retained for quota enforcement and are pruned automatically.
-- OCR outputs are stored in Cloud Storage under your user ID and may be deleted via the App or manual storage rules.
+- AI request logs are retained for quota enforcement.
+- OCR outputs are stored locally and may be deleted via the App.
 
 Crash / Analytics Data
-- Crashlytics retains crash reports for a limited period as governed by Firebase.
-- Analytics events are retained per Firebase Analytics retention policies.
+- Crash reports are logged locally.
+
 
 Deletion
-- "Delete Account and All Data" in Settings attempts to remove local data and Firestore / Storage documents associated with your user ID.
+- "Delete Account and All Data" in Settings removes local data.
 - Backups are stored where you choose; we do not manage external backup copies.''';
 
   static const _ageMinorPolicyEn = '''Age & Minor Policy
@@ -162,37 +220,31 @@ Consent
 - We do not knowingly collect personal data from children under 13. If we become aware of such collection, we will delete it promptly.
 
 Special Protections
-- Cloud features (sync, AI) are disabled by default for new users.
-- Minors should avoid enabling cloud sync and AI features without understanding data-sharing implications.''';
+- AI features are disabled by default for new users.
+- Minors should avoid enabling AI features without understanding implications.''';
 
   static const _threatModelEn = '''Threat Model
 
 Assets
 - Local study data: subjects, chapters, tasks, focus sessions, revisions, resources.
-- Authentication state: PIN hash, Firebase UID, Google OAuth tokens (encrypted).
-- Cloud data: Firestore documents, Cloud Storage blobs.
+- Authentication state: PIN hash (encrypted).
 - AI / OCR data: consents, request logs, OCR outputs.
 
 Threats
 - Device loss / theft: local SQLite database and encrypted token vault may be accessed if device is unlocked.
-- Unauthorized cloud access: misconfigured Firestore / Storage rules could expose user data.
 - AI prompt injection: external AI provider could return malicious content; responses are not sanitized for code execution.
-- Man-in-the-middle: Cloud Functions traffic uses HTTPS; local HTTP calls use encrypted channels.
-- Insider threat: developer or maintainer access to Firebase project could read production data.
-- Denial of service: quota exhaustion, storage quota limits, or Firebase outages.
+- Man-in-the-middle: external API traffic uses HTTPS; local HTTP calls use encrypted channels.
+- Insider threat: developer or maintainer access to backend infrastructure could read data.
+- Denial of service: quota exhaustion or AI provider outages.
 
 Mitigations
 - Local encryption: secrets stored via FlutterSecureStorage (platform Keychain / Keystore).
-- Firestore rules: ownership checks on all user-scoped collections; authentication required.
-- Storage rules: path-scoped ownership checks; no public bucket access.
 - AI consents: explicit opt-in required; daily quota enforced; no AI access without consent.
-- HTTPS everywhere: Firebase and Cloud Functions use TLS.
-- Crashlytics: unhandled exceptions captured to detect exploitation attempts.
-- Tombstones: deleted records marked for 30 days to prevent resurrection attacks.
+- HTTPS everywhere: external APIs use TLS.
+- Crash reporting: unhandled exceptions captured locally to detect exploitation attempts.
 
 Residual Risks
 - A rooted / jailbroken device with OS-level access could bypass app-level encryption.
-- Firebase project owners can inspect data; use separate production and test projects.
 - AI provider outages will degrade AI features; the App falls back to local-only planning.''';
 
   static const _privacyPolicyUr = '''رازداری کی پالیسی
@@ -202,26 +254,19 @@ Residual Risks
 
 ڈیٹا جو ہم اکٹھا کرتے ہیں
 - مقامی آلے کا ڈیٹا: مضامین، ابواب، کام، فوکس سیشنز، مراجعات، اور ترجیحات عمدہ طور پر آپ کے آلے پر مقامی SQLite/Drift ڈیٹابیس میں محفوظ ہوتے ہیں۔
-- Firebase تصدیق: اگر آپ Google یا ای میل سے سائن ان کرتے ہیں، تو Firebase Auth آپ کا UID اور بنیادی پروفائل (ای میل، ڈسپلے نام) محفوظ کرتا ہے۔
-- Firestore / کلاؤڈ اسٹوریج: اگر کلاؤڈ سنک فعال ہو تو مطالعہ کا ڈیٹا آپ کے صارف ID کے تحت Firestore میں نقل ہوتا ہے اور بائنری فائلیں کلاؤڈ اسٹوریج پر اپ لوڈ ہوتی ہیں۔
-- کیلنڈر کنکشنز: Google/Apple کیلنڈر کے لیے ایکسیس ٹوکنز آپ کے آلے پر خفیہ محفوظ ہوتے ہیں اور سنک کے لیے کنکشن میٹا ڈیٹا Firestore میں لکھا جاتا ہے۔
-- AI / OCR رضامندی: اگر آپ AI خصوصیات فعال کرتے ہیں، تو رضامندی کے لیے اور روزانہ کوٹا کاؤنٹر مقامی طور پر محفوظ ہوتے ہیں اور کوٹا ریکارڈ Firestore میں لکھا جا سکتا ہے۔
-- کراش لٹکس / اینالیٹکس: کراش رپورٹس اور استعمال کے ایونٹس تعاون یافتہ پلیٹ فارمز پر Firebase Crashlytics / Analytics کو بھیجے جاتے ہیں۔
+- AI / OCR رضامندی: اگر آپ AI خصوصیات فعال کرتے ہیں، تو رضامندی اور روزانہ کوٹا کاؤنٹر مقامی طور پر محفوظ ہوتے ہیں۔
 
 ڈیٹا کا استعمال
 - بنیادی مطالعہ منصوبہ بندی کے فعالیت (کام، مراجعات، ترقی) فراہم کرنے کے لیے۔
-- کلاؤڈ سنک فعال ہونے پر آلے کے درمیان ڈیٹا کا سنک کرنے کے لیے۔
-- کراش رپورٹنگ اور مجموعی استعمال کے اینالیٹکس کے ذریعے استحکام بہتر بنانے کے لیے۔
 - جب آپ واضح طور پر آپشن میں داخل ہوں تو AI تجویزات فراہم کرنے کے لیے۔
 
 ڈیٹا کا اشتراک
 ہم آپ کا ذاتی ڈیٹا نہیں بیچتے۔ ایپ کے ذریعے استعمال ہونے والے تھرڈ پارٹی پروسیسرز:
-- Google (Firebase): تصدیق، ڈیٹابیس، اسٹوریج، کراش رپورٹنگ، اینالیٹکس۔
 - OpenAI (اختیاری AI فراہم کار): جب آپ AI معاونت فعال کرتے ہیں تو کاموں کی تفکیک، کویز تیاری، اور فلش کارڈ کے مسودات۔
 
 آپ کے حقوق اور کنٹرولز
-- آپ کسی بھہ وقت ترتیبات سے تمام مقامی ڈیٹا برآمد کر سکتے ہیں۔
-- آپ ترتیبات سے تمام ڈیٹا حذف کر سکتے ہیں، جو مقامی ڈیٹابیس کو حذف کرتا ہے اور جہاں ممکن ہو Firestore / اسٹوریج ڈیٹا کو حذف کرنے کی درخواست کرتا ہے۔
+- آپ کسی بھی وقت ترتیبات سے تمام مقامی ڈیٹا برآمد کر سکتے ہیں۔
+- آپ ترتیبات سے تمام ڈیٹا حذف کر سکتے ہیں، جو مقامی ڈیٹابیس کو حذف کرتا ہے۔
 - آپ AI معاونت اور OCR کو الگ الگ غیر فعال کر سکتے ہیں۔
 - آپ اپنے آلے کی OS ترتیبات کے ذریعے ایپ ڈیٹا صاف کر سکتے ہیں۔
 
@@ -263,19 +308,18 @@ AI سے تیار کردہ کاموں کی تفکیک، کویز، اور فلش 
 - ڈیٹا تب تک برقرار رہتا ہے جب تک آپ اسے ایپ یا اپنے آلے کی OS کے ذریعے حذف نہیں کرتے۔
 
 کلاؤڈ ڈیٹا
-- کلاؤڈ سنک فعال ہونے پر، ڈیٹا آپ اکاؤنٹ حذف کرنے یا سنک غیر فعال کرنے تک Firestore اور کلاؤڈ اسٹوریج میں برقرار رہتا ہے۔
-- ٹامب سٹون ریکارڈز تنازعات کا حل کرنے کے لیے 30 دن تک برقرار رکھے جاتے ہیں، پھر خود بخود ختم کر دیے جاتے ہیں۔
+- جب آن لائن سنک فعال ہو تو، ڈیٹا آپ اکاؤنٹ حذف کرنے یا سنک غیر فعال کرنے تک برقرار رہتا ہے۔
 
 AI / OCR ڈیٹا
-- AI درخواست لاگز کوٹا کے نفاذ کے لیے برقرار رکھے جاتے ہیں اور خود بخود ختم کر دیے جاتے ہیں۔
-- OCR آؤٹ پٹ آپ کے صارف ID کے تحت کلاؤڈ اسٹوریج میں محفوظ ہوتا ہے اور ایپ یا دستی اسٹوریج کے قوانین کے ذریعے حذف کیا جا سکتا ہے۔
+- AI درخواست لاگز کوٹا کے نفاذ کے لیے برقرار رکھے جاتے ہیں۔
+- OCR آؤٹ پٹ مقامی طور پر محفوظ ہوتا ہے اور ایپ کے ذریعے حذف کیا جا سکتا ہے۔
 
 کراش / اینالیٹکس ڈیٹا
-- Crashlytics Firebase کے تحت کراش رپورٹس محدود مدت کے لیے برقرار رکھتا ہے۔
-- اینالیٹکس ایونٹس Firebase اینالیٹکس برقرار رکھنے کی پالیسیوں کے مطابق برقرار رکھے جاتے ہیں۔
+- کراش رپورٹس مقامی طور پر لاگ ہوتے ہیں۔
+
 
 حذف
-- ترتیبات میں "اکاؤنٹ اور تمام ڈیٹا حذف کریں" مقامی ڈیٹا اور آپ کے صارف ID سے منسلک Firestore / اسٹوریج دستاویزات کو حذف کرنے کی کوشش کرتا ہے۔
+- ترتیبات میں "اکاؤنٹ اور تمام ڈیٹا حذف کریں" مقامی ڈیٹا کو حذف کرنے کی کوشش کرتا ہے۔
 - بیک اپ جہاں آپ منتخب کرتے ہیں وہاں محفوظ ہوتے ہیں؛ ہم بیرونی بیک اپ کاپیز کا انتظام نہیں کرتے۔''';
 
   static const _ageMinorPolicyUr = '''عمر اور زیرین پالیسی
@@ -296,36 +340,30 @@ AI / OCR ڈیٹا
 - ہم جانی بوجھ کر 13 سال سے کم بچوں کا ذاتی ڈیٹا اکٹھا نہیں کرتے۔ اگر ہم ایسی اکٹھائے کے بارے میں آگاہ ہوں، تو ہم اسے فوری طور پر حذف کر دیں گے۔
 
 خاص حفاظتی اقدامات
-- کلاؤڈ خصوصیات (سنک، AI) نئے صارفین کے لیے پہلے سے غیر فعال ہیں۔
-- زیرینوں کو ڈیٹا کے اشتراک کے اثرات کو سمجھے بغیر کلاؤڈ سنک اور AI خصوصیات فعال نہ کرنی چاہیے۔''';
+- AI خصوصیات نئے صارفین کے لیے پہلے سے غیر فعال ہیں۔
+- زیرینوں کو ای آئی خصوصیات فعال کرنے سے پہلے اثرات کو سمجھنا چاہیے۔''';
 
   static const _threatModelUr = '''خطرے کا ماڈل
 
 اثاثہ
 - مقامی مطالعہ ڈیٹا: مضامین، ابواب، کام، فوکس سیشنز، مراجعات، مصالح۔
-- تصدیقی حالت: PIN ہیش، Firebase UID، Google OAuth ٹوکنز (خفیہ)۔
-- کلاؤڈ ڈیٹا: Firestore دستاویزات، کلاؤڈ اسٹوریج بلاگز، کیلنڈر ایکسیس ٹوکنز۔
+- تصدیقی حالت: PIN ہیش (خفیہ)۔
 - AI / OCR ڈیٹا: رضامندیاں، درخواست لاگز، OCR آؤٹ پٹ۔
 
 خطرات
 - آلے کا نقصان / چوری: مقامی SQLite ڈیٹابیس اور خفیہ ٹوکن والٹ اگر آلے غیر مقفل ہو تو قابل رسائی ہو سکتا ہے۔
-- غیر مجاز کلاؤڈ رسائی: غلط ترتیب دیا گیا Firestore / اسٹوریج قوانین صارف ڈیٹا کو ظاہر کر سکتا ہے۔
 - AI پرامپٹ انجیکشن: بیرون AI فراہم کار نقصان دہ مواد واپس کر سکتا ہے؛ جوابات کو کوڈ کے اجراء کے لیے صاف نہیں کیا جاتا۔
-- میڈل آف دی میڈل: کلاؤڈ فنکشنز کا ٹریفک HTTPS استعمال کرتا ہے؛ مقامی HTTP کالز خفیہ چینلز استعمال کرتے ہیں۔
-- اندرونی خطرہ: ڈیولپر یا ایڈمن کی Firebase پروجیکٹ تک رسائی پروڈکشن ڈیٹا پڑھ سکتا ہے۔
-- انکارِ خدمت: کوٹا ختم ہو جانا، اسٹوریج کوٹا کی حدیں، یا Firebase outages۔
+- میڈل آف دی میڈل: بیرونی API کا ٹریفک HTTPS استعمال کرتا ہے؛ مقامی HTTP کالز خفیہ چینلز استعمال کرتے ہیں۔
+- اندرونی خطرہ: ڈیولپر یا ایڈمن کی بنیادی ڈیٹا تک رسائی ممکن ہے۔
+- انکارِ خدمت: کوٹا ختم ہو جانا یا AI فراہم کار کے outages۔
 
 سازگارانہ تدابیر
-- مقامی خفیہ کاری: رازوں اور کیلنڈر ٹوکنز FlutterSecureStorage (پلیٹ فارم Keychain / Keystore) کے ذریعے محفوظ ہوتے ہیں۔
-- Firestore قوانین: تمام صارف کے اسکوپ کردہ کلکشن پر ملکیت کی چیکاں؛ تصدیق ضروری۔
-- اسٹوریج قوانین: پاتھ اسکوپ ملکیت کی چیکاں؛ عوامی بکٹ تک رسائی نہیں۔
+- مقامی خفیہ کاری: رازوں کی محفوظ مقام FlutterSecureStorage (پلیٹ فارم Keychain / Keystore) کے ذریعے۔
 - AI رضامندی: واضح آپٹ ان ضروری؛ روزانہ کوٹا نفی کر؛ رضامندی کے بغیر AI تک رسائی نہیں۔
-- ہر جگہ HTTPS: Firebase، کلاؤڈ فنکشنز، Google APIs TLS استعمال کرتے ہیں۔
-- کراش لٹکس: غیر ہینڈلڈ استثناء کو capture کرنا استغلال کے کوششوں کی پہچان کے لیے۔
-- ٹامب سٹونز: حذف کردہ ریکارڈز 30 دن کے لیے مارک کرتے ہیں تاکہ دوبارہ قیامت کے حملوں کو روکا جا سکے۔
+- ہر جگہ HTTPS: بیرونی APIS TLS استعمال کرتے ہیں۔
+- کراش رپورٹنگ: غیر ہینڈلڈ استثناء کو مقامی طور پر capture کرنا استغلام کے کوششوں کی پہچان کے لیے۔
 
 باقی خطرات
 - ایک روٹ یا جیل سے نکالا ہوا آلہ OS سطح تک رسائی کے ساتھ ایپ سطح کی خفیہ کاری کو bypass کر سکتا ہے۔
-- Firebase پروجیکٹ مالکان ڈیٹا کی معائنہ کر سکتے ہیں؛ الگ production اور ٹیسٹ پروجیکٹس استعمال کریں۔
 - AI فراہم کار کے outages AI خصوصیات کو کمزور کر دیں گے؛ ایپ مقامی صرف منصوبہ بندی پر واپس آ جاتا ہے۔''';
 }

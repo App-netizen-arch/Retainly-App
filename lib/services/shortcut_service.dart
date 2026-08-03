@@ -14,24 +14,4 @@ class ShortcutService {
       return false;
     }
   }
-
-  static Future<void> clearFocusShortcut() async {
-    try {
-      final method =
-          Platform.isIOS ? 'clearFocusShortcutIOS' : 'clearFocusShortcut';
-      await _channel.invokeMethod<void>(method);
-    } on PlatformException {
-      // Ignore
-    }
-  }
-
-  static Future<void> setFocusShortcut() async {
-    try {
-      final method =
-          Platform.isIOS ? 'setFocusShortcutIOS' : 'setFocusShortcut';
-      await _channel.invokeMethod<void>(method);
-    } on PlatformException {
-      // Ignore
-    }
-  }
 }

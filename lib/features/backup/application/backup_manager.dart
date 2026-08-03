@@ -55,31 +55,6 @@ class BackupManager {
     return repository.createBackup();
   }
 
-  Future<BackupRecord?> autoBackup() async {
-    final enabled = await scheduler.isAutoBackupEnabled();
-    if (!enabled) return null;
-    final due = await scheduler.isBackupDue();
-    if (!due) return null;
-    final record = await repository.createBackup();
-    if (record != null) {
-      final rawDb = await DatabaseHelper.instance.database;
-      final rows = await rawDb.query(
-        'backup_records',
-        where: 'created_at = ? AND status = ?',
-        whereArgs: [record.createdAt.toIso8601String(), 'success'],
-        orderBy: 'id DESC',
-        limit: 1,
-      );
-      if (rows.isNotEmpty) {
-        final destination = rows.first['destination'] as String?;
-        if (destination != null) {
-          await scheduler.recordBackup(destination);
-        }
-      }
-    }
-    return record;
-  }
-
   Future<List<BackupRecord>> getBackupHistory() async {
     return repository.getBackupHistory();
   }
@@ -90,10 +65,6 @@ class BackupManager {
 
   Future<String?> exportBackup(String id) async {
     return repository.exportBackupFile(id);
-  }
-
-  Future<String?> importBackup(String path) async {
-    return repository.importBackupFile(path);
   }
 
   Future<RestoreResult> restoreBackup(
@@ -111,38 +82,11 @@ class BackupManager {
     return restoreService.getBackupTables(path);
   }
 
-  Future<BackupSettings> getBackupSettings() async {
-    final frequency = await scheduler.getFrequency();
-    final autoBackupEnabled = await scheduler.isAutoBackupEnabled();
-    final lastBackupAt = await scheduler.getLastBackupTime();
-    final storagePath = await storageService.getBackupDirectory();
-    return BackupSettings(
-      enabled: autoBackupEnabled,
-      frequency: frequency,
-      autoBackupEnabled: autoBackupEnabled,
-      lastBackupAt: lastBackupAt,
-      storagePath: storagePath,
-    );
-  }
-
-  Future<void> updateBackupSettings(BackupSettings settings) async {
-    await scheduler.setFrequency(settings.frequency);
-    await scheduler.setAutoBackupEnabled(settings.autoBackupEnabled);
-  }
-
   Future<void> cancelScheduledNotifications() async {
     await scheduler.cancelScheduledNotifications();
   }
 
   Future<void> checkAndNotify() async {
     await scheduler.checkAndNotify();
-  }
-
-  Future<List<BackupRecord>> getBackupInfo() async {
-    return getBackupHistory();
-  }
-
-  Future<void> cleanOldBackups({int keepCount = 10}) async {
-    await storageService.deleteOldBackups(keepCount);
   }
 }

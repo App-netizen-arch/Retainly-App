@@ -63,7 +63,10 @@ class LocalBackupRepository implements BackupRepository {
       'resources': resources.map((r) => r.toMap()).toList(),
       'practicals': practicals.map((p) => p.toMap()).toList(),
       'syllabusTemplates': templates.map((t) => t.toMap()).toList(),
-      'settings': {for (final key in settingsKeys) key: prefs.get(key)},
+      'settings': {
+        for (final key in settingsKeys)
+          if (key != 'backup_encryption_key') key: prefs.get(key),
+      },
     };
   }
 
@@ -123,7 +126,8 @@ class LocalBackupRepository implements BackupRepository {
         BackupRecord(
           id: r['id'] is int ? r['id'] as int : null,
           fileName: fileName,
-          createdAt: DateTime.tryParse(
+          createdAt:
+              DateTime.tryParse(
                 r['created_at'] is String ? r['created_at'] as String : '',
               ) ??
               DateTime.now(),
@@ -152,7 +156,7 @@ class LocalBackupRepository implements BackupRepository {
       );
       if (rows.isEmpty) return false;
       final path = rows.first['destination'] as String?;
-      await rawDb.delete('backup_records', where: 'id = ?', whereArgs: [id]);
+      await rawDb.delete('backup_records', where: 'id = ?', whereArgs: [intId]);
       if (path != null) {
         final file = File(path);
         if (await file.exists()) {

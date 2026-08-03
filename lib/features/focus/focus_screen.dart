@@ -2,12 +2,13 @@ import 'dart:async';
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../providers/database_provider.dart';
 import '../../data/models/app_models.dart';
-import '../../services/crashlytics_service.dart';
 
 const _focusShieldChannel = MethodChannel('focus_shield');
 
@@ -33,7 +34,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   int _breakSeconds = 0;
   int _breakDurationMinutes = 5;
   bool _focusShieldEnabled = false;
-  bool _focusShieldAvailable = false;
+  FlutterLocalNotificationsPlugin? _focusNotifications;
+  static const _focusShieldChannelId = 'focus_shield';
+  static const _focusShieldNotificationId = 2001;
 
   @override
   void initState() {
@@ -45,31 +48,31 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   }
 
   Future<void> _checkFocusShield() async {
-    if (Platform.isAndroid) {
-      try {
-        final available = await _focusShieldChannel.invokeMethod<bool>(
-          'isFocusShieldAvailable',
-        );
-        setState(() => _focusShieldAvailable = available ?? false);
-      } on PlatformException catch (_) {
-        setState(() => _focusShieldAvailable = false);
-      }
-    } else if (Platform.isIOS) {
-      try {
-        final available = await _focusShieldChannel.invokeMethod<bool>(
-          'isFocusShieldAvailableIOS',
-        );
-        setState(() => _focusShieldAvailable = available ?? false);
-      } on PlatformException catch (_) {
-        setState(() => _focusShieldAvailable = false);
-      }
-    }
+    _focusNotifications ??= FlutterLocalNotificationsPlugin();
+    const settings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    );
+    try {
+      await _focusNotifications!.initialize(
+        settings: settings,
+      );
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     if (_running && _sessionId != null) {
-      _saveSession();
+      final db = ref.read(databaseRepositoryProvider).value;
+      if (db != null) {
+        db.updateFocusSession(_sessionId!, {
+          'status': 'discarded',
+          'ended_at': DateTime.now().toIso8601String(),
+        }).catchError((_) {
+          return 0;
+        });
+      }
+      _clearSavedSession().catchError((_) {});
     }
     _timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -110,7 +113,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       _seconds = prefs.getInt('focus_seconds') ?? 0;
       _running = prefs.getBool('focus_running') ?? false;
       _plannedMinutes = prefs.getInt('focus_planned_minutes') ?? 25;
-       if (_running && _sessionId != null) {
+      if (_running && _sessionId != null) {
         final startedAtMs = prefs.getInt('focus_started_at');
         if (startedAtMs != null) {
           final elapsed =
@@ -137,6 +140,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
             _running = false;
             _seconds = 0;
           }
+        } else {
+          await _clearSavedSession();
+          _sessionId = null;
+          _running = false;
+          _seconds = 0;
         }
       }
     }
@@ -153,15 +161,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
 
   Future<void> _toggleTimer() async {
     if (!_running && _sessionId == null) {
-      await CrashlyticsService.instance.logBreadcrumb(
-        'focus_session_started planned_minutes=$_plannedMinutes',
-      );
       final db = ref.read(databaseRepositoryProvider).value;
       if (db == null) return;
       final active = await db.getActiveFocusSession();
       if (active != null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
             const SnackBar(
               content: Text('Finish the active focus session first.'),
             ),
@@ -170,7 +177,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
         return;
       }
       final now = DateTime.now();
-      _sessionId = await db.insertFocusSession(
+      final newSessionId = await db.insertFocusSession(
         FocusSessionModel(
           taskId: widget.taskId,
           startedAt: now.toIso8601String(),
@@ -179,8 +186,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
           createdAt: now.toIso8601String(),
         ),
       );
-      _saveSession();
-    }
+_sessionId = newSessionId;
+       _saveSession();
+     }
     setState(() => _running = !_running);
     if (_running) {
       _timer?.cancel();
@@ -207,56 +215,70 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     _timer?.cancel();
     _running = false;
     final completedMinutes = _seconds ~/ 60;
-    await CrashlyticsService.instance.logBreadcrumb(
-      'focus_session_finished completedMinutes=$completedMinutes reflection=$_reflectionStatus',
-    );
     final endedAt = DateTime.now();
     final db = ref.read(databaseRepositoryProvider).value;
+    bool success = false;
     if (db != null && _sessionId != null) {
-      await db.updateFocusSession(_sessionId!, {
-        'ended_at': endedAt.toIso8601String(),
-        'completed_minutes': completedMinutes,
-        'status': _seconds >= 60 ? 'completed' : 'discarded',
-        'notes':
-            _notesController.text.trim().isEmpty
-                ? null
-                : _notesController.text.trim(),
-        'reflection_status': _reflectionStatus,
-        'parking_lot_notes':
-            _parkingLotController.text.trim().isEmpty
-                ? null
-                : _parkingLotController.text.trim(),
-      });
-      if (widget.taskId != null && completedMinutes > 0) {
-        final task = await db.getTaskById(widget.taskId!);
-        if (task != null) {
-          final newCompleted = task.completedMinutes + completedMinutes;
-          await db.updateTask(widget.taskId!, {
-            'completed_minutes': newCompleted,
-            'status': task.status,
-            'updated_at': endedAt.toIso8601String(),
-          });
-          ref.invalidate(todayTasksProvider);
-          ref.invalidate(allPendingTasksProvider);
-          ref.invalidate(databaseRepositoryProvider);
+      try {
+        await db.updateFocusSession(_sessionId!, {
+          'ended_at': endedAt.toIso8601String(),
+          'completed_minutes': completedMinutes,
+          'status': _seconds >= 60 ? 'completed' : 'discarded',
+          'notes':
+              _notesController.text.trim().isEmpty
+                  ? null
+                  : _notesController.text.trim(),
+          'reflection_status': _reflectionStatus,
+          'parking_lot_notes':
+              _parkingLotController.text.trim().isEmpty
+                  ? null
+                  : _parkingLotController.text.trim(),
+        });
+        if (widget.taskId != null && completedMinutes > 0) {
+          final task = await db.getTaskById(widget.taskId!);
+          if (task != null) {
+            final newCompleted = task.completedMinutes + completedMinutes;
+            await db.updateTask(widget.taskId!, {
+              'completed_minutes': newCompleted,
+              'status': task.status,
+              'updated_at': endedAt.toIso8601String(),
+            });
+            ref.invalidate(todayTasksProvider);
+            ref.invalidate(allPendingTasksProvider);
+          }
+        }
+        success = true;
+      } catch (e) {
+        if (mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Failed to save session. Please try again.'),
+            ),
+          );
         }
       }
     }
-    _sessionId = null;
-    await _clearSavedSession();
-    if (!mounted) return;
-    if (completedMinutes >= 60) {
-      _startBreak();
-    } else {
-      setState(() {
-        _seconds = 0;
-        _notesController.clear();
-        _parkingLotController.clear();
-        _reflectionStatus = null;
-      });
-      Navigator.pop(context);
+    if (success) {
+      _sessionId = null;
+      await _clearSavedSession();
     }
-  }
+    if (!mounted) return;
+      if (completedMinutes >= 60) {
+        _startBreak();
+      } else {
+        setState(() {
+          _seconds = 0;
+          _notesController.clear();
+          _parkingLotController.clear();
+          _reflectionStatus = null;
+        });
+        if (GoRouter.of(context).canPop()) {
+          GoRouter.of(context).pop();
+        }
+      }
+    }
 
   void _startBreak() {
     setState(() {
@@ -289,7 +311,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       _reflectionStatus = null;
     });
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Break is over. Ready to focus again?'),
           behavior: SnackBarBehavior.floating,
@@ -311,85 +335,120 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     });
   }
 
-  Future<void> _toggleFocusShield(bool value) async {
-    if (Platform.isIOS) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'iOS does not allow apps to toggle Do Not Disturb. '
-              'Please enable Focus Mode manually from Control Center.',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-    if (!Platform.isAndroid) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Focus Shield is available on Android and iOS only'),
-          ),
-        );
-      }
-      return;
-    }
+  Future<void> _showFocusShieldNotification() async {
+    _focusNotifications ??= FlutterLocalNotificationsPlugin();
+    const settings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    );
     try {
-      final success = await _focusShieldChannel.invokeMethod<bool>(
-        'toggleFocusShield',
-        {'enable': value},
+      await _focusNotifications!.initialize(
+        settings: settings,
       );
-      final granted = success ?? false;
-      if (!granted) {
-        if (mounted) {
-          final choice = await showDialog<bool>(
-            context: context,
-            builder:
-                (ctx) => AlertDialog(
-                  title: const Text('Enable Do Not Disturb access?'),
-                  content: const Text(
-                    'Focus Shield needs Do Not Disturb access to silence notifications during your session. Open settings to grant access.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Open Settings'),
-                    ),
-                  ],
-                ),
+    } catch (_) {}
+    const androidDetails = AndroidNotificationDetails(
+      _focusShieldChannelId,
+      'Focus Shield',
+      channelDescription: 'Silences distractions during focus sessions',
+      importance: Importance.low,
+      priority: Priority.low,
+      ongoing: true,
+      autoCancel: false,
+      onlyAlertOnce: true,
+      showWhen: true,
+      silent: true,
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentSound: false,
+      presentBadge: false,
+      presentAlert: false,
+    );
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+    try {
+      await _focusNotifications!.show(
+        id: _focusShieldNotificationId,
+        title: 'Focus Session Active',
+        body: 'Tap to return to your session',
+        notificationDetails: details,
+        payload: 'focus_session',
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _cancelFocusShieldNotification() async {
+    try {
+      await _focusNotifications?.cancel(id: _focusShieldNotificationId);
+    } catch (_) {}
+  }
+
+  Future<void> _toggleFocusShield(bool value) async {
+    setState(() => _focusShieldEnabled = value);
+    if (value) {
+      if (Platform.isAndroid) {
+        try {
+          final success = await _focusShieldChannel.invokeMethod<bool>(
+            'toggleFocusShield',
+            {'enable': true},
           );
-          if (choice == true) {
-            await _focusShieldChannel.invokeMethod('openDndSettings');
+          if (success == true) {
+            if (mounted) {
+              final messenger = ScaffoldMessenger.of(context);
+              messenger.hideCurrentSnackBar();
+              messenger.showSnackBar(
+                const SnackBar(content: Text('Focus Shield enabled')),
+              );
+            }
+            return;
           }
+        } on PlatformException catch (_) {
+          // native toggle unavailable, fall through to notification
+        }
+      }
+      if (Platform.isIOS) {
+        if (mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Enable Focus Mode manually in Settings > Focus to silence notifications.',
+              ),
+            ),
+          );
         }
         return;
       }
-      setState(() => _focusShieldEnabled = value);
+      await _showFocusShieldNotification();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
             content: Text(
-              value ? 'Focus Shield enabled' : 'Focus Shield disabled',
+              'Focus Shield active. Grant notification access for best results.',
             ),
           ),
         );
       }
-    } on PlatformException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Focus Shield error: ${e.message}')),
-        );
+    } else {
+      await _cancelFocusShieldNotification();
+      if (Platform.isAndroid) {
+        try {
+          await _focusShieldChannel.invokeMethod<bool>(
+            'toggleFocusShield',
+            {'enable': false},
+          );
+        } on PlatformException catch (_) {}
       }
-    } on Exception catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Focus Shield error: $e')));
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Focus Shield disabled')),
+        );
       }
     }
   }
@@ -473,7 +532,35 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_running,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop && _running) {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('End focus session?'),
+              content: const Text(
+                'Your current focus session will be discarded if you leave now.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('End Session'),
+                ),
+              ],
+            ),
+          );
+          if (confirmed == true && mounted) {
+            await _finishSession();
+          }
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Semantics(
           label: _breakMode ? 'Break Time' : 'Focus Session',
@@ -503,7 +590,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                 ),
               if (_breakMode) const SizedBox(height: 24),
               if (!_breakMode) ...[
-                if (Platform.isAndroid)
+                if (Platform.isAndroid || Platform.isIOS)
                   SwitchListTile(
                     secondary: const Icon(
                       Icons.do_not_disturb_on_total_silence,
@@ -511,8 +598,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                     title: const Text('Focus Shield'),
                     subtitle: const Text('Reduce distractions during session'),
                     value: _focusShieldEnabled,
-                    onChanged:
-                        _focusShieldAvailable ? _toggleFocusShield : null,
+                    onChanged: _toggleFocusShield,
                   ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -602,17 +688,20 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
                           _breakMode && _breakSeconds <= 0
                               ? () {
                                 _endBreak();
-                                if (mounted) Navigator.pop(context);
+                                if (mounted && GoRouter.of(context).canPop()) {
+                                  GoRouter.of(context).pop();
+                                }
                               }
                               : null,
-                      child: const Text('Done'),
-                    ),
-                  ],
-                ),
-              ],
+                     child: const Text('Done'),
+                  ),
+                ],
+              ),
             ],
-          ),
+          ],
         ),
+        ),
+      ),
       ),
     );
   }

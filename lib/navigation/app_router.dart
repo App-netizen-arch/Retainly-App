@@ -18,6 +18,8 @@ import '../features/resources/pdf_viewer_screen.dart';
 import '../features/resources/practical_records_screen.dart';
 import '../features/ai/ocr_scan_screen.dart';
 import '../features/ai/hallucination_reports_screen.dart';
+import '../features/ai/flashcard_screen.dart';
+import '../features/ai/quiz_screen.dart';
 import '../features/legal/legal_screen.dart';
 import '../features/backup/presentation/backup_manager_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
@@ -40,6 +42,48 @@ class _RouterRefreshNotifier extends ChangeNotifier {
   }
 }
 
+class DatabaseErrorScreen extends ConsumerWidget {
+  const DatabaseErrorScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline_rounded, size: 64, color: Theme.of(context).colorScheme.error),
+              const SizedBox(height: 24),
+              Text(
+                'Unable to load local storage',
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'The app could not initialize its local database. Please check your device storage and try again.',
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () {
+                  ref.invalidate(dbFutureProvider);
+                  ref.invalidate(databaseRepositoryProvider);
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = _RouterRefreshNotifier(ref);
   return GoRouter(
@@ -48,17 +92,39 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) async {
       final dbAsync = ref.read(dbFutureProvider);
       final profileAsync = ref.read(userProfileProvider);
-      final isOnboarding = state.uri.path == '/onboarding';
+      final path = state.uri.path;
+      final isOnboarding = path == '/onboarding';
+      final isDbError = path == '/db-error';
+      final isLoading = path == '/loading';
 
-      if (dbAsync.isLoading) return null;
-      if (isOnboarding) return null;
+      if (dbAsync.isLoading) {
+        if (isLoading) return null;
+        return '/loading';
+      }
 
-      final dbReady = dbAsync.value != null;
-      if (!dbReady) return null;
+      if (dbAsync.hasError) {
+        if (isDbError) return null;
+        return '/db-error';
+      }
 
-      if (profileAsync.isLoading) return null;
+      if (dbAsync.value == null) {
+        if (isLoading) return null;
+        return '/loading';
+      }
+
+      if (profileAsync.isLoading) {
+        if (isLoading) return null;
+        return '/loading';
+      }
+
       final hasProfile = profileAsync.value != null;
-      if (!hasProfile) return '/onboarding';
+      if (!hasProfile) {
+        if (isOnboarding) return null;
+        return '/onboarding';
+      }
+
+      if (isDbError || isLoading) return '/';
+
       return null;
     },
     routes: [
@@ -77,10 +143,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/subjects/:id',
+            redirect: (context, state) {
+              final id = int.tryParse(state.pathParameters['id'] ?? '');
+              if (id == null) return '/';
+              return null;
+            },
             builder: (context, state) {
               final id = int.tryParse(state.pathParameters['id'] ?? '');
-              if (id == null) return const SizedBox.shrink();
-              return SubjectsChapterScreen(subjectId: id);
+              return SubjectsChapterScreen(subjectId: id!);
             },
           ),
           GoRoute(
@@ -95,11 +165,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/backup',
             builder: (context, state) => const BackupManagerScreen(),
           ),
-          GoRoute(
-            path: '/onboarding',
-            builder: (context, state) => const OnboardingScreen(),
-          ),
         ],
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
         path: '/focus',
@@ -124,6 +194,36 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ai/hallucination-reports',
         builder: (context, state) => const HallucinationReportsScreen(),
+      ),
+      GoRoute(
+        path: '/ai/flashcards',
+        builder: (context, state) {
+          final extra = state.extra;
+          final sourceText =
+              extra is Map && extra['sourceText'] is String
+                  ? extra['sourceText'] as String
+                  : '';
+          final sourceTitle =
+              extra is Map && extra['sourceTitle'] is String
+                  ? extra['sourceTitle'] as String
+                  : 'Flashcards';
+          return FlashcardScreen(sourceText: sourceText, sourceTitle: sourceTitle);
+        },
+      ),
+      GoRoute(
+        path: '/ai/quiz',
+        builder: (context, state) {
+          final extra = state.extra;
+          final sourceText =
+              extra is Map && extra['sourceText'] is String
+                  ? extra['sourceText'] as String
+                  : '';
+          final sourceTitle =
+              extra is Map && extra['sourceTitle'] is String
+                  ? extra['sourceTitle'] as String
+                  : 'Quiz';
+          return QuizScreen(sourceText: sourceText, sourceTitle: sourceTitle);
+        },
       ),
       GoRoute(
         path: '/pdf',
@@ -167,11 +267,33 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/legal/:documentKey',
+        redirect: (context, state) {
+          final key = state.pathParameters['documentKey'] ?? '';
+          const validKeys = <String>{
+            'privacy_policy',
+            'terms_of_service',
+            'data_retention_policy',
+            'age_minor_policy',
+            'threat_model',
+          };
+          if (!validKeys.contains(key)) return '/';
+          return null;
+        },
         builder: (context, state) {
           final documentKey =
               state.pathParameters['documentKey'] ?? 'privacy_policy';
           return LegalScreen(documentKey: documentKey);
         },
+      ),
+      GoRoute(
+        path: '/db-error',
+        builder: (context, state) => const DatabaseErrorScreen(),
+      ),
+      GoRoute(
+        path: '/loading',
+        builder: (context, state) => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
       ),
     ],
   );

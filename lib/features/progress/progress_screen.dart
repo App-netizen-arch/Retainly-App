@@ -32,7 +32,7 @@ class ProgressScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          const Icon(Icons.timer, size: 48, color: Colors.blue),
+                           Icon(Icons.timer, size: 48, color: Theme.of(context).colorScheme.primary),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -63,11 +63,11 @@ class ProgressScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.check_circle,
-                            size: 48,
-                            color: Colors.green,
-                          ),
+ Icon(
+     Icons.check_circle,
+     size: 48,
+     color: Theme.of(context).colorScheme.tertiary,
+   ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -96,7 +96,10 @@ class ProgressScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+            error:
+                (e, _) => Center(
+                  child: Text('Something went wrong. Please try again.'),
+                ),
           ),
           const SizedBox(height: 24),
           weeklyAsync.when(
@@ -105,11 +108,11 @@ class ProgressScreen extends ConsumerWidget {
               final plannedMinutes = data['plannedMinutes'] ?? 0;
               final actualMinutes = data['actualMinutes'] ?? 0;
               final revisionBacklog = data['revisionBacklog'] ?? 0;
-               final subjectMinutes =
-                   data['subjectMinutes'] as Map<int, int>? ?? {};
-               final subjectNames =
-                   data['subjectNames'] as Map<int, String>? ?? {};
-               final sessionCount = data['sessionCount'] ?? 0;
+              final subjectMinutes =
+                  data['subjectMinutes'] as Map<int, int>? ?? {};
+              final subjectNames =
+                  data['subjectNames'] as Map<int, String>? ?? {};
+              final sessionCount = data['sessionCount'] ?? 0;
 
               return Column(
                 children: [
@@ -123,11 +126,11 @@ class ProgressScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.assessment_outlined,
-                            size: 36,
-                            color: Colors.purple,
-                          ),
+                          Icon(
+                          Icons.assessment_outlined,
+                          size: 36,
+                          color: Theme.of(context).colorScheme.tertiary,
+                        ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -187,9 +190,9 @@ class ProgressScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(12),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.tips_and_updates,
-                              color: Colors.purple,
+ color: Theme.of(context).colorScheme.tertiary,
                             ),
                             const SizedBox(width: 8),
                             Expanded(child: Text(data['nextAction'] as String)),
@@ -256,23 +259,24 @@ class ProgressScreen extends ConsumerWidget {
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: 8),
-                             ...subjectMinutes.entries.map(
-                               (e) => Padding(
-                                 padding: const EdgeInsets.symmetric(
-                                   vertical: 2,
-                                 ),
-                                 child: Row(
-                                   children: [
-                                     Expanded(
-                                       child: Text(
-                                         subjectNames[e.key] ?? 'Subject ${e.key}',
-                                       ),
-                                     ),
-                                     Text('${e.value} min'),
-                                   ],
-                                 ),
-                               ),
-                             ),
+                            ...subjectMinutes.entries.map(
+                              (e) => Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 2,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        subjectNames[e.key] ??
+                                            'Subject ${e.key}',
+                                      ),
+                                    ),
+                                    Text('${e.value} min'),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -282,7 +286,10 @@ class ProgressScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+            error:
+                (e, _) => Center(
+                  child: Text('Something went wrong. Please try again.'),
+                ),
           ),
           const SizedBox(height: 24),
           analyticsAsync.when(
@@ -355,19 +362,27 @@ class ProgressScreen extends ConsumerWidget {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color:
-                                              diff > 10
-                                                  ? Colors.red.withValues(
-                                                    alpha: 0.1,
-                                                  )
-                                                  : (diff < -5
-                                                      ? Colors.green.withValues(
-                                                        alpha: 0.1,
-                                                      )
-                                                      : Colors.orange
-                                                          .withValues(
-                                                            alpha: 0.1,
-                                                          )),
+color:
+                                               diff > 10
+                                                   ? Theme.of(context)
+                                                       .colorScheme
+                                                       .error
+                                                       .withValues(
+                                                         alpha: 0.1,
+                                                       )
+                                                   : (diff < -5
+                                                       ? Theme.of(context)
+                                                           .colorScheme
+                                                           .primary
+                                                           .withValues(
+                                                             alpha: 0.1,
+                                                           )
+                                                       : Theme.of(context)
+                                                           .colorScheme
+                                                           .secondary
+                                                           .withValues(
+                                                             alpha: 0.1,
+                                                           )),
                                           borderRadius: BorderRadius.circular(
                                             4,
                                           ),
@@ -377,10 +392,16 @@ class ProgressScreen extends ConsumerWidget {
                                           style: TextStyle(
                                             color:
                                                 diff > 10
-                                                    ? Colors.red
+                                                    ? Theme.of(context)
+                                                        .colorScheme
+                                                        .error
                                                     : (diff < -5
-                                                        ? Colors.green
-                                                        : Colors.orange),
+                                                        ? Theme.of(context)
+                                                            .colorScheme
+                                                            .primary
+                                                        : Theme.of(context)
+                                                            .colorScheme
+                                                            .secondary),
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
@@ -405,9 +426,9 @@ class ProgressScreen extends ConsumerWidget {
                           children: [
                             Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.warning_amber,
-                                  color: Colors.orange,
+                                  color: Theme.of(context).colorScheme.secondary,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
@@ -429,11 +450,11 @@ class ProgressScreen extends ConsumerWidget {
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(
-                                      Icons.bookmark,
-                                      size: 16,
-                                      color: Colors.orange,
-                                    ),
+                                    Icon(
+                                       Icons.bookmark,
+                                       size: 16,
+                                       color: Theme.of(context).colorScheme.secondary,
+                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(child: Text(c.title)),
                                   ],
@@ -531,7 +552,10 @@ class ProgressScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+            error:
+                (e, _) => Center(
+                  child: Text('Something went wrong. Please try again.'),
+                ),
           ),
           const SizedBox(height: 24),
           recallTrendsAsync.when(
@@ -566,7 +590,7 @@ class ProgressScreen extends ConsumerWidget {
                                 width: 80,
                                 height: 12,
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.withValues(alpha: 0.2),
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                                 child: FractionallySizedBox(
@@ -574,12 +598,18 @@ class ProgressScreen extends ConsumerWidget {
                                   widthFactor: (avgConf / 100).clamp(0.0, 1.0),
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color:
-                                          avgConf >= 70
-                                              ? Colors.green
-                                              : (avgConf >= 40
-                                                  ? Colors.orange
-                                                  : Colors.red),
+color:
+                                            avgConf >= 70
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .tertiary
+                                                : (avgConf >= 40
+                                                    ? Theme.of(context)
+                                                        .colorScheme
+                                                        .secondary
+                                                    : Theme.of(context)
+                                                        .colorScheme
+                                                        .error),
                                       borderRadius: BorderRadius.circular(2),
                                     ),
                                   ),
@@ -597,7 +627,10 @@ class ProgressScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+            error:
+                (e, _) => Center(
+                  child: Text('Something went wrong. Please try again.'),
+                ),
           ),
           const SizedBox(height: 24),
           decayAsync.when(
@@ -637,16 +670,22 @@ class ProgressScreen extends ConsumerWidget {
                                     Expanded(
                                       child: LinearProgressIndicator(
                                         value: (avgConf / 100).clamp(0.0, 1.0),
-                                        backgroundColor: Colors.grey.withValues(
+                                        backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(
                                           alpha: 0.2,
                                         ),
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
                                               avgConf >= 70
-                                                  ? Colors.green
+                                                  ? Theme.of(context)
+                                                      .colorScheme
+                                                      .tertiary
                                                   : (avgConf >= 40
-                                                      ? Colors.orange
-                                                      : Colors.red),
+                                                      ? Theme.of(context)
+                                                          .colorScheme
+                                                          .secondary
+                                                      : Theme.of(context)
+                                                          .colorScheme
+                                                          .error),
                                             ),
                                       ),
                                     ),
@@ -667,7 +706,10 @@ class ProgressScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+            error:
+                (e, _) => Center(
+                  child: Text('Something went wrong. Please try again.'),
+                ),
           ),
         ],
       ),
@@ -684,7 +726,7 @@ class ProgressScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.assignment, size: 36, color: Colors.teal),
+                Icon(Icons.assignment, size: 36, color: Theme.of(context).colorScheme.tertiary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

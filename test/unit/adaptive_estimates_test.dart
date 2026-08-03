@@ -64,37 +64,5 @@ void main() {
       expect(restored.confidence, original.confidence);
       expect(restored.isWeakTopic, original.isWeakTopic);
     });
-
-    test('Compute estimate accuracy percentage', () {
-      final estimated = 60;
-      final actual = 75;
-      final pct = ((actual / estimated) * 100).round();
-      expect(pct, 125);
-    });
-
-    test('Missed session pattern detects empty days', () {
-      final patterns = [
-        {'plan_date': '2026-07-20', 'planned_count': 3, 'done_count': 2},
-        {'plan_date': '2026-07-21', 'planned_count': 0, 'done_count': 0},
-        {'plan_date': '2026-07-22', 'planned_count': 2, 'done_count': 1},
-      ];
-      final missedDays = patterns.where(
-        (p) => (p['done_count'] as int) < (p['planned_count'] as int),
-      );
-      expect(missedDays.length, 2);
-    });
-
-    test('Productive time insight parses hour buckets', () {
-      final rows = [
-        {'hour_of_day': '09', 'session_count': 4, 'total_minutes': 100},
-        {'hour_of_day': '14', 'session_count': 2, 'total_minutes': 50},
-        {'hour_of_day': '20', 'session_count': 3, 'total_minutes': 90},
-      ];
-      final top = rows.reduce(
-        (a, b) =>
-            (a['total_minutes'] as int) > (b['total_minutes'] as int) ? a : b,
-      );
-      expect(top['hour_of_day'], '09');
-    });
   });
 }

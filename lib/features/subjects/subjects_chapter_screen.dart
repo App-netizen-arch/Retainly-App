@@ -27,12 +27,35 @@ class _SubjectsChapterScreenState extends ConsumerState<SubjectsChapterScreen> {
             (db) => FutureBuilder<List<ChapterModel>>(
               future: db.getChaptersBySubject(widget.subjectId),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      children: [
+                        const Text('Something went wrong. Please try again.'),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (context.mounted) {
+                              setState(() {});
+                            }
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final chapters = snapshot.data!;
                 if (chapters.isEmpty) {
-                  return const Center(child: Text('No chapters yet. Chapters are created when you set up subjects.'));
+                  return const Center(
+                    child: Text(
+                      'No chapters yet. Chapters are created when you set up subjects.',
+                    ),
+                  );
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -83,12 +106,12 @@ class _SubjectsChapterScreenState extends ConsumerState<SubjectsChapterScreen> {
                               if (context.mounted) {
                                 setState(() {});
                               }
-                            } on Exception catch (e) {
+                             } on Exception catch (_) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
+                                  const SnackBar(
                                     content: Text(
-                                      'Failed to update: ${e.toString()}',
+                                      'Failed to update. Please try again.',
                                     ),
                                   ),
                                 );
@@ -159,7 +182,9 @@ class _SubjectsChapterScreenState extends ConsumerState<SubjectsChapterScreen> {
               },
             ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+        error:
+            (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
       ),
     );
   }

@@ -24,6 +24,16 @@ class LocalRestoreService implements RestoreService {
     'syllabusTemplates',
     'settings',
   ];
+  static const _collectionFields = <String, List<String>>{
+    'subjects': ['name', 'color', 'sort_order', 'created_at'],
+    'chapters': ['subject_id', 'title', 'status', 'priority', 'created_at'],
+    'tasks': ['title', 'status', 'priority', 'created_at'],
+    'focusSessions': ['status', 'started_at', 'created_at'],
+    'revisions': ['chapter_id', 'status', 'ease_factor', 'interval_days', 'repetitions', 'due_at', 'created_at'],
+    'resources': ['title', 'type', 'status', 'created_at'],
+    'practicals': ['subject_id', 'title', 'status', 'created_at'],
+    'syllabusTemplates': ['name', 'content', 'created_at'],
+  };
   final BackupEncryptionService _encryptionService;
 
   LocalRestoreService({required BackupEncryptionService encryptionService})
@@ -88,11 +98,9 @@ class LocalRestoreService implements RestoreService {
         fileName: p.basename(path),
         createdAt:
             DateTime.tryParse(
-                  json['exportedAt'] is String
-                      ? json['exportedAt'] as String
-                      : '',
-                ) ??
-                DateTime.now(),
+              json['exportedAt'] is String ? json['exportedAt'] as String : '',
+            ) ??
+            DateTime.now(),
         sizeBytes: File(path).lengthSync(),
         schemaVersion: schemaVersion,
         backupVersion: backupVersion,
@@ -196,7 +204,7 @@ class LocalRestoreService implements RestoreService {
     await rawDb.delete('subjects');
     await rawDb.delete('user_profiles');
     await rawDb.delete('backup_records');
-    await rawDb.delete('sync_meta');
+    await rawDb.delete('syllabus_templates');
   }
 
   int _countRecords(Map<String, dynamic> payload) {
@@ -213,7 +221,33 @@ class LocalRestoreService implements RestoreService {
     return count;
   }
 
+  void _validateImportPayload(Map<String, dynamic> payload) {
+    if (payload['profile'] != null && payload['profile'] is! Map<String, dynamic>) {
+      throw const FormatException('Invalid backup: profile must be a map');
+    }
+    for (final entry in _collectionFields.entries) {
+      final field = entry.key;
+      final requiredKeys = entry.value;
+      final value = payload[field];
+      if (value == null) continue;
+      if (value is! List) {
+        throw FormatException('Invalid backup: $field must be a list');
+      }
+      for (final item in value) {
+        if (item is! Map<String, dynamic>) {
+          throw FormatException('Invalid backup: $field item must be a map');
+        }
+        for (final key in requiredKeys) {
+          if (!item.containsKey(key)) {
+            throw FormatException('Invalid backup: $field item missing required field "$key"');
+          }
+        }
+      }
+    }
+  }
+
   Future<void> _importData(Map<String, dynamic> payload) async {
+    _validateImportPayload(payload);
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
@@ -295,12 +329,15 @@ class LocalRestoreService implements RestoreService {
         );
       }
 
-      if (overwrite) {
-        await _clearLocalData();
-      }
+      final rawDb = await DatabaseHelper.instance.database;
+      await rawDb.transaction((txn) async {
+        if (overwrite) {
+          await _clearLocalData();
+        }
 
-      await _importData(payload);
-      await _importSettings(payload);
+        await _importData(payload);
+        await _importSettings(payload);
+      });
 
       final recordCount = _countRecords(payload);
 

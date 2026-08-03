@@ -46,8 +46,12 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final folders = await _getCustomNoteFolders();
     if (folders.length >= 6) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Maximum 6 folders allowed in Custom Notes')),
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Maximum 6 folders allowed in Custom Notes'),
+          ),
         );
       }
       return;
@@ -58,7 +62,9 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
       await newFolder.create(recursive: true);
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
         SnackBar(content: Text('Folder "$folderName" created')),
       );
     }
@@ -99,29 +105,51 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
   }
 
   Future<void> _showAISidebar() async {
-    if (!mounted) return;
-    final service = AIService();
-    final answer = await service.askAiAboutSubject(
-      'local_user',
-      'Help me organize my Custom Notes. Suggest a structure for my study notes.',
-    );
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('AI Notes Assistant'),
-            content: SingleChildScrollView(
-              child: Text(answer ?? 'Could not generate suggestion.'),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
+    try {
+      if (!mounted) return;
+      final service = AIService();
+      final gate = await service.checkAiGate('local_user');
+      if (gate != null) {
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(content: Text(gate)),
+        );
+        return;
+      }
+      final answer = await service.askAiAboutSubject(
+        'local_user',
+        'Help me organize my Custom Notes. Suggest a structure for my study notes.',
+      );
+      if (!mounted) return;
+      final display = answer != null && answer.startsWith('AI_ERROR:')
+          ? answer.substring('AI_ERROR:'.length).trim()
+          : (answer ?? 'Could not generate suggestion.');
+      showDialog(
+        context: context,
+        builder:
+            (ctx) => AlertDialog(
+              title: const Text('AI Notes Assistant'),
+              content: SingleChildScrollView(
+                child: Text(display),
               ),
-            ],
-          ),
-    );
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Something went wrong. Please retry.')),
+      );
+    }
   }
 
   Future<void> _importResource({
@@ -132,6 +160,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final sourceFile = File(file.path ?? '');
     if (!await sourceFile.exists()) {
       if (mounted) {
+        messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           const SnackBar(content: Text('Source file not found')),
         );
@@ -142,6 +171,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final fileSize = await sourceFile.length();
     if (fileSize > maxFileSizeBytes) {
       if (mounted) {
+        messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           SnackBar(
             content: Text(
@@ -171,6 +201,8 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     );
     if (exists) {
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.hideCurrentSnackBar();
         messenger.showSnackBar(
           SnackBar(content: Text('${file.name} already exists. Skipped.')),
         );
@@ -196,6 +228,8 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     );
     if (mounted) {
       setState(() {});
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -269,49 +303,82 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final fabEnabled = dbAsync.value != null;
     return Scaffold(
       appBar: AppBar(title: const Text('Resources')),
-      floatingActionButton: fabEnabled
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton(
-                  heroTag: 'ai_notes',
-                  onPressed: _showAISidebar,
-                  child: const Icon(Icons.auto_awesome),
-                ),
-                const SizedBox(height: 12),
-                FloatingActionButton(
-                  heroTag: 'add_resource',
-                  onPressed: () async {
-                    final db = dbAsync.value;
-                    if (db == null) return;
-                    final result = await FilePicker.pickFiles(
-                      type: FileType.custom,
-                      allowedExtensions: [
-                        'pdf',
-                        'txt',
-                        'md',
-                        'doc',
-                        'docx',
-                        'jpg',
-                        'jpeg',
-                        'png',
-                        'gif',
-                      ],
-                    );
-                    if (result == null || result.files.isEmpty) return;
-                    final file = result.files.first;
-                    await _importResource(db: db, file: file);
-                  },
-                  child: const Icon(Icons.attach_file),
-                ),
-              ],
-            )
-          : null,
+      floatingActionButton:
+          fabEnabled
+              ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Semantics(
+                    label: 'AI notes',
+                    button: true,
+                    child: FloatingActionButton(
+                      heroTag: 'ai_notes',
+                      tooltip: 'AI notes',
+                      onPressed: _showAISidebar,
+                      child: const Icon(Icons.auto_awesome),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Semantics(
+                    label: 'Add resource',
+                    button: true,
+                    child: FloatingActionButton(
+                      heroTag: 'add_resource',
+                      tooltip: 'Add resource',
+                      onPressed: () async {
+                      final db = dbAsync.value;
+                      if (db == null) return;
+                      final result = await FilePicker.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: [
+                          'pdf',
+                          'txt',
+                          'md',
+                          'doc',
+                          'docx',
+                          'jpg',
+                          'jpeg',
+                          'png',
+                          'gif',
+                        ],
+                      );
+                      if (result == null || result.files.isEmpty) return;
+                      final file = result.files.first;
+                      await _importResource(db: db, file: file);
+                    },
+                     child: const Icon(Icons.attach_file),
+                   ),
+                 ),
+                 ],
+              )
+              : null,
       body: dbAsync.when(
         data:
             (db) => FutureBuilder<List<ResourceModel>>(
               future: _loadResources(db),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      children: [
+                        const Text('Something went wrong. Please try again.'),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (context.mounted) {
+                              final dbAsync = ref.read(databaseRepositoryProvider);
+                              if (dbAsync.value != null) {
+                                _loadResources(dbAsync.value!);
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
@@ -327,7 +394,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.folder_special, color: Colors.purple),
+                         Icon(Icons.folder_special, color: Theme.of(context).colorScheme.tertiary),
                         const SizedBox(width: 8),
                         Text(
                           'Custom Notes',
@@ -348,7 +415,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                           padding: const EdgeInsets.all(16),
                           child: Text(
                             'No custom notes yet. Import documents or create folders to get started.',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                         ),
                       )
@@ -358,24 +425,22 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: Colors.purple[100],
-                              child: const Icon(
-                                Icons.note,
-                                color: Colors.purple,
-                              ),
+                              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                               child: Icon(
+                                 Icons.note,
+                                 color: Theme.of(context).colorScheme.onPrimaryContainer,
+                               ),
                             ),
                             title: Text(item.title),
-                            subtitle: Text(
-                              item.folder ?? 'Custom Notes',
-                            ),
+                            subtitle: Text(item.folder ?? 'Custom Notes'),
                             trailing: IconButton(
                               icon: const Icon(Icons.visibility, size: 20),
+                              tooltip: 'View resource',
                               onPressed: () async {
-                                final messenger = ScaffoldMessenger.of(
-                                  context,
-                                );
+                                final messenger = ScaffoldMessenger.of(context);
                                 final file = File(item.localPath);
                                 if (!await file.exists()) {
+                                  messenger.hideCurrentSnackBar();
                                   messenger.showSnackBar(
                                     const SnackBar(
                                       content: Text('File not found'),
@@ -386,16 +451,18 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                                 if (!context.mounted) return;
                                 if (item.type.toLowerCase() == 'pdf') {
                                   final router = GoRouter.of(context);
-                                  router.push('/pdf', extra: {
-                                    'path': item.localPath,
-                                    'title': item.title,
-                                  });
+                                  router.push(
+                                    '/pdf',
+                                    extra: {
+                                      'path': item.localPath,
+                                      'title': item.title,
+                                    },
+                                  );
                                 } else {
+                                  messenger.hideCurrentSnackBar();
                                   messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Opening: ${item.localPath}',
-                                      ),
+                                    const SnackBar(
+                                      content: Text('File not found'),
                                     ),
                                   );
                                 }
@@ -413,11 +480,11 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                     const SizedBox(height: 8),
                     if (otherResources.isEmpty)
                       Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
+child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
                             'No other resources yet.',
-                            style: TextStyle(color: Colors.grey[600]),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                         ),
                       )
@@ -433,7 +500,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor:
-                                  isImage ? Colors.purple : Colors.blue,
+                                  isImage ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary,
                               child: Icon(
                                 isImage ? Icons.image : Icons.picture_as_pdf,
                               ),
@@ -442,12 +509,12 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                             subtitle: Text(item.folder ?? 'General'),
                             trailing: IconButton(
                               icon: const Icon(Icons.visibility, size: 20),
+                              tooltip: 'View resource',
                               onPressed: () async {
-                                final messenger = ScaffoldMessenger.of(
-                                  context,
-                                );
+                                final messenger = ScaffoldMessenger.of(context);
                                 final file = File(item.localPath);
                                 if (!await file.exists()) {
+                                  messenger.hideCurrentSnackBar();
                                   messenger.showSnackBar(
                                     const SnackBar(
                                       content: Text('File not found'),
@@ -470,12 +537,16 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                                 } else if (item.type.toLowerCase() == 'pdf') {
                                   if (!context.mounted) return;
                                   final router = GoRouter.of(context);
-                                  router.push('/pdf', extra: {
-                                    'path': item.localPath,
-                                    'title': item.title,
-                                  });
+                                  router.push(
+                                    '/pdf',
+                                    extra: {
+                                      'path': item.localPath,
+                                      'title': item.title,
+                                    },
+                                  );
                                 } else {
                                   if (!context.mounted) return;
+                                  messenger.hideCurrentSnackBar();
                                   messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(
@@ -494,7 +565,9 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
               },
             ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+        error:
+            (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
       ),
     );
   }
@@ -519,7 +592,12 @@ class ImagePreviewScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Image Preview')),
       body: Center(
-        child: InteractiveViewer(child: Image.file(File(path), fit: BoxFit.contain)),
+        child: InteractiveViewer(
+           child: Semantics(
+             label: 'Resource image',
+             child: Image.file(File(path), fit: BoxFit.contain),
+           ),
+        ),
       ),
     );
   }

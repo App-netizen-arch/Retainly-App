@@ -18,19 +18,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:retainly/data/database_helper.dart';
 import 'package:retainly/data/models/app_models.dart';
 import 'package:retainly/core/constants/matric_subjects.dart';
-import 'package:retainly/data/drift/app_database.dart';
-import 'package:drift/drift.dart' show Value;
-import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
-
-typedef DriftDb = AppDatabase;
 
 class DatabaseRepository {
   final DatabaseHelper db;
-  final DriftDb? driftDb;
 
-  DatabaseRepository(this.db, {this.driftDb});
+  DatabaseRepository(this.db);
 
-  bool get _useDrift => driftDb != null;
+  static bool _seeding = false;
 
   final double _sm2MinEaseFactor = 1.3;
 
@@ -43,7 +37,7 @@ class DatabaseRepository {
   int _sm2NewInterval(int repetitions, double easeFactor, int currentInterval) {
     if (repetitions == 0) return 1;
     if (repetitions == 1) return 6;
-    if (repetitions == 2) return 6;
+    if (repetitions == 2) return 15;
     return (currentInterval * easeFactor).round().clamp(1, 365);
   }
 
@@ -52,6 +46,7 @@ class DatabaseRepository {
     double currentEaseFactor,
     int currentInterval,
     int currentRepetitions,
+    String? lastReviewAt,
   ) {
     final newEaseFactor = _sm2NewEaseFactor(currentEaseFactor, quality);
     int newRepetitions = currentRepetitions;
@@ -65,8 +60,12 @@ class DatabaseRepository {
       newEaseFactor,
       currentInterval,
     );
+    final baseDate =
+        lastReviewAt != null && lastReviewAt.isNotEmpty
+            ? DateTime.parse(lastReviewAt)
+            : DateTime.now();
     final dueAt =
-        DateTime.now().add(Duration(days: newInterval)).toIso8601String();
+        baseDate.add(Duration(days: newInterval)).toIso8601String();
     return {
       'ease_factor': newEaseFactor,
       'interval_days': newInterval,
@@ -90,6 +89,7 @@ class DatabaseRepository {
       item.easeFactor,
       item.intervalDays,
       item.repetitions,
+      item.lastReviewAt,
     );
 
     final rawDb = await db.database;
@@ -115,28 +115,25 @@ class DatabaseRepository {
     final chapter = await getChapterById(item.chapterId);
     if (chapter != null && status == 'completed') {
       final taskMaps = await db.getTasksByChapter(item.chapterId);
-      final activeTasks =
-          taskMaps.where((t) => t['status'] != 'completed').toList();
-      if (activeTasks.isNotEmpty) {
-        for (final t in activeTasks) {
-          final task = TaskModel.fromMap(t);
-          final originalEstimate =
-              task.originalEstimatedMinutes ?? task.estimatedMinutes;
-          final ratio = originalEstimate > 0 ? confidence / 100.0 : 0.5;
-          final newEstimate = (originalEstimate * ratio).round().clamp(
-            1,
-            originalEstimate * 3,
-          );
-          await rawDb.update(
-            'study_tasks',
-            {
-              'estimated_minutes': newEstimate,
-              'updated_at': DateTime.now().toIso8601String(),
-            },
-            where: 'id = ?',
-            whereArgs: [task.id],
-          );
-        }
+      final taskMap = taskMaps.where((t) => t['id'] == item.id).toList();
+      if (taskMap.isNotEmpty) {
+        final task = TaskModel.fromMap(taskMap.first);
+        final originalEstimate =
+            task.originalEstimatedMinutes ?? task.estimatedMinutes;
+        final ratio = originalEstimate > 0 ? confidence / 100.0 : 0.5;
+        final newEstimate = (originalEstimate * ratio).round().clamp(
+          1,
+          originalEstimate * 3,
+        );
+        await rawDb.update(
+          'study_tasks',
+          {
+            'estimated_minutes': newEstimate,
+            'updated_at': DateTime.now().toIso8601String(),
+          },
+          where: 'id = ?',
+          whereArgs: [task.id],
+        );
       }
     }
   }
@@ -162,7 +159,6 @@ class DatabaseRepository {
 
   Future<int> insertRevisionItem(RevisionItemModel item) async {
     final id = await db.insertRevisionItem(item.toMap());
-    await _trackChange('revision_items', id.toString(), 'create', item.toMap());
     return id;
   }
 
@@ -295,27 +291,38 @@ class DatabaseRepository {
 
   Future<int> createUserProfile(UserModel profile) async {
     final id = await db.createUserProfile(profile.toMap());
-    await _trackChange(
-      'user_profiles',
-      id.toString(),
-      'create',
-      profile.toMap(),
-    );
     return id;
   }
 
   Future<List<SubjectModel>> getSubjects() async {
     final maps = await db.getSubjects();
-    if (maps.isEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      final alreadySeeded = prefs.getBool('subjects_seeded') ?? false;
-      if (!alreadySeeded) {
-        await _seedDefaultSubjects();
-        await prefs.setBool('subjects_seeded', true);
-      }
+    if (maps.isNotEmpty) {
+      return maps.map((m) => SubjectModel.fromMap(m)).toList();
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final alreadySeeded = prefs.getBool('subjects_seeded') ?? false;
+    if (alreadySeeded) {
       return db.getSubjects().then((m) => m.map(SubjectModel.fromMap).toList());
     }
-    return maps.map((m) => SubjectModel.fromMap(m)).toList();
+
+    // Use a static flag as a lightweight lock so concurrent
+    // calls only seed once.
+    if (_seeding) {
+      return db.getSubjects().then((m) => m.map(SubjectModel.fromMap).toList());
+    }
+    _seeding = true;
+    try {
+      await _seedDefaultSubjects();
+      await prefs.setBool('subjects_seeded', true);
+    } on Exception catch (_) {
+      await prefs.setBool('subjects_seeded', false);
+      rethrow;
+    } finally {
+      _seeding = false;
+    }
+
+    return db.getSubjects().then((m) => m.map(SubjectModel.fromMap).toList());
   }
 
   Future<void> _seedDefaultSubjects() async {
@@ -347,29 +354,12 @@ class DatabaseRepository {
   }
 
   Future<int> insertSubject(SubjectModel subject) async {
-    int id;
-    if (_useDrift) {
-      final db = driftDb!;
-      id = await db
-          .into(db.subjects)
-          .insert(
-            SubjectsCompanion.insert(
-              name: subject.name,
-              color: subject.color,
-              sortOrder: subject.sortOrder,
-              createdAt: subject.createdAt,
-            ),
-          );
-    } else {
-      id = await db.insertSubject(subject.toMap());
-    }
-    await _trackChange('subjects', id.toString(), 'create', subject.toMap());
+    final id = await db.insertSubject(subject.toMap());
     return id;
   }
 
   Future<int> deleteSubject(int id) async {
     final result = await db.deleteSubject(id);
-    await _trackChange('subjects', id.toString(), 'delete', {'id': id});
     return result;
   }
 
@@ -379,35 +369,7 @@ class DatabaseRepository {
   }
 
   Future<int> insertChapter(ChapterModel chapter) async {
-    int id;
-    if (_useDrift) {
-      final db = driftDb!;
-      id = await db
-          .into(db.chapters)
-          .insert(
-            ChaptersCompanion.insert(
-              subjectId: chapter.subjectId,
-              title: chapter.title,
-              createdAt: chapter.createdAt,
-              status: Value(chapter.status),
-              priority: Value(chapter.priority),
-              estimatedMinutes: Value(chapter.estimatedMinutes),
-              revisionDates: Value(chapter.revisionDates),
-              completedAt: Value(chapter.completedAt),
-              examWeight: Value(chapter.examWeight),
-              confidence: Value(chapter.confidence),
-              contentSource: Value(chapter.contentSource),
-              contentVersion: Value(chapter.contentVersion),
-              reviewDate: Value(chapter.reviewDate),
-              isWeakTopic: Value(
-                chapter.confidence != null && chapter.confidence! < 50 ? 1 : 0,
-              ),
-            ),
-          );
-    } else {
-      id = await db.insertChapter(chapter.toMap());
-    }
-    await _trackChange('chapters', id.toString(), 'create', chapter.toMap());
+    final id = await db.insertChapter(chapter.toMap());
     return id;
   }
 
@@ -418,15 +380,11 @@ class DatabaseRepository {
       completedAt:
           status == 'completed' ? DateTime.now().millisecondsSinceEpoch : null,
     );
-    await _trackChange('chapters', id.toString(), 'update', {'status': status});
     return result;
   }
 
   Future<void> setChapterCompletion(int chapterId, bool completed) async {
     await db.setChapterCompletion(chapterId, completed);
-    await _trackChange('chapters', chapterId.toString(), 'update', {
-      'status': completed ? 'completed' : 'in_progress',
-    });
   }
 
   Future<ChapterModel?> getChapterById(int id) async {
@@ -460,46 +418,17 @@ class DatabaseRepository {
   }
 
   Future<int> insertTask(TaskModel task) async {
-    int id;
-    if (_useDrift) {
-      final db = driftDb!;
-      id = await db
-          .into(db.studyTasks)
-          .insert(
-            StudyTasksCompanion.insert(
-              subjectId: task.subjectId,
-              title: task.title,
-              scheduledAt: task.scheduledAt,
-              estimatedMinutes: task.estimatedMinutes,
-              status: task.status,
-              createdAt: task.createdAt,
-              updatedAt: task.updatedAt,
-              chapterId: Value(task.chapterId),
-              type: Value(task.type),
-              dueAt: Value(task.dueAt),
-              completedMinutes: Value(task.completedMinutes),
-              priority: Value(task.priority),
-              isRescheduled: Value(task.isRescheduled ? 1 : 0),
-              isPastPaper: Value(task.isPastPaper ? 1 : 0),
-              isTemplate: Value(task.isTemplate ? 1 : 0),
-            ),
-          );
-    } else {
-      id = await db.insertTask(task.toMap());
-    }
-    await _trackChange('study_tasks', id.toString(), 'create', task.toMap());
+    final id = await db.insertTask(task.toMap());
     return id;
   }
 
   Future<int> updateTask(int id, Map<String, dynamic> data) async {
     final result = await db.updateTask(id, data);
-    await _trackChange('study_tasks', id.toString(), 'update', data);
     return result;
   }
 
   Future<int> deleteTask(int id) async {
     final result = await db.deleteTask(id);
-    await _trackChange('study_tasks', id.toString(), 'delete', {'id': id});
     return result;
   }
 
@@ -510,92 +439,28 @@ class DatabaseRepository {
   }
 
   Future<int> insertFocusSession(FocusSessionModel session) async {
-    int id;
-    if (_useDrift) {
-      final db = driftDb!;
-      id = await db
-          .into(db.focusSessions)
-          .insert(
-            FocusSessionsCompanion.insert(
-              taskId: Value(session.taskId),
-              startedAt: session.startedAt,
-              plannedMinutes: Value(session.plannedMinutes),
-              completedMinutes: Value(session.completedMinutes),
-              status: session.status,
-              createdAt: session.createdAt,
-              endedAt: Value(session.endedAt),
-              notes: Value(session.notes),
-              reflectionStatus: Value(session.reflectionStatus),
-              parkingLotNotes: Value(session.parkingLotNotes),
-            ),
-          );
-    } else {
-      id = await db.insertFocusSession(session.toMap());
-    }
-    await _trackChange(
-      'focus_sessions',
-      id.toString(),
-      'create',
-      session.toMap(),
-    );
+    final id = await db.insertFocusSession(session.toMap());
     return id;
   }
 
   Future<int> updateFocusSession(int id, Map<String, dynamic> data) async {
     final result = await db.updateFocusSession(id, data);
-    await _trackChange('focus_sessions', id.toString(), 'update', data);
-    return result;
-  }
-
-  Future<int> updatePracticalRecord(int id, Map<String, dynamic> data) async {
-    final rawDb = await db.database;
-    final result = await rawDb.update(
-      'practical_records',
-      data,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    await _trackChange('practical_records', id.toString(), 'update', data);
     return result;
   }
 
   Future<int> updateResource(int id, Map<String, dynamic> data) async {
     final result = await db.updateResource(id, data);
-    await _trackChange('resources', id.toString(), 'update', data);
     return result;
   }
 
   Future<int> updateChapter(int id, Map<String, dynamic> data) async {
-    int result;
-    if (_useDrift) {
-      final companion = ChaptersCompanion(
-        contentSource: data.containsKey('content_source')
-            ? Value(data['content_source'] as String?)
-            : const Value.absent(),
-        contentVersion: data.containsKey('content_version')
-            ? Value(data['content_version'] as String?)
-            : const Value.absent(),
-        reviewDate: data.containsKey('review_date')
-            ? Value(data['review_date'] as String?)
-            : const Value.absent(),
-        contentTier: data.containsKey('content_tier')
-            ? Value(data['content_tier'] as String? ?? 'official')
-            : const Value.absent(),
-      );
-      result = await (driftDb!.update(driftDb!.chapters)
-            ..where((c) => c.id.equals(id))
-          )
-          .write(companion);
-    } else {
-      final rawDb = await db.database;
-      result = await rawDb.update(
-        'chapters',
-        data,
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-    }
-    await _trackChange('chapters', id.toString(), 'update', data);
+    final rawDb = await db.database;
+    final result = await rawDb.update(
+      'chapters',
+      data,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
     return result;
   }
 
@@ -611,7 +476,6 @@ class DatabaseRepository {
 
   Future<int> insertResource(ResourceModel resource) async {
     final id = await db.insertResource(resource.toMap());
-    await _trackChange('resources', id.toString(), 'create', resource.toMap());
     return id;
   }
 
@@ -629,20 +493,11 @@ class DatabaseRepository {
 
   Future<int> insertPracticalRecord(PracticalRecordModel record) async {
     final id = await db.insertPracticalRecord(record.toMap());
-    await _trackChange(
-      'practical_records',
-      id.toString(),
-      'create',
-      record.toMap(),
-    );
     return id;
   }
 
   Future<int> updatePracticalStatus(int id, String status) async {
     final result = await db.updatePracticalStatus(id, status);
-    await _trackChange('practical_records', id.toString(), 'update', {
-      'status': status,
-    });
     return result;
   }
 
@@ -661,9 +516,6 @@ class DatabaseRepository {
 
   Future<int> deleteRevisionItemsByChapter(int chapterId) async {
     final result = await db.deleteRevisionItemsByChapter(chapterId);
-    await _trackChange('revision_items', chapterId.toString(), 'delete', {
-      'chapterId': chapterId,
-    });
     return result;
   }
 
@@ -679,19 +531,6 @@ class DatabaseRepository {
   Future<List<ChapterWithSubjectModel>> getAllChaptersWithSubject() async {
     final maps = await db.getAllChaptersWithSubject();
     return maps.map((m) => ChapterWithSubjectModel.fromMap(m)).toList();
-  }
-
-  Future<int> getTotalCompletedMinutesForChapter(int chapterId) async {
-    final taskMaps = await db.getTasksByChapter(chapterId);
-    final taskIds = taskMaps.map((m) => m['id'] as int).toList();
-    if (taskIds.isEmpty) return 0;
-    final rawDb = await db.database;
-    final placeholders = List.filled(taskIds.length, '?').join(',');
-    final result = await rawDb.rawQuery(
-      'SELECT COALESCE(SUM(completed_minutes), 0) as total FROM focus_sessions WHERE task_id IN ($placeholders)',
-      taskIds,
-    );
-    return result.first['total'] as int;
   }
 
   Future<List<TaskModel>> getTasksForDate(DateTime date) async {
@@ -714,22 +553,12 @@ class DatabaseRepository {
 
   Future<int> updateUserProfile(UserModel profile) async {
     final result = await db.updateUserProfile(profile.toMap(), profile.id!);
-    await _trackChange(
-      'user_profiles',
-      profile.id.toString(),
-      'update',
-      profile.toMap(),
-    );
     return result;
   }
 
   Future<int> insertBackupRecord(String destination, String status) async {
     final id = await db.insertBackupRecord({
       'created_at': DateTime.now().toIso8601String(),
-      'destination': destination,
-      'status': status,
-    });
-    await _trackChange('backup_records', id.toString(), 'create', {
       'destination': destination,
       'status': status,
     });
@@ -820,23 +649,11 @@ class DatabaseRepository {
       where: 'id = ?',
       whereArgs: [chapterId],
     );
-    await _trackChange('chapters', chapterId.toString(), 'update', {
-      'is_weak_topic': weak ? 1 : 0,
-    });
     return result;
   }
 
   Future<int> insertSyllabusTemplate(SyllabusTemplateModel template) async {
-    if (_useDrift) {
-      // Drift not used for syllabus_templates yet; fall through to SQLite
-    }
     final id = await db.insertSyllabusTemplate(template.toMap());
-    await _trackChange(
-      'syllabus_templates',
-      id.toString(),
-      'create',
-      template.toMap(),
-    );
     return id;
   }
 
@@ -847,9 +664,6 @@ class DatabaseRepository {
 
   Future<int> deleteSyllabusTemplate(int id) async {
     final result = await db.deleteSyllabusTemplate(id);
-    await _trackChange('syllabus_templates', id.toString(), 'delete', {
-      'id': id,
-    });
     return result;
   }
 
@@ -913,72 +727,4 @@ class DatabaseRepository {
     return result;
   }
 
-  Future<void> _trackChange(
-    String entity,
-    String localId,
-    String operation,
-    Map<String, dynamic> data,
-  ) async {
-    final now = DateTime.now().toIso8601String();
-    final rawDb = await db.database;
-    await rawDb.insert(
-      'sync_meta',
-      {
-        'entity': entity,
-        'local_id': localId,
-        'sync_status': 'pending',
-        'conflict_data': null,
-        'created_at': now,
-        'updated_at': now,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  Future<List<Map<String, dynamic>>> getConflicts() async {
-    final rawDb = await db.database;
-    final rows = await rawDb.query(
-      'sync_meta',
-      where: 'conflict_data IS NOT NULL',
-      orderBy: 'updated_at DESC',
-    );
-    return rows;
-  }
-
-  Future<int> clearConflict(String entity, String localId) async {
-    final rawDb = await db.database;
-    return await rawDb.update(
-      'sync_meta',
-      {
-        'conflict_data': null,
-        'sync_status': 'pending',
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'entity = ? AND local_id = ?',
-      whereArgs: [entity, localId],
-    );
-  }
-
-  Future<int> markEntityConflict(
-    String entity,
-    String localId,
-    Map<String, dynamic> conflictData,
-  ) async {
-    final now = DateTime.now().toIso8601String();
-    final rawDb = await db.database;
-    final encoded = jsonEncode(conflictData);
-    await rawDb.insert(
-      'sync_meta',
-      {
-        'entity': entity,
-        'local_id': localId,
-        'sync_status': 'conflict',
-        'conflict_data': encoded,
-        'created_at': now,
-        'updated_at': now,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-    return 1;
-  }
 }

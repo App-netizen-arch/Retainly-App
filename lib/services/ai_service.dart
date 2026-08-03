@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'connectivity_service.dart';
+import '../core/utils/ai_utils.dart';
 
 class AIService {
   static const String _consentKey = 'ai_consent';
@@ -16,16 +19,49 @@ class AIService {
   static const String _hallucinationReportKey = 'ai_hallucination_reports';
   static const String _aiPolicyKey = 'ai_policy_accepted';
   static const String _estimatedCostKey = 'ai_estimated_cost';
-  static const int _dailyQuota = 50;
+  static const int _dailyQuota = 10;
   static const double _costPerRequest = 0.002;
   static const String _vercelProxyUrl =
       'https://vercel-pi-weld.vercel.app/api/ai-proxy';
   static const String _defaultModel = 'openrouter/free';
+  static const String _aiErrorPrefix = 'AI_ERROR:';
+  static const int _maxRetries = 3;
+  static const Duration _baseTimeout = Duration(seconds: 15);
 
   final ConnectivityService _connectivity = ConnectivityService();
+  Completer<void>? _quotaLock;
+  Completer<void>? _costLock;
+
+  Future<T> _withQuotaLock<T>(Future<T> Function() action) async {
+    while (_quotaLock != null) {
+      await _quotaLock!.future;
+    }
+    final completer = Completer<void>();
+    _quotaLock = completer;
+    try {
+      return await action();
+    } finally {
+      completer.complete();
+      _quotaLock = null;
+    }
+  }
+
+  Future<T> _withCostLock<T>(Future<T> Function() action) async {
+    while (_costLock != null) {
+      await _costLock!.future;
+    }
+    final completer = Completer<void>();
+    _costLock = completer;
+    try {
+      return await action();
+    } finally {
+      completer.complete();
+      _costLock = null;
+    }
+  }
 
   Future<String?> generateTaskBreakdown(String userId, String taskTitle) async {
-    return _callAiProxy(
+    return callAiProxy(
       userId: userId,
       model: _defaultModel,
       systemPrompt:
@@ -39,7 +75,7 @@ class AIService {
     String userId,
     String chapterTitle,
   ) async {
-    return _callAiProxy(
+    return callAiProxy(
       userId: userId,
       model: _defaultModel,
       systemPrompt:
@@ -50,12 +86,13 @@ class AIService {
   }
 
   Future<String?> generateFlashcards(String userId, String sourceText) async {
-    return _callAiProxy(
+    return callAiProxy(
       userId: userId,
       model: _defaultModel,
       systemPrompt:
           'You are a helpful study assistant for Pakistani Matric students. Generate clear flashcards in Question / Answer format.',
-      userPrompt: 'Generate 5 flashcards from this text. Format: Question / Answer.\n\n$sourceText',
+      userPrompt:
+          'Generate 5 flashcards from this text. Format: Question / Answer.\n\n$sourceText',
     );
   }
 
@@ -64,7 +101,7 @@ class AIService {
     String chapterTitle,
     int questionCount,
   ) async {
-    return _callAiProxy(
+    return callAiProxy(
       userId: userId,
       model: _defaultModel,
       systemPrompt:
@@ -74,55 +111,136 @@ class AIService {
     );
   }
 
-  Future<String?> _callAiProxy({
+  Future<String?> callAiProxy({
     required String userId,
     required String model,
     required String systemPrompt,
     required String userPrompt,
+    http.Client? client,
   }) async {
-    final gate = await _checkQuotaAndGate(userId);
-    if (gate != null) return gate;
+    String? lastError;
+    final random = Random();
+    final actualClient = client ?? http.Client();
+    final shouldClose = client == null;
 
     try {
-      final response = await http
-          .post(
-            Uri.parse(_vercelProxyUrl),
-            headers: <String, String>{'Content-Type': 'application/json'},
-            body: jsonEncode(<String, dynamic>{
-              'model': model,
-              'messages': [
-                <String, dynamic>{'role': 'system', 'content': systemPrompt},
-                <String, dynamic>{'role': 'user', 'content': userPrompt},
-              ],
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
+      for (var attempt = 0; attempt <= _maxRetries; attempt++) {
+        final gate = await _checkQuotaAndGate(userId);
+        if (gate != null) return '$_aiErrorPrefix $gate';
 
-      if (response.statusCode == 429) {
-        return 'AI rate limit reached. Please try again shortly.';
-      }
-      if (response.statusCode != 200) {
-        return 'AI request failed with status ${response.statusCode}.';
-      }
+        try {
+          final response = await actualClient
+              .post(
+                Uri.parse(_vercelProxyUrl),
+                headers: <String, String>{'Content-Type': 'application/json'},
+                body: jsonEncode(<String, dynamic>{
+                  'model': model,
+                  'messages': [
+                    <String, dynamic>{'role': 'system', 'content': systemPrompt},
+                    <String, dynamic>{'role': 'user', 'content': userPrompt},
+                  ],
+                }),
+              )
+              .timeout(_baseTimeout);
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final output = data['output'] as String?;
-      if (output == null || output.isEmpty) {
-        return 'AI returned an empty response.';
-      }
+          if (_isRetryableStatus(response.statusCode)) {
+            lastError = _statusErrorMessage(response.statusCode);
+            if (attempt < _maxRetries) {
+              await _backoff(attempt, random);
+              continue;
+            }
+            return '$_aiErrorPrefix $lastError';
+          }
 
-      await recordAiUsage(userId);
-      await estimateCostFromOutput(output);
-      return output;
-    } on SocketException {
-      return 'No internet connection. Connect to use AI features.';
-    } on HttpException catch (e) {
-      return 'AI request failed: ${e.message}';
-    } on FormatException {
-      return 'AI returned an invalid response.';
-    } catch (e) {
-      return 'Unexpected AI error: $e';
+          if (response.statusCode != 200) {
+            return '$_aiErrorPrefix ${_statusErrorMessage(response.statusCode)}';
+          }
+
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          final output = data['output'] as String?;
+          if (output == null || output.isEmpty) {
+            return '$_aiErrorPrefix AI returned an empty response.';
+          }
+
+          final sanitized = AiTextSanitizer.sanitize(output);
+          if (sanitized.isEmpty) {
+            return '$_aiErrorPrefix AI returned an empty response.';
+          }
+
+          await estimateCostFromOutput(sanitized);
+          await recordAiUsage(userId);
+          return sanitized;
+        } on TimeoutException {
+          lastError = 'The AI service is taking longer than expected. Please retry.';
+          if (attempt < _maxRetries) {
+            await _backoff(attempt, random);
+            continue;
+          }
+          return '$_aiErrorPrefix $lastError';
+        } on SocketException {
+          lastError = 'No internet connection. Connect to use AI features.';
+          if (attempt < _maxRetries) {
+            await _backoff(attempt, random);
+            continue;
+          }
+          return '$_aiErrorPrefix $lastError';
+        } on HttpException {
+          lastError = 'AI request failed. Please check your connection and retry.';
+          if (attempt < _maxRetries) {
+            await _backoff(attempt, random);
+            continue;
+          }
+          return '$_aiErrorPrefix $lastError';
+        } on FormatException {
+          lastError = 'AI returned an invalid response. Please retry.';
+          if (attempt < _maxRetries) {
+            await _backoff(attempt, random);
+            continue;
+          }
+          return '$_aiErrorPrefix $lastError';
+        } catch (e) {
+          lastError = 'Unexpected AI error. Please retry.';
+          if (attempt < _maxRetries) {
+            await _backoff(attempt, random);
+            continue;
+          }
+          return '$_aiErrorPrefix $lastError';
+        }
+      }
+      return '$_aiErrorPrefix Unexpected AI error. Please retry.';
+    } finally {
+      if (shouldClose) actualClient.close();
     }
+  }
+
+  static bool _isRetryableStatus(int statusCode) {
+    return statusCode == 429 ||
+        statusCode == 500 ||
+        statusCode == 502 ||
+        statusCode == 503;
+  }
+
+  static String _statusErrorMessage(int statusCode) {
+    switch (statusCode) {
+      case 429:
+        return 'AI rate limit reached. Please try again shortly.';
+      default:
+        return 'AI request failed with status $statusCode. Please retry.';
+    }
+  }
+
+  static Future<void> _backoff(int attempt, Random random) async {
+    final baseDelay = Duration(seconds: pow(2, attempt).toInt());
+    final jitter = Duration(milliseconds: random.nextInt(500));
+    final total = baseDelay + jitter;
+    final capped = total > const Duration(seconds: 4)
+        ? const Duration(seconds: 4)
+        : total;
+    await Future.delayed(capped);
+  }
+
+  Future<String?> checkAiGate(String userId) async {
+    return _checkQuotaAndGate(userId);
   }
 
   Future<String?> getAiProvider() async {
@@ -153,7 +271,13 @@ class AIService {
     return 'PDF upload is not available in this offline-first release build.';
   }
 
-  Future<void> ensureConsentRecord(String userId) async {}
+  Future<void> ensureConsentRecord(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'ai_consent_record_$userId',
+      DateTime.now().toIso8601String(),
+    );
+  }
 
   Future<bool> hasAiConsent() async {
     final prefs = await SharedPreferences.getInstance();
@@ -203,6 +327,9 @@ class AIService {
     if (!await hasAcceptedCostWarning()) {
       return 'Accept the AI cost warning before using this feature.';
     }
+    if (!await hasAcceptedAiPolicy()) {
+      return 'Please accept the AI policy before using this feature.';
+    }
     final remaining = await getAiUsageQuota(userId);
     if (remaining <= 0) {
       return 'Daily AI quota reached. Try again tomorrow.';
@@ -214,19 +341,24 @@ class AIService {
   }
 
   Future<void> estimateCost(String userId, dynamic resultData) async {
-    final output = resultData is Map ? resultData['output'] as String? : null;
-    if (output == null) return;
+    final raw = resultData is Map ? resultData['output'] as String? : null;
+    if (raw == null) return;
+    final output = AiTextSanitizer.sanitize(raw);
+    if (output.isEmpty) return;
     await estimateCostFromOutput(output);
   }
 
   Future<void> estimateCostFromOutput(String output) async {
-    final estimatedTokens = (output.length / 4).ceil();
-    final rawCost = estimatedTokens * _costPerRequest;
-    final cost = rawCost > 0.5 ? 0.5 : rawCost;
-    final prefs = await SharedPreferences.getInstance();
-    final current = prefs.getDouble(_estimatedCostKey) ?? 0.0;
-    final totalCost = (current + cost > 10.0) ? 10.0 : current + cost;
-    await prefs.setDouble(_estimatedCostKey, totalCost);
+    await _withCostLock(() async {
+      final estimatedTokens = (output.length / 4).ceil();
+      final rawCost = estimatedTokens * _costPerRequest;
+      final cost = rawCost > 0.5 ? 0.5 : rawCost;
+      final prefs = await SharedPreferences.getInstance();
+      final current = prefs.getDouble(_estimatedCostKey) ?? 0.0;
+      final totalCost = (current + cost > 10.0) ? 10.0 : current + cost;
+      await prefs.setDouble(_estimatedCostKey, totalCost);
+      return null;
+    });
   }
 
   Future<double> getEstimatedCost(String userId) async {
@@ -253,24 +385,30 @@ class AIService {
     String jobId,
   ) async {
     return <String, dynamic>{
-      'status': 'completed',
-      'extractedText': 'OCR is disabled in this release build. Use the online AI assistant instead.',
+      'status': 'disabled',
+      'extractedText':
+          'OCR is disabled in this release build. Use the online AI assistant instead.',
       'jobId': jobId,
     };
   }
 
   Future<int> getAiUsageQuota(String userId) async {
     await _resetQuotaIfNewDay();
-    final prefs = await SharedPreferences.getInstance();
-    final used = prefs.getInt(_usageQuotaKey) ?? 0;
-    return _dailyQuota - used;
+    return _withQuotaLock(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final used = prefs.getInt(_usageQuotaKey) ?? 0;
+      return _dailyQuota - used;
+    });
   }
 
   Future<void> recordAiUsage(String userId) async {
     await _resetQuotaIfNewDay();
-    final prefs = await SharedPreferences.getInstance();
-    final used = prefs.getInt(_usageQuotaKey) ?? 0;
-    await prefs.setInt(_usageQuotaKey, used + 1);
+    await _withQuotaLock(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final used = prefs.getInt(_usageQuotaKey) ?? 0;
+      await prefs.setInt(_usageQuotaKey, used + 1);
+      return null;
+    });
   }
 
   Future<void> attachSourceCitation(
@@ -364,13 +502,25 @@ class AIService {
     await prefs.setString(_hallucinationReportKey, '[]');
   }
 
+  static String _sanitizeAiInput(String input) {
+    if (input.isEmpty) return input;
+    final stripped = input.replaceAll(RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f]'), '');
+    if (stripped.length > 2000) {
+      return stripped.substring(0, 2000);
+    }
+    return stripped;
+  }
+
   Future<String?> askAiAboutSubject(
     String userId,
     String question, {
     String? subjectContext,
   }) async {
+    final safeQuestion = _sanitizeAiInput(question);
+    final safeContext =
+        subjectContext != null ? _sanitizeAiInput(subjectContext) : '';
     final systemPrompt =
-        'System Prompt: Matric Study Planner AI Assistant\n'
+        'Matric Study Planner AI Assistant\n'
         'Role & Identity\n'
         'You are the built-in AI Study Assistant for the Matric Study Planner app, tailored specifically for Pakistani Class 9 and Class 10 (Matric) students. Your role is to help students break down complex topics, draft revision plans, generate practice quizzes/flashcards, and answer questions grounded directly in their provided study materials.\n'
         'Your tone must remain calm, clear, encouraging, and supportive—never inducing stress, guilt, or fear regarding exam preparation. You communicate effectively in both clear English and simple Urdu (or Roman Urdu if requested by the user).\n'
@@ -404,16 +554,16 @@ class AIService {
         'No Hallucination Masking: Always display an error/uncertainty disclaimer when information is partial or incomplete.\n'
         'Academic Integrity: Provide explanations and guided learning paths rather than completing graded assignments or exam questions on behalf of the student.\n'
         'User question:\n'
-        '$question\n'
+        '$safeQuestion\n'
         'Student subjects and chapters context:\n'
-        '$subjectContext\n'
+        '$safeContext\n'
         'Now answer directly, following the rules above.';
 
-    return _callAiProxy(
+    return callAiProxy(
       userId: userId,
       model: _defaultModel,
       systemPrompt: systemPrompt,
-      userPrompt: question,
+      userPrompt: safeQuestion,
     );
   }
 }

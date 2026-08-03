@@ -22,9 +22,7 @@ class LocalBackupScheduler implements BackupScheduler {
   Future<void> initialize() async {
     if (_initialized) return;
     try {
-      const androidInit = AndroidInitializationSettings(
-        '@mipmap/ic_launcher',
-      );
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
       const darwinInit = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -35,9 +33,7 @@ class LocalBackupScheduler implements BackupScheduler {
         iOS: darwinInit,
         macOS: darwinInit,
       );
-      await _notifications.initialize(
-        settings: initSettings,
-      );
+      await _notifications.initialize(settings: initSettings);
       _initialized = true;
     } catch (_) {
       // Notification initialization may fail on some platforms; continue without it

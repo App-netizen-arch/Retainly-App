@@ -49,22 +49,27 @@ class MatricSubjects {
     ],
   };
 
-  static List<Map<String, String>> getSubjectsForGroup(String group, {bool isMuslim = true}) {
+  static List<Map<String, String>> getSubjectsForGroup(
+    String group, {
+    bool isMuslim = true,
+  }) {
     final List<Map<String, String>> allSubjects = [];
-    
+
     // Add all compulsory subjects
-    allSubjects.addAll(compulsorySubjects.where((subject) {
-      // For non-Muslim students, exclude Islamiat and include Ethics instead
-      if (subject['id'] == 'islamiat' && !isMuslim) return false;
-      if (subject['id'] == 'ethics' && isMuslim) return false;
-      return true;
-    }));
-    
+    allSubjects.addAll(
+      compulsorySubjects.where((subject) {
+        // For non-Muslim students, exclude Islamiat and include Ethics instead
+        if (subject['id'] == 'islamiat' && !isMuslim) return false;
+        if (subject['id'] == 'ethics' && isMuslim) return false;
+        return true;
+      }),
+    );
+
     // Add elective subjects for the selected group
     if (electiveGroups.containsKey(group)) {
       allSubjects.addAll(electiveGroups[group]!);
     }
-    
+
     return allSubjects;
   }
 }

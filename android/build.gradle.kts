@@ -23,13 +23,12 @@ tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
 
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
+    buildscript {
+        repositories {
+            google()
+            mavenCentral()
+            gradlePluginPortal()
+        }
+        dependencies {
+        }
     }
-    dependencies {
-        classpath("com.google.gms:google-services:4.4.2")
-    }
-}

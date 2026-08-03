@@ -26,8 +26,6 @@ guidelines.
 |---|---|---|
 | Flutter SDK | 3.24.0 | Dart/Flutter development |
 | Dart SDK | 3.7.0 | Language features |
-| Node.js | 18.x | Cloud Functions development |
-| Firebase CLI | latest | Rule deployment, local emulation |
 | Android SDK | API 23+ (Android 6.0) | Android builds |
 | Git | any recent | Version control |
 
@@ -42,14 +40,6 @@ cd retainly
 
 # Flutter dependencies
 flutter pub get
-
-# Firebase CLI (if not already installed)
-npm install -g firebase-tools
-
-# Cloud Functions dependencies
-cd functions
-npm install
-cd ..
 ```
 
 ### 1.3 Configure IDE
@@ -63,31 +53,11 @@ extensions. At minimum, install:
 
 ### 1.4 Environment Variables
 
-The app uses Firebase environment variables for Cloud Function
-configuration. Create a `.env` file or use Firebase Functions config:
-
-```bash
-# For Cloud Functions local emulation
-firebase functions:config:get > .runtimeconfig.json
-```
-
 The Flutter app reads `SharedPreferences` and `flutter_secure_storage` —
 no additional environment setup is needed for local development. On Linux
 desktop, `FlutterSecureStorage` falls back to `SharedPreferences` automatically.
 
-### 1.5 Optional: Firebase Local Emulator Suite
-
-For developing and testing sync/features locally:
-
-```bash
-firebase emulators:start
-```
-
-This starts Firestore, Functions, Storage, and Auth emulators. The app will
-auto-detect the emulator if `FIREBASE_USE_EMULATOR=true` is set in
-`SharedPreferences` or if the `DEBUG` flag is enabled.
-
-### 1.6 Project Name
+### 1.5 Project Name
 
 The Dart package name is `retainly` (see `pubspec.yaml`), even though the
 directory is named `matric_study_planner`. All internal imports use
@@ -155,17 +125,10 @@ sparingly and only with a justification comment on the preceding line.
 
 ### 2.5 Error Handling Conventions
 
-- **Firebase-dependent services**: All Firebase API calls must be wrapped in
-  `try/catch` on `FirebaseException`. Failures must NOT propagate — the
-  service degrades to local-only mode silently. Follow the pattern in
-  `sync_service.dart`:
-  ```dart
-  try {
-    await _firestore!.collection('...').add({...});
-  } on FirebaseException catch (_) {}
-  ```
+- **Optional services**: All optional API calls must be wrapped in
+   `try/catch`. Failures must NOT propagate — the service degrades silently.
 - **UI layer**: Use `showErrorSnackBar()` / `showSuccessSnackBar()` from
-  `lib/core/utils/error_utils.dart` for user-facing messages.
+   `lib/core/utils/error_utils.dart` for user-facing messages.
 - **Platform calls**: Wrap `MethodChannel` calls in `PlatformException`
   handlers (see `shortcut_service.dart`, `focus_screen.dart`).
 - **Restoration**: Return `RestoreResult` objects with `success: false`
@@ -196,10 +159,6 @@ needed.
 
 ### 2.8 Type Safety
 
-- The Cloud Functions code (`functions/src/index.ts`) uses TypeScript.
-  The `tsconfig.json` has `skipLibCheck: true` and `strictNullChecks:
-  false` — match this configuration for new `.ts` files.
-- The Firebase security rules use `rules_version = '2'`.
 - Tests in `test/unit/` use the `package:test` framework (not
   `flutter_test` for pure logic tests). Widget tests use
   `package:flutter_test`.
@@ -229,7 +188,7 @@ type/ticket-short-description
 Examples:
 - `feature/ai-quota-enforcement`
 - `fix/focus-session-data-loss`
-- `chore/update-firestore-rules`
+- `chore/update-ci-config`
 
 ### 3.2 Commit Messages
 
@@ -273,10 +232,9 @@ functions.config().ai.provider.
    trade-offs. Link related issues (`Closes #123`).
 3. **Tests**: All new functionality must include tests. See the Testing
    section for coverage requirements.
-4. **No secrets**: Never commit API keys, keystores, or
-   `google-services.json` with real credentials. These are gitignored
-   — see `.gitignore`. Production secrets must be managed via Firebase
-   Secret Manager, not committed to the repo.
+4. **No secrets**: Never commit API keys or keystores. These are gitignored
+   — see `.gitignore`. Production secrets must be managed via secure environment
+   variables, not committed to the repo.
 5. **CI must pass**: The CI workflow runs `dart format`, `flutter analyze`,
    `flutter test`, and platform builds. All checks must pass before merge.
 
@@ -323,57 +281,13 @@ The CI pipeline runs on push to `main` / `develop` and on pull requests to
 
 **Note**: CI runs from the repository root — no subdirectory is required.
 
-### 4.3 Functions Verification
-
-For Cloud Functions changes:
-
-```bash
-cd functions
-
-# Lint
-npm run lint          # eslint src/**/*
-
-# Type check
-npm run build         # tsc
-
-# Rule tests (requires Firebase CLI)
-npm run test:rules    # jest --config jest.rules.config.js
-
-# Unit tests
-npm run test          # jest
-```
-
-### 4.4 Firestore Rules Testing
-
-**File**: `functions/tests/firestore.rules.test.ts`
-
-Rules are tested using `@firebase/rules-unit-testing` with the Jest
-framework. Before deploying new rules, run:
-
-```bash
-cd functions
-npm run test:rules
-```
-
-This validates that:
-- Unauthenticated users cannot read/write protected collections
-- Authenticated owners can access their own data
-- User A cannot access User B's data
-- AI consents are owner-scoped
-
-New rule changes **must** include corresponding test coverage. The Storage
-rules are similarly tested in
-`functions/tests/storage.rules.test.ts`.
-
-### 4.5 Release Checklist
+### 4.3 Release Checklist
 
 Before cutting a release:
 
 - [ ] `flutter analyze` passes with zero warnings
 - [ ] `dart format --set-exit-if-changed .` passes
 - [ ] `flutter test` — all tests pass
-- [ ] `functions` tests pass (`npm run lint`, `npm run build`, `npm run test:rules`)
-- [ ] Firestore/Storage rules tests pass
 - [ ] `CHANGELOG.md` updated (if present)
 - [ ] Version number bumped in `pubspec.yaml` (format: `MAJOR.MINOR.PATCH+BUILD`)
 
@@ -381,15 +295,15 @@ Before cutting a release:
 
 **File**: `scripts/deploy.sh`
 
-Production deployments use `./scripts/deploy.sh [android|ios|functions|rules|all]`.
+Production deployments use `./scripts/deploy.sh [android]`.
 The script:
 
-1. Verifies Firebase CLI authentication
-2. Selects the project (`retainly-app-b4f4a`)
-3. Deploys rules and/or functions and/or app bundles
+1. Verifies build tooling
+2. Selects the project
+3. Deploys app bundles
 
-Always test rule changes in a **staging Firebase project** before deploying
-to production. Never deploy functions with real AI API keys to a test project.
+Always test changes in a **staging environment** before deploying
+to production. Never deploy with real AI API keys to a test project.
 
 ---
 
@@ -416,15 +330,13 @@ test/
     ├── planner_logic_test.dart
     ├── production_fixes_test.dart
     ├── repository_test.dart
-    ├── services_test.dart
     ├── settings_screen_test.dart
     ├── smart_planner_test.dart
-    └── sync_service_test.dart
-```
+    ```
 
 ### 5.2 Test Framework
 
-- **Pure logic tests**: Use `package:test` (e.g., `sync_service_test.dart`,
+- **Pure logic tests**: Use `package:test` (e.g.,
   `backup_encryption_test.dart`). These do not require Flutter bindings and
   run faster.
 - **Widget/UI tests**: Use `package:flutter_test` (e.g.,
@@ -435,15 +347,9 @@ test/
 
 ### 5.3 Coverage Thresholds
 
-- **Services layer**: 100% coverage required for `SyncService`,
-  `OfflineQueueService`, `AIService` gate checks, and
-  `BackupManager` coordination logic.
-- **Repository layer**: 100% coverage for SM-2 algorithm, task scoring,
-  and all query methods with side-effect tracking (`_trackChange`).
-- **Backup/restore**: 100% coverage for encryption round-trips, schema
-  validation, and all `RestoreResult` failure paths.
-- **Cloud Functions**: Rules tests must cover all collection access paths
-  (read/write/create for each collection).
+- **Services layer**: 100% coverage required for `OfflineQueueService`, `AIService` gate checks, and `BackupManager` coordination logic.
+- **Repository layer**: 100% coverage for SM-2 algorithm, task scoring, and all query methods.
+- **Backup/restore**: 100% coverage for encryption round-trips, schema validation, and all `RestoreResult` failure paths.
 
 New code that does not meet 100% coverage on the affected unit will cause
 the PR to fail CI.
@@ -455,20 +361,13 @@ Follow the existing patterns:
 ```dart
 // For service tests (package:test)
 import 'package:test/test.dart';
-import 'package:retainly/services/sync_service.dart';
 
 void main() {
-  group('SyncService - Local-Only Mode', () {
-    test('enqueueLocalChange is a no-op when Firebase unavailable', () async {
-      final service = SyncService();
-      await service.enqueueLocalChange(
-        userId: 'user1',
-        entity: 'tasks',
-        entityId: 'task1',
-        operation: 'create',
-        data: {'title': 'Test Task'},
-      );
-      // No assertion needed — if it throws, the test fails
+  group('OfflineQueueService', () {
+    test('enqueue adds an operation', () async {
+      final service = OfflineQueueService();
+      await service.enqueue(QueuedOperationType.ai, {'userId': 'user1'});
+      expect(await service.pendingCount, 1);
     });
   });
 }
@@ -514,17 +413,13 @@ static const bool myNewFeature = false;
 
 Check the flag at the call site using `FeatureFlags.isFeatureEnabled('my_new_feature')`.
 
-### 6.3 Cloud Function Integration
+### 6.3 External API Integration
 
-When adding a callable function to `functions/src/index.ts`:
+When adding a call to an external API:
 
-1. Export the function with `functions.https.onCall`
-2. Add authentication check (`context.auth`) as the first guard
-3. Add consent/quota checks as applicable
-4. Add entry to `.github/workflows/ci.yml` if the function needs
-   environment variables in CI
-5. Update `FIREBASE_BACKEND_SETUP.md` with the new function's
-   configuration
+1. Add consent checks (`hasAiConsent()`, etc.) as the first guard
+2. Add quota checks as applicable
+3. Handle failures gracefully with user-facing messages
 
 ### 6.4 Database Schema Changes
 

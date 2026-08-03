@@ -5,7 +5,6 @@
 An offline-first Flutter study planner for Pakistani Matric (Class 9–10) students. It turns a syllabus into an adaptive daily plan, tracks focus sessions, and drives spaced-repetition revision — with optional cloud sync and AI assistance when online.
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?logo=githubactions)](.github/workflows/ci.yml)
-[![Firestore Rules](https://img.shields.io/badge/rules-tested-green)](.github/workflows/firestore-rules.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)](#license--compliance)
 [![Version](https://img.shields.io/badge/version-1.0.0--1)]()
 [![Tests](https://img.shields.io/badge/tests-unit%20%26%20widget-brightgreen)]()
@@ -14,21 +13,20 @@ An offline-first Flutter study planner for Pakistani Matric (Class 9–10) stude
 
 ## Key Features
 
-- **Offline-first study planning** — Local SQLite/Drift store; Firebase is strictly opt-in and degrades gracefully when unavailable.
+- **Offline-first study planning** — Local SQLite/Drift store; all core data stays on-device.
 - **Adaptive daily plans** — Priority-weighted scheduler that fits tasks into a daily study budget and surfaces a minimum-viable-day when overloaded.
 - **SM-2 spaced repetition** — Revision queue with 1/3/7-day intervals and per-item difficulty adjustment.
 - **Pomodoro focus sessions** — Native Android `Do Not Disturb` enforcement via a custom platform-channel foreground service (`focus_shield`).
-- **AI assistance (optional, online-only)** — Task breakdown, revision drafts, flashcards, and quizzes through a Firebase Cloud Functions proxy to OpenAI (extensible to Anthropic/Gemini), gated by consent + a 50-request/day quota.
-- **Secure PDF/OCR** — PDFs are processed server-side via Google Vision behind an authenticated Cloud Function; results stay scoped to the owner.
+- **AI assistance (optional, online-only)** — Task breakdown, revision drafts, flashcards, and quizzes through external AI APIs (OpenAI, Anthropic, Gemini), gated by consent + a 50-request/day quota.
+- **Secure PDF/OCR** — PDFs are processed via external OCR API; results stay on the device.
 - **Encrypted local backups** — AES-256 local export/restore with keys held in platform secure storage; Anki CSV and syllabus-template import/export.
-- **Background sync** — Workmanager-driven 15-minute periodic sync with network/battery constraints; outbox-based, conflict-aware replication.
-- **Progressive Web & Desktop** — Runs on Android (primary) and Linux desktop; Urdu + English localisation.
+- **Progressive Desktop** — Runs on Android (primary) and Linux desktop; Urdu + English localisation.
 
 ---
 
 ## Architecture Overview
 
-Retainly is layered into a thin Flutter presentation layer on top of a repository-abstraction data layer, with optional Firebase services injected only when configured.
+Retainly is layered into a thin Flutter presentation layer on top of a repository-abstraction data layer, with local-only storage and optional online features.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -36,37 +34,30 @@ Retainly is layered into a thin Flutter presentation layer on top of a repositor
 │  lib/features/*  ── GoRouter navigation ── lib/navigation/*        │
 │  State via flutter_riverpod ────────────────────────────────────┐ │
 └────────────────────────────────────────────────────────────────│ │
-│  DOMAIN / SERVICES  lib/services/*                                │ │
-│  AIService • SyncService • SyncWorkerService • Connectivity ───┘ │
-│                                               │                   │
-│  DATA LAYER  lib/data/*                                    │
-│  ┌──────────────────────┐  ┌───────────────────────┐       │
-│  │ DatabaseRepository   │  │ AppDatabase (Drift)   │       │
-│  │ (business logic,     │  │ sqflite FFI desktop │       │
-│  │  SM-2, scoring, CSV) │  │ schema v3           │       │
-│  └────────┬─────────────┘  └──────────┬──────────┘       │
-│           │  adapter                  │                 │
-│           ▼                           ▼                 │
-│  ┌──────────────────────┐  ┌───────────────────────┐     │
-│  │ DatabaseHelper       │  │ firebase_options.dart │     │
-│  │ (sqflite CRUD layer) │  │ (Android only)       │     │
-│  └────────┬─────────────┘  └──────────┬──────────┘     ││
-│           │                           │                  ││
-│           │ local JSON/CSV file       │ Firestore (owner-only) │
-│           ▼                           ▼                  ││
-│  ┌──────────────────────┐  ┌───────────────────────┐   ││
-│  │ Encrypted backup   │  │ Cloud Functions (Node)│   ││
-│  │ (.retainly/backup*)│  │ aiProxy • ocrProcess •│   ││
-│  └────────────────────┘  │ syncWorker • pruneTomb-│  ││
-│                         │ stones (scheduled)      │  ││
-│  ANDROID NATIVE        │                         │  ││
-│  MainActivity.kt ─────►│ Platform Channel        │  ││
-│  focus_shield: DND     │ FocusShieldForeground   │  ││
-│  FocusAccessibilitySvc │ Service.kt              │  ││
-└────────────────────────┴─────────────────────────┴──┘
+│  DOMAIN / SERVICES  lib/services/*                                │
+│  AIService • Connectivity ─────────────────────────────────────┘ │
+│                                                                  │
+│  DATA LAYER  lib/data/*                                          │
+│  ┌──────────────────────┐  ┌───────────────────────┐           │
+│  │ DatabaseRepository   │  │ AppDatabase (Drift)   │           │
+│  │ (business logic,     │  │ sqflite FFI desktop │           │
+│  │  SM-2, scoring, CSV) │  │ schema v3           │           │
+│  └────────┬─────────────┘  └──────────┬──────────┘           │
+│           │  adapter                  │                        │
+│           ▼                           ▼                        │
+│  ┌──────────────────────┐  ┌───────────────────────┐           │
+│  │ DatabaseHelper       │  │ Encrypted backup      │           │
+│  │ (sqflite CRUD layer) │  │ (.retainly/backup*)   │           │
+│  └──────────────────────┘  └───────────────────────┘           │
+│                                                                  │
+│  ANDROID NATIVE                                                  │
+│  MainActivity.kt ─────►│ Platform Channel                        │
+│  focus_shield: DND     │ FocusShieldForeground                   │
+│  FocusAccessibilitySvc │ Service.kt                              │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**Data flow:** User edits land in the local Drift/SQLite store and are appended to a `sync_meta` change log. A Workmanager background task drains the outbox into Firestore under the authenticated owner UID. Online-only features (AI, OCR) call callable Functions; every request is gated by explicit user consent and a server-enforced daily quota.
+**Data flow:** User edits land in the local Drift/SQLite store. Online-only features (AI, OCR) call external APIs directly; every request is gated by explicit user consent. All core data remains on-device by default.
 
 ---
 
@@ -79,8 +70,6 @@ Retainly is layered into a thin Flutter presentation layer on top of a repositor
 | Flutter SDK | 3.24.0+ (stable) |
 | Dart SDK | 3.7.0+ |
 | Android SDK | API 24+ (for device builds) |
-| Node.js | 18+ (only for Functions / rules tests) |
-| Firebase CLI | `npm i -g firebase-tools` (only for backend work) |
 
 ### Install dependencies
 
@@ -91,14 +80,14 @@ flutter pub get
 ### Run locally
 
 ```bash
-# Linux desktop (no Firebase required — fully local)
+# Linux desktop (fully local)
 flutter run -d linux
 
 # Android device or emulator
 flutter run -d android-emulator
 ```
 
-The app boots in **local-only mode** when Firebase is not configured; AI, OCR, and cloud sync are simply unavailable until a project is wired up (see `FIREBASE_BACKEND_SETUP.md`).
+The app boots in **local-only mode**; AI and OCR are available when configured, while core study data remains on-device.
 
 ### Building a release
 
@@ -117,7 +106,7 @@ Release artifacts land in:
 - Android: `build/app/outputs/bundle/release/app-release.aab` (or `app-release.apk`)
 - Linux: `build/linux/x64/release/bundle/`
 
-Signing is handled via `android/keystore.properties` (gitignored). See `FIREBASE_BACKEND_SETUP.md` → *Sign the APK* for the keytool workflow, or run `scripts/build_release.sh` for an analyze → test → build pipeline.
+Signing is handled via `android/keystore.properties` (gitignored). See *Sign the APK* for the keytool workflow, or run `scripts/build_release.sh` for an analyze → test → build pipeline.
 
 ### Configuration
 
@@ -125,15 +114,11 @@ Runtime behaviour is driven by these files and environment values — none are r
 
 | Source | Purpose |
 |--------|---------|
-| `lib/firebase_options.dart` | Firebase project credentials (Android only). |
-| `android/app/google-services.json` | Firebase Android config. |
-| `firebase.json` | Firestore/Storage/Functions wiring. |
-| `firestore.rules` / `storage.rules` | Owner-based security rules. |
-| `AI_API_KEY` (Functions env) | OpenAI / Anthropic / Gemini key for the `aiProxy`. |
-| `AI_PROVIDER` (Functions env) | `openai` (default), `anthropic`, `gemini`, `openrouter`. |
+| `AI_API_KEY` | OpenAI / Anthropic / Gemini key for the AI provider. |
+| `AI_PROVIDER` | `openai` (default), `anthropic`, `gemini`, `openrouter`. |
 | `SharedPreferences` keys | `ai_daily_usage`, `ai_consent`, `ocr_consent`, theme flags. |
 
-Feature flags live in `lib/core/feature_flags.dart` and may be toggled in code or via Remote Config at runtime.
+Feature flags live in `lib/core/feature_flags.dart` and may be toggled in code.
 
 ---
 
@@ -147,10 +132,6 @@ flutter pub get
 
 # 2. Run on desktop (local only)
 flutter run -d linux
-
-# 3. (Optional) Deploy backend and enable cloud features
-cd functions && npm install && npm run build
-cd .. && firebase deploy --only firestore:rules,storage:rules,functions
 ```
 
 ### Programmatic API — core data layer
@@ -215,22 +196,18 @@ All AI calls return a human-readable `String?` and handle consent, quota, and co
 │       ├── MainActivity.kt          # Activity, registers focus_shield channel
 │       ├── FocusShieldForegroundService.kt  # DND + foreground timer
 │       └── FocusAccessibilityService.kt     # Usage/accessibility helper
-├── functions/                   # Firebase Cloud Functions (TypeScript)
-│   ├── src/index.ts                 # aiProxy, ocrProcess, syncWorker, pruneTombstones
-│   ├── tests/                       # Jest rules + function unit tests
-│   └── package.json
 ├── lib/
-│   ├── main.dart                     # App bootstrap: Firebase init (graceful), FFMPEG, themes
+│   ├── main.dart                     # App bootstrap: themes, routing
 │   ├── core/                         # Theme, constants, feature flags, utils
 │   ├── data/                         # DatabaseHelper (sqflite), Drift schema, models, repository
-│   ├── services/                     # AI, sync, background worker, connectivity, analytics
+│   ├── services/                     # AI, background worker, connectivity
 │   ├── providers/                    # Riverpod state holders (dashboard, analytics, sync)
 │   ├── navigation/                   # GoRouter routes + shell
 │   ├── features/                     # Screen-level features (planner, focus, revision, backup, ai, settings, legal)
 │   └── l10n/                         # ARB bundles: en + ur (English + Urdu)
 ├── test/unit/                      # Unit tests for services, repository, planner logic, security
 ├── test/widget_test.dart           # Widget smoke test
-├── scripts/                        # build_release.sh, deploy.sh (multi-target)
+├── scripts/                        # build_release.sh (multi-target)
 ├── docs/                           # Project documentation
 │   ├── ARCHITECTURE.md             # System architecture deep-dive
 │   ├── CONTRIBUTING.md             # Contribution guidelines
@@ -241,10 +218,6 @@ All AI calls return a human-readable `String?` and handle consent, quota, and co
 │       ├── privacy_policy.md       # Privacy Policy
 │       ├── data_retention_policy.md
 │       └── threat_model.md
-├── FIREBASE_BACKEND_SETUP.md       # Full Firebase + AI provider setup guide
-├── firebase.json                   # Backend wiring
-├── firestore.rules                 # Owner-based Firestore security rules
-├── storage.rules                   # Firebase Storage security rules
 ├── pubspec.yaml                    # Flutter package manifest (v1.0.0+1)
 ├── analysis_options.yaml           # flutter_lints baseline + custom rules
 └── README.md
@@ -265,22 +238,18 @@ flutter test
 # Targeted suites
 flutter test test/unit/planner_logic_test.dart
 flutter test test/unit/smart_planner_test.dart
-flutter test test/unit/sync_service_test.dart
 flutter test test/unit/backup_encryption_test.dart
-
-# Firebase security rules (Node, Jest)
-cd functions && npm ci && npm run test:rules
 ```
 
-There are no dedicated Dart benchmarks (`flutter drive` performance tracing is recommended for focus-session timing). Backend Function tests run under `npm run test`.
+There are no dedicated Dart benchmarks (`flutter drive` performance tracing is recommended for focus-session timing).
 
 ---
 
 ## Security & Compliance
 
-- All Firestore/Storage rules are **owner-based** — a user can only read/write documents where `request.auth.uid` matches the resource owner.
-- Online-only features require **explicit, revocable consent** stored locally and mirrored to `ai_consents`.
-- AI usage is capped at **50 requests/day/user**, enforced client-side and re-checked server-side.
+- All user data stays on-device by default.
+- Online-only features require **explicit, revocable consent** stored locally.
+- AI usage is capped at **50 requests/day/user**, enforced client-side.
 - Local backups are **AES-256 encrypted**; encryption keys are stored in `FlutterSecureStorage` (Android Keystore). Backups are **never** auto-uploaded.
 - The full threat model and audit trail are in [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md).
 

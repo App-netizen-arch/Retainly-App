@@ -2,7 +2,6 @@ import 'package:test/test.dart';
 import 'package:retainly/data/models/app_models.dart';
 import 'package:retainly/data/repositories/database_repository.dart';
 import 'package:retainly/data/database_helper.dart';
-import 'package:retainly/core/feature_flags.dart';
 
 void main() {
   group('SyllabusTemplateModel', () {
@@ -90,20 +89,6 @@ void main() {
       final db = DatabaseRepository(DatabaseHelper.instance);
       final resources = db.importAnkiCsv('Front,Back,Tags\n', 1);
       expect(resources.length, 0);
-    });
-  });
-
-  group('FeatureFlags', () {
-    test('thirdPartyIntegrations is false by default', () {
-      expect(FeatureFlags.thirdPartyIntegrations, false);
-    });
-
-    test('allFlags includes third_party_integrations', () {
-      expect(
-        FeatureFlags.allFlags.containsKey('third_party_integrations'),
-        isTrue,
-      );
-      expect(FeatureFlags.allFlags['third_party_integrations'], false);
     });
   });
 }

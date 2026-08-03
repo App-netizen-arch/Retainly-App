@@ -27,6 +27,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
   bool _loading = false;
   String? _error;
   String _sourceRef = '';
+  final TextEditingController _sourceController = TextEditingController();
 
   @override
   void initState() {
@@ -34,15 +35,17 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
     _generateFlashcards();
   }
 
+  @override
+  void dispose() {
+    _sourceController.dispose();
+    super.dispose();
+  }
+
   Future<void> _generateFlashcards() async {
     final service = AIService();
-    final aiConsent = await service.hasAiConsent();
-    if (!aiConsent) {
-      setState(() => _error = 'AI assistance requires consent in Settings.');
-      return;
-    }
-    if (!await service.hasAcceptedCostWarning()) {
-      setState(() => _error = 'Accept the AI cost warning before using this feature.');
+    final gate = await service.checkAiGate('local_user');
+    if (gate != null) {
+      setState(() => _error = gate);
       return;
     }
     setState(() {
@@ -56,13 +59,12 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
         widget.sourceText,
       );
       if (!mounted) return;
-      if (result == null ||
-          result.startsWith('AI') ||
-          result.startsWith('No internet') ||
-          result.startsWith('Accept') ||
-          result.startsWith('AI assistance')) {
+      if (result == null || result.startsWith('AI_ERROR:')) {
+        final message = result != null && result.startsWith('AI_ERROR:')
+            ? result.substring('AI_ERROR:'.length).trim()
+            : result;
         setState(() {
-          _error = result ?? 'Failed to generate flashcards.';
+          _error = message ?? 'Failed to generate flashcards.';
           _loading = false;
         });
         return;
@@ -76,10 +78,10 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
         _unknownCount = 0;
         _loading = false;
       });
-    } on Exception catch (e) {
+    } on Exception catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Generation failed: ${e.toString()}';
+        _error = 'Generation failed. Please try again.';
         _loading = false;
       });
     }
@@ -176,12 +178,14 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
   }
 
   Future<void> _attachSource() async {
+    _sourceController.clear();
     final ref = await showDialog<String>(
       context: context,
       builder:
           (ctx) => AlertDialog(
             title: const Text('Attach Source'),
             content: TextField(
+              controller: _sourceController,
               decoration: const InputDecoration(
                 hintText: 'Textbook reference, page, etc.',
               ),
@@ -194,10 +198,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
               ),
               ElevatedButton(
                 onPressed: () {
-                  final controller =
-                      (ctx as Element)
-                          .findAncestorStateOfType<_FlashcardScreenState>();
-                  Navigator.pop(ctx, controller?._sourceRef ?? '');
+                  Navigator.pop(ctx, _sourceController.text.trim());
                 },
                 child: const Text('Save'),
               ),
@@ -246,7 +247,8 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                         itemCount: existing.length,
                         itemBuilder: (context, index) {
                           final item = existing[index] as Map<String, dynamic>;
-                          final completedAt = item['completedAt'] as String? ?? '';
+                          final completedAt =
+                              item['completedAt'] as String? ?? '';
                           final known = item['knownCount'] as int? ?? 0;
                           final total = item['totalCards'] as int? ?? 0;
                           final score =
@@ -254,7 +256,9 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                                   ? '${((known / total) * 100).round()}%'
                                   : 'N/A';
                           return ListTile(
-                            title: Text(item['sourceTitle'] as String? ?? 'Unknown'),
+                            title: Text(
+                              item['sourceTitle'] as String? ?? 'Unknown',
+                            ),
                             subtitle: Text(
                               'Score: $score ($known/$total known)\n'
                               'Completed: ${completedAt.substring(0, completedAt.length < 16 ? completedAt.length : 16)}',
@@ -296,7 +300,7 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+                    Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _generateFlashcards,
@@ -330,11 +334,11 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               if (!_isFlipped) ...[
-                                const Text(
+                                Text(
                                   'Question',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -344,11 +348,11 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                                   style: const TextStyle(fontSize: 18),
                                 ),
                               ] else ...[
-                                const Text(
+                                Text(
                                   'Answer',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -359,12 +363,12 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                                 ),
                               ],
                               const SizedBox(height: 16),
-                              Text(
-                                _isFlipped
-                                    ? 'Tap to flip'
-                                    : 'Tap to reveal answer',
-                                style: TextStyle(color: Colors.grey),
-                              ),
+                               Text(
+                                 _isFlipped
+                                     ? 'Tap to flip'
+                                     : 'Tap to reveal answer',
+                                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                               ),
                             ],
                           ),
                         ),
@@ -383,27 +387,35 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _markKnown,
-                            icon: const Icon(Icons.check),
-                            label: const Text('Known'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _markKnown,
+                              icon: const Icon(Icons.check),
+                              label: const Text('Known'),
+style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                textStyle: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _markUnknown,
-                            icon: const Icon(Icons.close),
-                            label: const Text('Unknown'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _markUnknown,
+                              icon: const Icon(Icons.close),
+                              label: const Text('Unknown'),
+style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.error,
+                              foregroundColor: Theme.of(context).colorScheme.onError,
+                                textStyle: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ),

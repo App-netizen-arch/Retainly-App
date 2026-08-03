@@ -92,16 +92,16 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           } else if (!context.mounted) {
             return;
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error loading PDF: $e')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Error loading PDF. Please try again.')));
           }
         },
         onPageError: (page, e) {
           if (!context.mounted) return;
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Error on page $page: $e')));
+          ).showSnackBar(const SnackBar(content: Text('Error loading page. Please try again.')));
         },
       ),
     );

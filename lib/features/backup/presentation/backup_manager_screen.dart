@@ -137,21 +137,54 @@ class _BackupManagerScreenState extends ConsumerState<BackupManagerScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
-          (ctx) => AlertDialog(
-            title: const Text('Restore from backup?'),
-            content: Text(
-              'This will overwrite your current data with the backup from:\n${p.basename(file.path)}\n\nThis cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Restore'),
-              ),
-            ],
+          (ctx) => StatefulBuilder(
+            builder:
+                (dialogContext, setDialogState) {
+                  final controller = TextEditingController();
+                  bool canRestore = false;
+                  return AlertDialog(
+                    title: const Text('Restore from backup?'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'This will overwrite your current data with the backup from:\n${p.basename(file.path)}\n\nThis cannot be undone.',
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Type "restore" to confirm:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: controller,
+                          decoration: const InputDecoration(
+                            hintText: 'Type restore',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              canRestore = value.toLowerCase() == 'restore';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: canRestore
+                            ? () => Navigator.pop(ctx, true)
+                            : null,
+                        child: const Text('Restore'),
+                      ),
+                    ],
+                  );
+                },
           ),
     );
     if (confirmed != true) return;
@@ -323,6 +356,25 @@ class _BackupManagerScreenState extends ConsumerState<BackupManagerScreen> {
                       FutureBuilder<int>(
                         future: _getAvailableStorageBytes(),
                         builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Column(
+                                children: [
+                                  const Text('Something went wrong. Please try again.'),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      if (context.mounted) {
+                                        setState(() {});
+                                      }
+                                    },
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
                           final bytes = snapshot.data ?? 0;
                           return Text(
                             'Storage: ${_formatBytes(bytes)}',
@@ -353,25 +405,27 @@ class _BackupManagerScreenState extends ConsumerState<BackupManagerScreen> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(
-                                iconSize: 18,
-                                icon: const Icon(
-                                  Icons.file_download_rounded,
-                                  size: 20,
-                                ),
-                                onPressed:
-                                    () => _exportBackup(record.id.toString()),
-                              ),
-                              IconButton(
-                                iconSize: 18,
-                                icon: const Icon(
-                                  Icons.delete_rounded,
-                                  size: 20,
-                                  color: Colors.red,
-                                ),
-                                onPressed:
-                                    () => _deleteBackup(record.id.toString()),
-                              ),
+                               IconButton(
+                                 iconSize: 18,
+                                 icon: const Icon(
+                                   Icons.file_download_rounded,
+                                   size: 20,
+                                 ),
+                                 tooltip: 'Download backup',
+                                 onPressed:
+                                     () => _exportBackup(record.id.toString()),
+                               ),
+                               IconButton(
+                                 iconSize: 18,
+                                 icon: Icon(
+                                   Icons.delete_rounded,
+                                   size: 20,
+                                   color: Theme.of(context).colorScheme.error,
+                                 ),
+                                 tooltip: 'Delete backup',
+                                 onPressed:
+                                     () => _deleteBackup(record.id.toString()),
+                               ),
                             ],
                           ),
                         ),

@@ -24,26 +24,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: const Text('Study Now'),
         leading: Builder(
           builder:
-              (ctx) => IconButton(
-                icon: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primary,
-                        Theme.of(context).colorScheme.tertiary,
-                      ],
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                ),
-                onPressed: () async {
+               (ctx) => IconButton(
+                 icon: Container(
+                   width: 36,
+                   height: 36,
+                   decoration: BoxDecoration(
+                     shape: BoxShape.circle,
+                     gradient: LinearGradient(
+                       colors: [
+                         Theme.of(context).colorScheme.primary,
+                         Theme.of(context).colorScheme.tertiary,
+                       ],
+                     ),
+                   ),
+                   child: Icon(
+                     Icons.auto_awesome,
+                     size: 20,
+                     color: Theme.of(context).colorScheme.onPrimary,
+                   ),
+                 ),
+                 tooltip: 'Open AI assistant',
+                 onPressed: () async {
                   final service = AIService();
                   final consented = await service.hasAiConsent();
                   final accepted = await service.hasAcceptedAiPolicy();
@@ -110,8 +111,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
         ),
         actions: [
-          IconButton(
+           IconButton(
             icon: const Icon(Icons.search),
+            tooltip: 'Search',
             onPressed: () => GoRouter.of(context).push('/search'),
           ),
         ],
@@ -247,19 +249,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ],
                               ),
                             ),
-                             Semantics(
-                               label: 'Start ${recommended.title}',
-                               child: ElevatedButton(
-                                 onPressed:
-                                     recommended.id != null
-                                         ? () => GoRouter.of(context).push(
-                                           '/focus',
-                                           extra: {'taskId': recommended.id},
-                                         )
-                                         : null,
-                                 child: const Text('Start'),
-                               ),
-                             ),
+                            Semantics(
+                              label: 'Start ${recommended.title}',
+                              child: ElevatedButton(
+                                onPressed:
+                                    recommended.id != null
+                                        ? () => GoRouter.of(context).push(
+                                          '/focus',
+                                          extra: {'taskId': recommended.id},
+                                        )
+                                        : null,
+                                child: const Text('Start'),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -269,7 +271,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
               if (minimumViableDay != null && overflowToday.isNotEmpty) ...[
                 Card(
-                  color: Colors.orange.withValues(alpha: 0.1),
+                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.1),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -407,6 +409,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             'AI Quick Actions',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
+                          Text(
+                            'Online AI (Internet Required)',
+                            style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -415,60 +421,127 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                             _AiActionChip(
-                               label: 'What to do now',
-                               icon: Icons.psychology,
-                               onTap: () async {
-                                 final service = AIService();
-                                 final db = await ref.read(
-                                   databaseRepositoryProvider.future,
-                                 );
-                                 final subjects = await db.getSubjects();
-                                 final contextStr = subjects.isEmpty
-                                     ? 'No subjects yet.'
-                                     : subjects.map((s) => s.name).join(', ');
-                                 final answer = await service.askAiAboutSubject(
-                                   'local_user',
-                                   'Based on my subjects ($contextStr), what should I study right now?',
-                                 );
-                                 if (!context.mounted) return;
-                                 ScaffoldMessenger.of(context).showSnackBar(
-                                   SnackBar(
-                                     content: Text(
-                                       answer ??
-                                           'Could not generate a suggestion.',
-                                     ),
-                                     duration: const Duration(seconds: 4),
-                                   ),
-                                 );
-                               },
-                             ),
+                            _AiActionChip(
+                              label: 'What to do now',
+                              icon: Icons.psychology,
+                              onTap: () async {
+                                try {
+                                  final service = AIService();
+                                  final gate = await service.checkAiGate('local_user');
+                                  if (gate != null) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(
+                                        SnackBar(
+                                          content: Text(gate),
+                                          duration: const Duration(seconds: 4),
+                                        ),
+                                      );
+                                    return;
+                                  }
+                                  final db = await ref.read(
+                                    databaseRepositoryProvider.future,
+                                  );
+                                  final subjects = await db.getSubjects();
+                                  final contextStr =
+                                      subjects.isEmpty
+                                          ? 'No subjects yet.'
+                                          : subjects
+                                              .map((s) => s.name)
+                                              .join(', ');
+                                  final answer = await service.askAiAboutSubject(
+                                    'local_user',
+                                    'Based on my subjects ($contextStr), what should I study right now?',
+                                  );
+                                  if (!context.mounted) return;
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  messenger.hideCurrentSnackBar();
+                                  final display =
+                                      answer != null && answer.startsWith('AI_ERROR:')
+                                          ? answer.substring('AI_ERROR:'.length).trim()
+                                          : (answer ?? 'Could not generate a suggestion.');
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(display),
+                                      duration: const Duration(seconds: 4),
+                                    ),
+                                  );
+                                } catch (_) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          'Something went wrong. Please retry.',
+                                        ),
+                                        duration: Duration(seconds: 4),
+                                      ),
+                                    );
+                                }
+                              },
+                            ),
                             const SizedBox(width: 8),
                             _AiActionChip(
                               label: 'Quiz me',
                               icon: Icons.quiz,
                               onTap: () async {
-                                final service = AIService();
-                                final db = await ref.read(
-                                  databaseRepositoryProvider.future,
-                                );
-                                final subjects = await db.getSubjects();
-                                final contextStr = subjects.isEmpty
-                                    ? 'my subjects'
-                                    : subjects.map((s) => s.name).join(', ');
-                                final answer = await service.askAiAboutSubject(
-                                  'local_user',
-                                  'Generate a short quiz for my subjects: $contextStr',
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      answer ?? 'Could not generate a quiz.',
+                                try {
+                                  final service = AIService();
+                                  final gate = await service.checkAiGate('local_user');
+                                  if (gate != null) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(
+                                        SnackBar(
+                                          content: Text(gate),
+                                          duration: const Duration(seconds: 4),
+                                        ),
+                                      );
+                                    return;
+                                  }
+                                  final db = await ref.read(
+                                    databaseRepositoryProvider.future,
+                                  );
+                                  final subjects = await db.getSubjects();
+                                  final contextStr =
+                                      subjects.isEmpty
+                                          ? 'my subjects'
+                                          : subjects
+                                              .map((s) => s.name)
+                                              .join(', ');
+                                  final answer = await service.askAiAboutSubject(
+                                    'local_user',
+                                    'Generate a short quiz for my subjects: $contextStr',
+                                  );
+                                  if (!context.mounted) return;
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  messenger.hideCurrentSnackBar();
+                                  final display =
+                                      answer != null && answer.startsWith('AI_ERROR:')
+                                          ? answer.substring('AI_ERROR:'.length).trim()
+                                          : (answer ?? 'Could not generate a quiz.');
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(display),
+                                      duration: const Duration(seconds: 4),
                                     ),
-                                    duration: const Duration(seconds: 4),
-                                  ),
-                                );
+                                  );
+                                } catch (_) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          'Something went wrong. Please retry.',
+                                        ),
+                                        duration: Duration(seconds: 4),
+                                      ),
+                                    );
+                                }
                               },
                             ),
                             const SizedBox(width: 8),
@@ -476,27 +549,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               label: 'Flashcards',
                               icon: Icons.style,
                               onTap: () async {
-                                final service = AIService();
-                                final db = await ref.read(
-                                  databaseRepositoryProvider.future,
-                                );
-                                final subjects = await db.getSubjects();
-                                final contextStr = subjects.isEmpty
-                                    ? 'my subjects'
-                                    : subjects.map((s) => s.name).join(', ');
-                                final answer = await service.askAiAboutSubject(
-                                  'local_user',
-                                  'Create 5 flashcards for my subjects: $contextStr',
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      answer ?? 'Could not generate flashcards.',
-                                    ),
-                                    duration: const Duration(seconds: 4),
-                                  ),
-                                );
+                                try {
+                                  final service = AIService();
+                                  final gate = await service.checkAiGate('local_user');
+                                  if (gate != null) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(
+                                        SnackBar(
+                                          content: Text(gate),
+                                          duration: const Duration(seconds: 4),
+                                        ),
+                                      );
+                                    return;
+                                  }
+                                  final db = await ref.read(
+                                    databaseRepositoryProvider.future,
+                                  );
+                                  final subjects = await db.getSubjects();
+                                  final contextStr =
+                                      subjects.isEmpty
+                                          ? 'my subjects'
+                                          : subjects
+                                              .map((s) => s.name)
+                                              .join(', ');
+                                  if (!context.mounted) return;
+                                  GoRouter.of(context).push(
+                                    '/ai/flashcards',
+                                    extra: {
+                                      'sourceText': 'Create 5 flashcards for my subjects: $contextStr',
+                                      'sourceTitle': 'AI Flashcards - $contextStr',
+                                    },
+                                  );
+                                } catch (_) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          'Something went wrong. Please retry.',
+                                        ),
+                                        duration: Duration(seconds: 4),
+                                      ),
+                                    );
+                                }
                               },
                             ),
                             const SizedBox(width: 8),
@@ -504,27 +602,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               label: 'Study plan',
                               icon: Icons.calendar_today,
                               onTap: () async {
-                                final service = AIService();
-                                final db = await ref.read(
-                                  databaseRepositoryProvider.future,
-                                );
-                                final subjects = await db.getSubjects();
-                                final contextStr = subjects.isEmpty
-                                    ? 'my subjects'
-                                    : subjects.map((s) => s.name).join(', ');
-                                final answer = await service.askAiAboutSubject(
-                                  'local_user',
-                                  'Create a 3-day study plan for my subjects: $contextStr',
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      answer ?? 'Could not generate a study plan.',
+                                try {
+                                  final service = AIService();
+                                  final gate = await service.checkAiGate('local_user');
+                                  if (gate != null) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(
+                                        SnackBar(
+                                          content: Text(gate),
+                                          duration: const Duration(seconds: 4),
+                                        ),
+                                      );
+                                    return;
+                                  }
+                                  final db = await ref.read(
+                                    databaseRepositoryProvider.future,
+                                  );
+                                  final subjects = await db.getSubjects();
+                                  final contextStr =
+                                      subjects.isEmpty
+                                          ? 'my subjects'
+                                          : subjects
+                                              .map((s) => s.name)
+                                              .join(', ');
+                                  final answer = await service.askAiAboutSubject(
+                                    'local_user',
+                                    'Create a 3-day study plan for my subjects: $contextStr',
+                                  );
+                                  if (!context.mounted) return;
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  messenger.hideCurrentSnackBar();
+                                  final display =
+                                      answer != null && answer.startsWith('AI_ERROR:')
+                                          ? answer.substring('AI_ERROR:'.length).trim()
+                                          : (answer ?? 'Could not generate a study plan.');
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(display),
+                                      duration: const Duration(seconds: 4),
                                     ),
-                                    duration: const Duration(seconds: 4),
-                                  ),
-                                );
+                                  );
+                                } catch (_) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          'Something went wrong. Please retry.',
+                                        ),
+                                        duration: Duration(seconds: 4),
+                                      ),
+                                    );
+                                }
                               },
                             ),
                           ],
@@ -581,10 +713,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               padding: const EdgeInsets.all(12),
                               child: Row(
                                 children: [
-                                  const Icon(
-                                    Icons.tips_and_updates,
-                                    color: Colors.purple,
-                                  ),
+Icon(
+    Icons.tips_and_updates,
+    color: Theme.of(context).colorScheme.tertiary,
+),
                                   const SizedBox(width: 8),
                                   Expanded(child: Text(nextAction)),
                                 ],
@@ -607,7 +739,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+        error:
+            (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => GoRouter.of(context).push('/planner'),
@@ -696,11 +830,7 @@ class _AiActionChip extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 6),
             Text(
               label,

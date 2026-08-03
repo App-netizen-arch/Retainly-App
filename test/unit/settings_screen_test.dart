@@ -1,14 +1,10 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test/test.dart';
-import 'package:retainly/core/feature_flags.dart';
 import 'package:retainly/services/ai_service.dart';
 
 void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    FeatureFlags.setFeatureOverride('firebase_auth', false);
-    FeatureFlags.setFeatureOverride('google_sign_in', false);
-    FeatureFlags.setFeatureOverride('guest_mode', false);
   });
 
   group('Settings Screen - Locale Persistence', () {
@@ -17,7 +13,7 @@ void main() {
       expect(prefs.getString('app_locale'), isNull);
       final service = AIService();
       final provider = await service.getAiProvider();
-      expect(provider, 'openai');
+      expect(provider, 'openrouter');
     });
 
     test('locale can be set to ur', () async {
@@ -65,54 +61,6 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('high_contrast', true);
       expect(prefs.getBool('high_contrast'), isTrue);
-    });
-  });
-
-  group('Settings Screen - Feature Flag Overrides', () {
-    test('firebase_auth flag defaults to false', () async {
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('flag_firebase_auth'), isNull);
-      expect(FeatureFlags.isFeatureEnabled('firebase_auth'), isFalse);
-    });
-
-    test('firebase_auth flag can be enabled', () async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('flag_firebase_auth', true);
-      FeatureFlags.setFeatureOverride('firebase_auth', true);
-      expect(FeatureFlags.isFeatureEnabled('firebase_auth'), isTrue);
-    });
-
-    test('google_sign_in flag defaults to false', () async {
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('flag_google_sign_in'), isNull);
-      expect(FeatureFlags.isFeatureEnabled('google_sign_in'), isFalse);
-    });
-
-    test('google_sign_in flag can be enabled', () async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('flag_google_sign_in', true);
-      FeatureFlags.setFeatureOverride('google_sign_in', true);
-      expect(FeatureFlags.isFeatureEnabled('google_sign_in'), isTrue);
-    });
-
-    test('guest_mode flag defaults to false', () async {
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('flag_guest_mode'), isNull);
-      expect(FeatureFlags.isFeatureEnabled('guest_mode'), isFalse);
-    });
-
-    test('guest_mode flag can be enabled', () async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('flag_guest_mode', true);
-      FeatureFlags.setFeatureOverride('guest_mode', true);
-      expect(FeatureFlags.isFeatureEnabled('guest_mode'), isTrue);
-    });
-
-    test('feature flag override can be toggled off', () async {
-      FeatureFlags.setFeatureOverride('firebase_auth', true);
-      expect(FeatureFlags.isFeatureEnabled('firebase_auth'), isTrue);
-      FeatureFlags.setFeatureOverride('firebase_auth', false);
-      expect(FeatureFlags.isFeatureEnabled('firebase_auth'), isFalse);
     });
   });
 
@@ -170,9 +118,9 @@ void main() {
       expect(await service.hasAcceptedCostWarning(), isTrue);
     });
 
-    test('AI quota defaults to 50', () async {
+    test('AI quota defaults to 10', () async {
       final service = AIService();
-      expect(await service.getAiUsageQuota('local_user'), 50);
+      expect(await service.getAiUsageQuota('local_user'), 10);
     });
   });
 

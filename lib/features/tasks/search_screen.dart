@@ -101,10 +101,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               controller: _controller,
               decoration: InputDecoration(
                 hintText: 'Search tasks, subjects, chapters, resources...',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () => _performSearch(_controller.text),
-                ),
+                 suffixIcon: IconButton(
+                   icon: const Icon(Icons.search),
+                   tooltip: 'Search',
+                   onPressed: () => _performSearch(_controller.text),
+                 ),
               ),
               onChanged: _performSearch,
             ),
@@ -176,38 +177,38 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ],
             ),
           ),
-                 const SizedBox(height: 8),
-                 if (_subjects.isNotEmpty)
-                   DropdownButtonFormField<String>(
-                     decoration: const InputDecoration(
-                       labelText: 'Subject',
-                       border: OutlineInputBorder(),
-                       isDense: true,
-                       contentPadding: EdgeInsets.symmetric(
-                         horizontal: 12,
-                         vertical: 8,
-                       ),
-                       hintStyle: TextStyle(fontSize: 13),
-                     ),
-                     initialValue: _subjectFilter,
-                     hint: const Text('All subjects'),
-                     items: [
-                       const DropdownMenuItem(
-                         value: 'all',
-                         child: Text('All subjects'),
-                       ),
-                       ..._subjects.map((s) {
-                         return DropdownMenuItem(
-                           value: s.id?.toString() ?? 'all',
-                           child: Text(s.name),
-                         );
-                       }),
-                     ],
-                     onChanged: (v) {
-                       setState(() => _subjectFilter = v ?? 'all');
-                       _performSearch(_controller.text);
-                     },
-                   ),
+          const SizedBox(height: 8),
+          if (_subjects.isNotEmpty)
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(
+                labelText: 'Subject',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                hintStyle: TextStyle(fontSize: 13),
+              ),
+              initialValue: _subjectFilter,
+              hint: const Text('All subjects'),
+              items: [
+                const DropdownMenuItem(
+                  value: 'all',
+                  child: Text('All subjects'),
+                ),
+                ..._subjects.map((s) {
+                  return DropdownMenuItem(
+                    value: s.id?.toString() ?? 'all',
+                    child: Text(s.name),
+                  );
+                }),
+              ],
+              onChanged: (v) {
+                setState(() => _subjectFilter = v ?? 'all');
+                _performSearch(_controller.text);
+              },
+            ),
           if (_searching)
             const Expanded(child: Center(child: CircularProgressIndicator())),
           Expanded(

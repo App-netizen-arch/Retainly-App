@@ -10,8 +10,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('LegalScreen shows Privacy Policy title and content',
-      (WidgetTester tester) async {
+  testWidgets('LegalScreen shows Privacy Policy title and content', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -25,22 +26,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Privacy Policy'), findsOneWidget);
-    expect(
-      find.textContaining('Retainly'),
-      findsWidgets,
-    );
-    expect(
-      find.textContaining('Data We Collect'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Your Rights'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Retainly'), findsWidgets);
+    expect(find.textContaining('Data We Collect'), findsOneWidget);
+    expect(find.textContaining('Your Rights'), findsOneWidget);
   });
 
-  testWidgets('LegalScreen shows Terms of Service title and content',
-      (WidgetTester tester) async {
+  testWidgets('LegalScreen shows Terms of Service title and content', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -58,8 +51,9 @@ void main() {
     expect(find.textContaining('Prohibited Uses'), findsOneWidget);
   });
 
-  testWidgets('LegalScreen shows Data Retention Policy title and content',
-      (WidgetTester tester) async {
+  testWidgets('LegalScreen shows Data Retention Policy title and content', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -74,11 +68,12 @@ void main() {
 
     expect(find.text('Data Retention Policy'), findsOneWidget);
     expect(find.textContaining('Local Data'), findsOneWidget);
-    expect(find.textContaining('Tombstone'), findsOneWidget);
+    expect(find.textContaining('AI / OCR Data'), findsOneWidget);
   });
 
-  testWidgets('LegalScreen shows Age & Minor Policy title and content',
-      (WidgetTester tester) async {
+  testWidgets('LegalScreen shows Age & Minor Policy title and content', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -96,8 +91,9 @@ void main() {
     expect(find.textContaining('Minimum Age'), findsOneWidget);
   });
 
-  testWidgets('LegalScreen shows Threat Model title and content',
-      (WidgetTester tester) async {
+  testWidgets('LegalScreen shows Threat Model title and content', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -113,11 +109,12 @@ void main() {
     expect(find.text('Threat Model'), findsOneWidget);
     expect(find.textContaining('Assets'), findsOneWidget);
     expect(find.textContaining('Mitigations'), findsOneWidget);
-    expect(find.textContaining('Firestore rules'), findsOneWidget);
+    expect(find.textContaining('AI consents'), findsOneWidget);
   });
 
-  testWidgets('LegalScreen shows Document not found for unknown key',
-      (WidgetTester tester) async {
+  testWidgets('LegalScreen shows Document not found for unknown key', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -134,13 +131,12 @@ void main() {
     expect(find.text('Document not found.'), findsOneWidget);
   });
 
-  testWidgets('LegalScreen shows Loading when localizations unavailable',
-      (WidgetTester tester) async {
+  testWidgets('LegalScreen shows Loading when localizations unavailable', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       const ProviderScope(
-        child: MaterialApp(
-          home: LegalScreen(documentKey: 'privacy_policy'),
-        ),
+        child: MaterialApp(home: LegalScreen(documentKey: 'privacy_policy')),
       ),
     );
     await tester.pumpAndSettle();
@@ -148,8 +144,9 @@ void main() {
     expect(find.text('Loading...'), findsOneWidget);
   });
 
-  testWidgets('LegalScreen shows Urdu content when locale is ur',
-      (WidgetTester tester) async {
+  testWidgets('LegalScreen shows Urdu content when locale is ur', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(

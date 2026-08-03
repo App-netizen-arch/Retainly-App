@@ -18,12 +18,33 @@ class PracticalRecordsScreen extends ConsumerWidget {
             (db) => FutureBuilder<List<SubjectModel>>(
               future: db.getSubjects(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      children: [
+                        const Text('Something went wrong. Please try again.'),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (context.mounted) {
+                              ref.invalidate(databaseRepositoryProvider);
+                            }
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final subjects = snapshot.data!;
                 if (subjects.isEmpty) {
-                  return const Center(child: Text('No subjects found. Add subjects first.'));
+                  return const Center(
+                    child: Text('No subjects found. Add subjects first.'),
+                  );
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -54,7 +75,9 @@ class PracticalRecordsScreen extends ConsumerWidget {
               },
             ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+        error:
+            (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
       ),
     );
   }
@@ -102,7 +125,14 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
   }
 
   Future<void> _addPractical(DatabaseRepository db) async {
-    if (_titleController.text.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (_titleController.text.isEmpty) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Please enter a practical title')),
+      );
+      return;
+    }
     await db.insertPracticalRecord(
       PracticalRecordModel(
         subjectId: widget.subjectId,
@@ -162,7 +192,26 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                       )
                       : Future.value(const []),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const CircularProgressIndicator();
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      children: [
+                        const Text('Something went wrong. Please try again.'),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (context.mounted) {
+                              setState(() {});
+                            }
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 final records = snapshot.data!;
                 return Column(
                   children: [
@@ -235,17 +284,17 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                                           );
                                         }
                                         setDialogState(() {});
-                                      } on Exception catch (e) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Failed to update: ${e.toString()}',
+                                       } on Exception catch (_) {
+                                       if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Failed to update. Please try again.',
+                                                ),
                                               ),
-                                            ),
-                                          );
+                                            );
                                         }
                                       }
                                     },
@@ -256,10 +305,11 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    TextFormField(
                       controller: _titleController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Practical title',
+                        errorText: _titleController.text.isEmpty ? 'Title is required' : null,
                       ),
                     ),
                     const SizedBox(height: 8),

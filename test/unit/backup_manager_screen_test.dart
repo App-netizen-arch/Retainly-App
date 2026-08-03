@@ -2,54 +2,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test/test.dart';
 import 'package:retainly/features/backup/domain/models/backup_models.dart';
 
-String formatBytes(int bytes) {
-  if (bytes >= 1024 * 1024) {
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-  if (bytes >= 1024) {
-    return '${(bytes / 1024).toStringAsFixed(1)} KB';
-  }
-  return '$bytes B';
-}
-
 void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-  });
-
-  group('Backup Manager Screen - Format Bytes', () {
-    test('formats bytes for 0', () {
-      expect(formatBytes(0), '0 B');
-    });
-
-    test('formats bytes for small values', () {
-      expect(formatBytes(512), '512 B');
-      expect(formatBytes(100), '100 B');
-    });
-
-    test('formats bytes for 1023 (just under 1 KB)', () {
-      expect(formatBytes(1023), '1023 B');
-    });
-
-    test('formats bytes for 1024 (exactly 1 KB)', () {
-      expect(formatBytes(1024), '1.0 KB');
-    });
-
-    test('formats bytes for 1536 (1.5 KB)', () {
-      expect(formatBytes(1536), '1.5 KB');
-    });
-
-    test('formats bytes for 1048576 (exactly 1 MB)', () {
-      expect(formatBytes(1048576), '1.0 MB');
-    });
-
-    test('formats bytes for large values', () {
-      expect(formatBytes(5242880), '5.0 MB');
-    });
-
-    test('formats bytes for 1572864 (1.5 MB)', () {
-      expect(formatBytes(1572864), '1.5 MB');
-    });
   });
 
   group('Backup Manager Screen - Settings Persistence', () {
@@ -61,19 +16,34 @@ void main() {
     test('backup frequency can be set to daily', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('local_backup_frequency', BackupFrequency.daily.index);
-      expect(prefs.getInt('local_backup_frequency'), BackupFrequency.daily.index);
+      expect(
+        prefs.getInt('local_backup_frequency'),
+        BackupFrequency.daily.index,
+      );
     });
 
     test('backup frequency can be set to weekly', () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('local_backup_frequency', BackupFrequency.weekly.index);
-      expect(prefs.getInt('local_backup_frequency'), BackupFrequency.weekly.index);
+      await prefs.setInt(
+        'local_backup_frequency',
+        BackupFrequency.weekly.index,
+      );
+      expect(
+        prefs.getInt('local_backup_frequency'),
+        BackupFrequency.weekly.index,
+      );
     });
 
     test('backup frequency can be set to monthly', () async {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('local_backup_frequency', BackupFrequency.monthly.index);
-      expect(prefs.getInt('local_backup_frequency'), BackupFrequency.monthly.index);
+      await prefs.setInt(
+        'local_backup_frequency',
+        BackupFrequency.monthly.index,
+      );
+      expect(
+        prefs.getInt('local_backup_frequency'),
+        BackupFrequency.monthly.index,
+      );
     });
 
     test('auto backup enabled defaults to false', () async {
@@ -126,10 +96,7 @@ void main() {
     });
 
     test('BackupFrequencyExtension.fromName returns correct values', () {
-      expect(
-        BackupFrequencyExtension.fromName('daily'),
-        BackupFrequency.daily,
-      );
+      expect(BackupFrequencyExtension.fromName('daily'), BackupFrequency.daily);
       expect(
         BackupFrequencyExtension.fromName('weekly'),
         BackupFrequency.weekly,
@@ -144,12 +111,15 @@ void main() {
       );
     });
 
-    test('BackupFrequencyExtension.fromName returns manualOnly for unknown', () {
-      expect(
-        BackupFrequencyExtension.fromName('unknown'),
-        BackupFrequency.manualOnly,
-      );
-    });
+    test(
+      'BackupFrequencyExtension.fromName returns manualOnly for unknown',
+      () {
+        expect(
+          BackupFrequencyExtension.fromName('unknown'),
+          BackupFrequency.manualOnly,
+        );
+      },
+    );
   });
 
   group('Backup Manager Screen - BackupRecord Model', () {

@@ -79,6 +79,10 @@ class _OcrScanScreenState extends ConsumerState<OcrScanScreen> {
         await Future.delayed(const Duration(seconds: 2));
         final data = await service.getOcrResult('local_user', jobId);
         if (data != null) {
+          if (data['status'] == 'disabled') {
+            setState(() => _error = data['extractedText'] as String?);
+            break;
+          }
           final extracted = data['extractedText'] as String?;
           if (extracted != null && extracted.isNotEmpty) {
             setState(() => _result = extracted);
@@ -104,7 +108,10 @@ class _OcrScanScreenState extends ConsumerState<OcrScanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_previewFile != null) Image.file(_previewFile!, height: 200),
+            if (_previewFile != null) Semantics(
+              label: 'Scanned document preview',
+              child: Image.file(_previewFile!, height: 200),
+            ),
             if (_isProcessing)
               const Column(
                 children: [
@@ -129,7 +136,7 @@ class _OcrScanScreenState extends ConsumerState<OcrScanScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
               ),
             const SizedBox(height: 16),
             ElevatedButton.icon(

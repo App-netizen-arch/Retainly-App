@@ -5,10 +5,28 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor:
-          brightness == Brightness.dark
-              ? const Color(0xFF121212)
-              : const Color(0xFFFAFAFA),
+      scaffoldBackgroundColor: colorScheme.surface,
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: colorScheme.surfaceContainerHighest,
+        hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+        labelStyle: TextStyle(color: colorScheme.onSurface),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: colorScheme.outline,
+            width: 2,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 2.5,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      ),
     );
   }
 
@@ -51,6 +69,23 @@ class AppTheme {
         onSurfaceVariant: Color(0xFF212121),
         outline: Color(0xFF000000),
         surfaceContainerHighest: Color(0xFFE0E0E0),
+        surfaceContainerLowest: Color(0xFFFFFFFF),
+        surfaceContainerLow: Color(0xFFFFFFFF),
+        surfaceContainer: Color(0xFFF5F5F5),
+        surfaceContainerHigh: Color(0xFFE0E0E0),
+        surfaceBright: Color(0xFFFFFFFF),
+        surfaceDim: Color(0xFFE0E0E0),
+        inverseSurface: Color(0xFF212121),
+        onInverseSurface: Color(0xFFFFFFFF),
+        inversePrimary: Color(0xFFE0E0E0),
+        shadow: Color(0xFF000000),
+        scrim: Color(0xFF000000),
+        errorContainer: Color(0xFFCF6679),
+        onErrorContainer: Color(0xFF000000),
+        onSecondaryContainer: Color(0xFF000000),
+        onTertiaryContainer: Color(0xFF000000),
+        outlineVariant: Color(0xFF757575),
+        surfaceTint: Color(0xFF000000),
       ),
       Brightness.light,
     );
@@ -75,6 +110,23 @@ class AppTheme {
         onSurfaceVariant: Color(0xFFE0E0E0),
         outline: Color(0xFFFFFFFF),
         surfaceContainerHighest: Color(0xFF424242),
+        surfaceContainerLowest: Color(0xFF000000),
+        surfaceContainerLow: Color(0xFF1A1A1A),
+        surfaceContainer: Color(0xFF212121),
+        surfaceContainerHigh: Color(0xFF424242),
+        surfaceBright: Color(0xFF2A2A2A),
+        surfaceDim: Color(0xFF000000),
+        inverseSurface: Color(0xFFE0E0E0),
+        onInverseSurface: Color(0xFF000000),
+        inversePrimary: Color(0xFF424242),
+        shadow: Color(0xFF000000),
+        scrim: Color(0xFF000000),
+        errorContainer: Color(0xFFCF6679),
+        onErrorContainer: Color(0xFF000000),
+        onSecondaryContainer: Color(0xFF000000),
+        onTertiaryContainer: Color(0xFF000000),
+        outlineVariant: Color(0xFF9E9E9E),
+        surfaceTint: Color(0xFFFFFFFF),
       ),
       Brightness.dark,
     );

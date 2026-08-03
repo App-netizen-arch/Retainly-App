@@ -4,9 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/database_helper.dart';
 import '../data/repositories/database_repository.dart';
 import '../data/models/app_models.dart';
-import '../data/drift/app_database.dart';
-import '../data/drift/database_provider.dart' as drift_provider;
-import '../services/sync_worker_service.dart';
 
 class LocaleNotifier extends Notifier<Locale> {
   @override
@@ -20,8 +17,9 @@ class LocaleNotifier extends Notifier<Locale> {
   }
 }
 
-final localeProvider =
-    NotifierProvider<LocaleNotifier, Locale>(LocaleNotifier.new);
+final localeProvider = NotifierProvider<LocaleNotifier, Locale>(
+  LocaleNotifier.new,
+);
 
 class SelectedDateNotifier extends Notifier<DateTime> {
   @override
@@ -32,8 +30,9 @@ class SelectedDateNotifier extends Notifier<DateTime> {
   }
 }
 
-final selectedDateProvider =
-    NotifierProvider<SelectedDateNotifier, DateTime>(SelectedDateNotifier.new);
+final selectedDateProvider = NotifierProvider<SelectedDateNotifier, DateTime>(
+  SelectedDateNotifier.new,
+);
 
 final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw StateError('SharedPreferences not initialized');
@@ -43,16 +42,10 @@ final dbFutureProvider = FutureProvider<DatabaseHelper>((ref) {
   return DatabaseHelper.instance.database.then((_) => DatabaseHelper.instance);
 });
 
-final driftDatabaseProvider = FutureProvider<AppDatabase?>((ref) async {
-  await drift_provider.DatabaseProvider.initialize();
-  return drift_provider.DatabaseProvider.driftDb;
-});
-
 final databaseRepositoryProvider =
     FutureProvider.autoDispose<DatabaseRepository>((ref) async {
       final db = await ref.watch(dbFutureProvider.future);
-      final driftDb = await ref.watch(driftDatabaseProvider.future);
-      return DatabaseRepository(db, driftDb: driftDb);
+      return DatabaseRepository(db);
     });
 
 final userProfileProvider = FutureProvider.autoDispose<UserModel?>((ref) async {
@@ -71,6 +64,21 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
     default:
       return ThemeMode.system;
   }
+});
+
+final reducedMotionProvider = Provider<bool>((ref) {
+  final prefs = ref.read(sharedPreferencesProvider);
+  return prefs.getBool('reduced_motion') ?? false;
+});
+
+final dynamicTypeProvider = Provider<bool>((ref) {
+  final prefs = ref.read(sharedPreferencesProvider);
+  return prefs.getBool('dynamic_type') ?? false;
+});
+
+final highContrastProvider = Provider<bool>((ref) {
+  final prefs = ref.read(sharedPreferencesProvider);
+  return prefs.getBool('high_contrast') ?? false;
 });
 
 final todayTasksProvider = FutureProvider.autoDispose<List<TaskModel>>((
@@ -169,39 +177,6 @@ final analyticsDetailProvider =
         'pastPaperCompleted': completedPastPapers,
       };
     });
-
-final dataHealthProvider = FutureProvider.autoDispose<String>((ref) async {
-  final db = await ref.watch(databaseRepositoryProvider.future);
-  final profile = await db.getUserProfile();
-  if (profile == null) return 'local_only';
-  final backupHistory = await db.getBackupHistory();
-  if (backupHistory.isEmpty) return 'saved_local';
-  final lastBackup = backupHistory.first;
-  final backupDate = DateTime.tryParse(lastBackup['created_at'] ?? '');
-  if (backupDate == null) return 'saved_local';
-  final diff = DateTime.now().difference(backupDate).inHours;
-  if (diff < 24) return 'backed_up';
-  return 'local_only';
-});
-
-final syncWorkerProvider = Provider<SyncWorkerService>((ref) {
-  return SyncWorkerService();
-});
-
-final weeklyReflectionProvider =
-    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-      final db = await ref.watch(databaseRepositoryProvider.future);
-      return _loadWeeklyReflections(db);
-    });
-
-final syncStatusProvider = Provider<Map<String, int>>((ref) {
-  final worker = ref.watch(syncWorkerProvider);
-  return {
-    'pendingOutbox': worker.pendingOutbox,
-    'pendingConflicts': worker.pendingConflicts,
-    'prunedTombstones': worker.prunedTombstones,
-  };
-});
 
 Future<Map<String, dynamic>> _loadDashboard(
   DatabaseRepository db,
@@ -407,7 +382,10 @@ Future<Map<String, dynamic>> _loadWeeklyAnalytics(DatabaseRepository db) async {
       })
       .fold<int>(0, (total, t) => total + t.completedMinutes);
 
-  final allTasksMap = {for (final t in allTasks) if (t.id != null) t.id!: t};
+  final allTasksMap = {
+    for (final t in allTasks)
+      if (t.id != null) t.id!: t,
+  };
 
   final subjectMinutes = <int, int>{};
   for (final s in weekSessions) {
@@ -445,87 +423,4 @@ Future<Map<String, dynamic>> _loadWeeklyAnalytics(DatabaseRepository db) async {
     'sessionCount': weekSessions.length,
     'nextAction': nextAction,
   };
-}
-
-Future<List<Map<String, dynamic>>> _loadWeeklyReflections(
-  DatabaseRepository db,
-) async {
-  final allSessions = await db.getFocusSessions();
-  final now = DateTime.now();
-  final weeks = <Map<String, dynamic>>[];
-
-  for (var i = 7; i >= 0; i--) {
-    final weekEnd = now.subtract(Duration(days: i * 7));
-    final weekStart = weekEnd.subtract(const Duration(days: 6));
-    final weekStartDate = DateTime(
-      weekStart.year,
-      weekStart.month,
-      weekStart.day,
-    );
-    final weekEndDate = DateTime(
-      weekEnd.year,
-      weekEnd.month,
-      weekEnd.day,
-    ).add(const Duration(days: 1));
-
-    final weekSessions =
-        allSessions.where((s) {
-          final started = DateTime.tryParse(s.startedAt);
-          return started != null &&
-              started.isAfter(
-                weekStartDate.subtract(const Duration(days: 1)),
-              ) &&
-              started.isBefore(weekEndDate);
-        }).toList();
-
-    if (weekSessions.isEmpty) continue;
-
-    final totalMinutes = weekSessions.fold<int>(
-      0,
-      (acc, s) => acc + s.completedMinutes,
-    );
-    final completedSessions =
-        weekSessions.where((s) => s.status == 'completed').length;
-    final totalSessionsForRate = weekSessions.length;
-
-    final understood =
-        weekSessions.where((s) => s.reflectionStatus == 'understood').length;
-    final needPractice =
-        weekSessions.where((s) => s.reflectionStatus == 'need_practice').length;
-    final couldNotFinish =
-        weekSessions
-            .where((s) => s.reflectionStatus == 'could_not_finish')
-            .length;
-    final none =
-        weekSessions
-            .where(
-              (s) => s.reflectionStatus == 'none' || s.reflectionStatus == null,
-            )
-            .length;
-
-    final parkingLotNotes = <String>[];
-    for (final s in weekSessions) {
-      final notes = s.parkingLotNotes;
-      if (notes != null && notes.isNotEmpty) {
-        parkingLotNotes.add(notes);
-      }
-    }
-    final topNotes = parkingLotNotes.take(3).toList();
-
-    weeks.add({
-      'weekStart':
-          '${weekStartDate.year}-${weekStartDate.month.toString().padLeft(2, '0')}-${weekStartDate.day.toString().padLeft(2, '0')}',
-      'totalSessions': weekSessions.length,
-      'totalMinutes': totalMinutes,
-      'completedSessions': completedSessions,
-      'totalSessionsForRate': totalSessionsForRate,
-      'understood': understood,
-      'needPractice': needPractice,
-      'couldNotFinish': couldNotFinish,
-      'none': none,
-      'parkingLotNotes': topNotes,
-    });
-  }
-
-  return weeks;
 }

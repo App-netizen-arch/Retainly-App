@@ -30,6 +30,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   bool _loading = false;
   String? _error;
   String _sourceRef = '';
+  final TextEditingController _sourceController = TextEditingController();
 
   @override
   void initState() {
@@ -37,15 +38,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     _generateQuiz();
   }
 
+  @override
+  void dispose() {
+    _sourceController.dispose();
+    super.dispose();
+  }
+
   Future<void> _generateQuiz() async {
     final service = AIService();
-    final aiConsent = await service.hasAiConsent();
-    if (!aiConsent) {
-      setState(() => _error = 'AI assistance requires consent in Settings.');
-      return;
-    }
-    if (!await service.hasAcceptedCostWarning()) {
-      setState(() => _error = 'Accept the AI cost warning before using this feature.');
+    final gate = await service.checkAiGate('local_user');
+    if (gate != null) {
+      setState(() => _error = gate);
       return;
     }
     setState(() {
@@ -60,13 +63,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         widget.questionCount,
       );
       if (!mounted) return;
-      if (result == null ||
-          result.startsWith('AI') ||
-          result.startsWith('No internet') ||
-          result.startsWith('Accept') ||
-          result.startsWith('AI assistance')) {
+      if (result == null || result.startsWith('AI_ERROR:')) {
+        final message = result != null && result.startsWith('AI_ERROR:')
+            ? result.substring('AI_ERROR:'.length).trim()
+            : result;
         setState(() {
-          _error = result ?? 'Failed to generate quiz.';
+          _error = message ?? 'Failed to generate quiz.';
           _loading = false;
         });
         return;
@@ -81,10 +83,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _showResults = false;
         _loading = false;
       });
-    } on Exception catch (e) {
+    } on Exception catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Generation failed: ${e.toString()}';
+        _error = 'Generation failed. Please try again.';
         _loading = false;
       });
     }
@@ -265,12 +267,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Future<void> _attachSource() async {
+    _sourceController.clear();
     final ref = await showDialog<String>(
       context: context,
       builder:
           (ctx) => AlertDialog(
             title: const Text('Attach Source'),
             content: TextField(
+              controller: _sourceController,
               decoration: const InputDecoration(
                 hintText: 'Textbook reference, page, etc.',
               ),
@@ -282,7 +286,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
+                onPressed: () {
+                  Navigator.pop(ctx, _sourceController.text.trim());
+                },
                 child: const Text('Save'),
               ),
             ],
@@ -328,7 +334,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+                    Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _generateQuiz,
@@ -437,11 +443,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             : 0;
     Color scoreColor;
     if (score >= 70) {
-      scoreColor = Colors.green;
+      scoreColor = Theme.of(context).colorScheme.tertiary;
     } else if (score >= 40) {
-      scoreColor = Colors.orange;
+      scoreColor = Theme.of(context).colorScheme.primary;
     } else {
-      scoreColor = Colors.red;
+      scoreColor = Theme.of(context).colorScheme.error;
     }
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -485,10 +491,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          'Answer: ${q.correctAnswer}',
-                          style: TextStyle(color: Colors.green),
-                        ),
+Text(
+                           'Answer: ${q.correctAnswer}',
+                           style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                         ),
                       ],
                     ),
                   ),

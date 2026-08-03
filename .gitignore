@@ -35,10 +35,6 @@ app.*.symbols
 # Obfuscation
 app.*.map.json
 
-# Firebase
-firebase-debug.log*
-functions/.runtimeconfig.json
-
 # Android Studio build artifacts
 /android/app/debug
 /android/app/profile
@@ -49,7 +45,7 @@ android/.gradle/
 android/local.properties
 gradle-wrapper.jar
 
-# Node / Firebase Functions
+# Node / backend
 functions/lib/
 functions/node_modules/
 functions/tsconfig.tsbuildinfo

@@ -49,7 +49,8 @@ class _RescheduleScreenState extends ConsumerState<RescheduleScreen> {
                     '${changed ? ' • Rescheduled → today' : ''}',
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                     icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                     tooltip: 'Delete task',
                     onPressed: () async {
                       final confirmed = await showDialog<bool>(
                         context: context,
@@ -110,7 +111,7 @@ class _RescheduleScreenState extends ConsumerState<RescheduleScreen> {
                     ref.invalidate(todayTasksProvider);
                     ref.invalidate(allPendingTasksProvider);
                     ref.invalidate(dashboardProvider);
-                    if (context.mounted) {
+                    if (context.mounted && GoRouter.of(context).canPop()) {
                       GoRouter.of(context).pop();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

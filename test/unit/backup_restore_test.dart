@@ -133,7 +133,8 @@ void main() {
     });
 
     test('validateBackup returns conflict for truncated JSON', () async {
-      final truncatedJson = '{"schemaVersion": 2, "backupVersion": "1.0.0", "exp';
+      final truncatedJson =
+          '{"schemaVersion": 2, "backupVersion": "1.0.0", "exp';
       final jsonBytes = Uint8List.fromList(utf8.encode(truncatedJson));
       final encrypted = await FakeEncryptionService().encryptData(jsonBytes);
       final tempPath =
@@ -194,7 +195,8 @@ void main() {
     });
 
     test('restoreFromFile returns failure for corrupted data', () async {
-      final truncatedJson = '{"schemaVersion": 2, "backupVersion": "1.0.0", "exp';
+      final truncatedJson =
+          '{"schemaVersion": 2, "backupVersion": "1.0.0", "exp';
       final jsonBytes = Uint8List.fromList(utf8.encode(truncatedJson));
       final encrypted = await FakeEncryptionService().encryptData(jsonBytes);
       final tempPath =
@@ -208,7 +210,8 @@ void main() {
     });
 
     test('getBackupTables returns empty list for corrupted data', () async {
-      final truncatedJson = '{"schemaVersion": 2, "backupVersion": "1.0.0", "exp';
+      final truncatedJson =
+          '{"schemaVersion": 2, "backupVersion": "1.0.0", "exp';
       final jsonBytes = Uint8List.fromList(utf8.encode(truncatedJson));
       final encrypted = await FakeEncryptionService().encryptData(jsonBytes);
       final tempPath =

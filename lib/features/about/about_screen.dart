@@ -24,9 +24,9 @@ class AboutScreen extends ConsumerWidget {
           Text(
             l10n?.appName ?? 'Retainly',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(

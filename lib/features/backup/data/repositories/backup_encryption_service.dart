@@ -3,80 +3,72 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:encrypt/encrypt.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/repositories/backup_encryption_service.dart';
 
+abstract class SecureStorage {
+  Future<String?> read({required String key});
+  Future<void> write({required String key, required String value});
+}
+
+class FlutterSecureStorageWrapper implements SecureStorage {
+  final FlutterSecureStorage _delegate;
+  FlutterSecureStorageWrapper(this._delegate);
+
+  @override
+  Future<String?> read({required String key}) => _delegate.read(key: key);
+
+  @override
+  Future<void> write({required String key, required String value}) =>
+      _delegate.write(key: key, value: value);
+}
+
 class LocalBackupEncryptionService implements BackupEncryptionService {
-  static const _keyStorageKey = 'backup_encryption_key';
   static const _magicHeader = 'MSP_BACKUP_V1';
   static const _secureStorageKey = 'backup_encryption_key_secure';
-  final FlutterSecureStorage _secureStorage;
-  bool _useSecureStorage = true;
+  final SecureStorage _secureStorage;
+  final bool Function()? _platformCheckOverride;
   Key? _key;
 
-  LocalBackupEncryptionService({FlutterSecureStorage? secureStorage})
-    : _secureStorage = secureStorage ?? const FlutterSecureStorage();
+  LocalBackupEncryptionService({
+    SecureStorage? secureStorage,
+    bool Function()? platformCheckOverride,
+  }) : _secureStorage = secureStorage ??
+        FlutterSecureStorageWrapper(FlutterSecureStorage()),
+     _platformCheckOverride = platformCheckOverride;
+
+  bool get _isSupportedPlatform {
+    final override = _platformCheckOverride;
+    if (override != null) return override();
+    return Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
+  }
 
   @override
   Future<void> initialize() async {
     if (_key != null) return;
     String? storedKey;
-    if (_useSecureStorage) {
-      try {
-        if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
-          storedKey = await _secureStorage.read(key: _secureStorageKey);
-        } else {
-          _useSecureStorage = false;
-        }
-      } catch (_) {
-        _useSecureStorage = false;
+    try {
+      if (_isSupportedPlatform) {
+        storedKey = await _secureStorage.read(key: _secureStorageKey);
+      } else {
+        throw Exception('Secure storage not available on this platform');
       }
+    } catch (e) {
+      throw Exception('Failed to read encryption key from secure storage: $e');
     }
-    if (_useSecureStorage && storedKey != null && storedKey.isNotEmpty) {
+    if (storedKey != null && storedKey.isNotEmpty) {
       final keyBytes = base64Decode(storedKey);
       _key = Key(keyBytes);
     } else {
-      if (!_useSecureStorage) {
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          storedKey = prefs.getString(_keyStorageKey);
-        } on Exception {
-          storedKey = null;
-        }
+      final newKey = Key.fromSecureRandom(32);
+      try {
+        await _secureStorage.write(
+          key: _secureStorageKey,
+          value: base64Encode(newKey.bytes),
+        );
+      } catch (e) {
+        throw Exception('Failed to persist encryption key: $e');
       }
-      if (storedKey != null && storedKey.isNotEmpty) {
-        final keyBytes = base64Decode(storedKey);
-        _key = Key(keyBytes);
-      } else {
-        final newKey = Key.fromSecureRandom(32);
-        if (_useSecureStorage) {
-          try {
-            await _secureStorage.write(
-              key: _secureStorageKey,
-              value: base64Encode(newKey.bytes),
-            );
-          } catch (_) {
-            _useSecureStorage = false;
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString(
-                _keyStorageKey,
-                base64Encode(newKey.bytes),
-              );
-            } catch (_) {
-              // Key storage is best-effort; encryption still works with in-memory key
-            }
-          }
-        } else {
-          try {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString(_keyStorageKey, base64Encode(newKey.bytes));
-          } catch (_) {
-            // Key storage is best-effort; encryption still works with in-memory key
-          }
-        }
-        _key = newKey;
-      }
+      _key = newKey;
     }
   }
 

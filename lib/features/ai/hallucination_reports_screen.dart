@@ -31,9 +31,9 @@ class _HallucinationReportsScreenState
     await service.deleteHallucinationReport('local_user', index);
     setState(() => _loadReports());
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Report deleted')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Report deleted')));
   }
 
   Future<void> _clearAll() async {
@@ -54,7 +54,8 @@ class _HallucinationReportsScreenState
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
                 ),
                 child: const Text('Clear All'),
               ),
@@ -70,9 +71,9 @@ class _HallucinationReportsScreenState
       _loadReports();
     });
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('All reports cleared')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('All reports cleared')));
   }
 
   String _formatDate(String? isoString) {
@@ -97,7 +98,12 @@ class _HallucinationReportsScreenState
           if (_isDeletingAll)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Center(child: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+              child: Center(
+                child: SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
             ),
           IconButton(
             onPressed: _isDeletingAll ? null : _clearAll,
@@ -114,23 +120,31 @@ class _HallucinationReportsScreenState
           }
           if (snapshot.hasError) {
             return Center(
-              child: Text(
-                'Error loading reports: ${snapshot.error}',
-                style: TextStyle(color: Colors.red.shade700),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Something went wrong. Please try again.'),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => setState(() => _loadReports()),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
               ),
             );
           }
           final reports = snapshot.data ?? [];
           if (reports.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.report_off, size: 48, color: Colors.grey),
+                  Icon(Icons.report_off, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   SizedBox(height: 16),
                   Text(
                     'No hallucination reports yet.',
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -146,19 +160,25 @@ class _HallucinationReportsScreenState
               itemBuilder: (context, index) {
                 final report = reports[index];
                 final contentId =
-                    report is Map ? report['contentId'] as String? ?? 'Unknown' : 'Unknown';
+                    report is Map
+                        ? report['contentId'] as String? ?? 'Unknown'
+                        : 'Unknown';
                 final feedback =
                     report is Map ? report['feedback'] as String? ?? '' : '';
                 final reportedAt =
-                    report is Map ? report['reportedAt'] as String? ?? report['createdAt'] as String? ?? '' : '';
+                    report is Map
+                        ? report['reportedAt'] as String? ??
+                            report['createdAt'] as String? ??
+                            ''
+                        : '';
                 return Dismissible(
                   key: Key('report_$index'),
                   direction: DismissDirection.endToStart,
                   background: Container(
-                    color: Colors.red,
+                    color: Theme.of(context).colorScheme.error,
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: const Icon(Icons.delete, color: Colors.white),
+                    child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
                   ),
                   onDismissed: (_) => _deleteReport(index),
                   confirmDismiss: (_) async {
@@ -178,7 +198,8 @@ class _HallucinationReportsScreenState
                                   ElevatedButton(
                                     onPressed: () => Navigator.pop(ctx, true),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
+                                      backgroundColor: Theme.of(context).colorScheme.error,
+                                      foregroundColor: Theme.of(context).colorScheme.onError,
                                     ),
                                     child: const Text('Delete'),
                                   ),
@@ -215,8 +236,7 @@ class _HallucinationReportsScreenState
                               title: const Text('Report Details'),
                               content: SingleChildScrollView(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       'Content ID: $contentId',
@@ -225,11 +245,15 @@ class _HallucinationReportsScreenState
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    Text(feedback.isEmpty
-                                        ? 'No feedback provided.'
-                                        : 'Feedback: $feedback'),
+                                    Text(
+                                      feedback.isEmpty
+                                          ? 'No feedback provided.'
+                                          : 'Feedback: $feedback',
+                                    ),
                                     const SizedBox(height: 8),
-                                    Text('Reported: ${_formatDate(reportedAt)}'),
+                                    Text(
+                                      'Reported: ${_formatDate(reportedAt)}',
+                                    ),
                                   ],
                                 ),
                               ),

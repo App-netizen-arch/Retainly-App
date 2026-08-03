@@ -8,9 +8,9 @@ void main() {
   });
 
   group('AIService - Provider Management', () {
-    test('default provider is openai', () async {
+    test('default provider is openrouter', () async {
       final service = AIService();
-      expect(await service.getAiProvider(), 'openai');
+      expect(await service.getAiProvider(), 'openrouter');
     });
 
     test('setAiProvider updates the provider', () async {
@@ -78,15 +78,15 @@ void main() {
   });
 
   group('AIService - Quota Management', () {
-    test('getAiUsageQuota returns full quota (50) initially', () async {
+    test('getAiUsageQuota returns full quota (10) initially', () async {
       final service = AIService();
-      expect(await service.getAiUsageQuota('user1'), 50);
+      expect(await service.getAiUsageQuota('user1'), 10);
     });
 
     test('recordAiUsage decrements remaining quota', () async {
       final service = AIService();
       await service.recordAiUsage('user1');
-      expect(await service.getAiUsageQuota('user1'), 49);
+      expect(await service.getAiUsageQuota('user1'), 9);
     });
 
     test('recordAiUsage decrements quota multiple times', () async {
@@ -94,12 +94,12 @@ void main() {
       await service.recordAiUsage('user1');
       await service.recordAiUsage('user1');
       await service.recordAiUsage('user1');
-      expect(await service.getAiUsageQuota('user1'), 47);
+      expect(await service.getAiUsageQuota('user1'), 7);
     });
 
-    test('recordAiUsage exhausts quota after 50 calls', () async {
+    test('recordAiUsage exhausts quota after 10 calls', () async {
       final service = AIService();
-      for (var i = 0; i < 50; i++) {
+      for (var i = 0; i < 10; i++) {
         await service.recordAiUsage('user1');
       }
       expect(await service.getAiUsageQuota('user1'), 0);
@@ -109,8 +109,8 @@ void main() {
       final service = AIService();
       await service.recordAiUsage('user1');
       await service.recordAiUsage('user1');
-      expect(await service.getAiUsageQuota('user1'), 48);
-      expect(await service.getAiUsageQuota('user2'), 48);
+      expect(await service.getAiUsageQuota('user1'), 8);
+      expect(await service.getAiUsageQuota('user2'), 8);
     });
   });
 
@@ -193,15 +193,18 @@ void main() {
       expect(citations, containsPair('content2', isA<Map>()));
     });
 
-    test('attachSourceCitation overwrites existing citation for same id', () async {
-      final service = AIService();
-      await service.attachSourceCitation('user1', 'content1', 'Old Ref');
-      await service.attachSourceCitation('user1', 'content1', 'New Ref');
-      final citations = await service.getSourceCitations('user1');
-      expect(citations.length, 1);
-      final citation = citations['content1'] as Map;
-      expect(citation['textbookRef'], 'New Ref');
-    });
+    test(
+      'attachSourceCitation overwrites existing citation for same id',
+      () async {
+        final service = AIService();
+        await service.attachSourceCitation('user1', 'content1', 'Old Ref');
+        await service.attachSourceCitation('user1', 'content1', 'New Ref');
+        final citations = await service.getSourceCitations('user1');
+        expect(citations.length, 1);
+        final citation = citations['content1'] as Map;
+        expect(citation['textbookRef'], 'New Ref');
+      },
+    );
 
     test('getSourceCitations handles corrupted JSON gracefully', () async {
       final service = AIService();
@@ -272,29 +275,47 @@ void main() {
     });
   });
 
-  group('AIService - Local-Only Mode', () {
-    test('generateTaskBreakdown returns local-only message', () async {
-      final service = AIService();
-      final result = await service.generateTaskBreakdown('user1', 'Math homework');
-      expect(result, contains('unavailable in local-only mode'));
-    });
+  group('AIService - Online Consent Gate', () {
+    test(
+      'generateTaskBreakdown requires explicit consent before online AI use',
+      () async {
+        final service = AIService();
+        final result = await service.generateTaskBreakdown(
+          'user1',
+          'Math homework',
+        );
+        expect(result, contains('AI assistance requires consent in Settings.'));
+      },
+    );
 
-    test('generateRevisionDraft returns local-only message', () async {
-      final service = AIService();
-      final result = await service.generateRevisionDraft('user1', 'Chapter 1');
-      expect(result, contains('unavailable in local-only mode'));
-    });
+    test(
+      'generateRevisionDraft requires explicit consent before online AI use',
+      () async {
+        final service = AIService();
+        final result = await service.generateRevisionDraft(
+          'user1',
+          'Chapter 1',
+        );
+        expect(result, contains('AI assistance requires consent in Settings.'));
+      },
+    );
 
-    test('generateFlashcards returns local-only message', () async {
-      final service = AIService();
-      final result = await service.generateFlashcards('user1', 'Some text');
-      expect(result, contains('unavailable in local-only mode'));
-    });
+    test(
+      'generateFlashcards requires explicit consent before online AI use',
+      () async {
+        final service = AIService();
+        final result = await service.generateFlashcards('user1', 'Some text');
+        expect(result, contains('AI assistance requires consent in Settings.'));
+      },
+    );
 
-    test('generateQuizDraft returns local-only message', () async {
-      final service = AIService();
-      final result = await service.generateQuizDraft('user1', 'Chapter 1', 5);
-      expect(result, contains('unavailable in local-only mode'));
-    });
+    test(
+      'generateQuizDraft requires explicit consent before online AI use',
+      () async {
+        final service = AIService();
+        final result = await service.generateQuizDraft('user1', 'Chapter 1', 5);
+        expect(result, contains('AI assistance requires consent in Settings.'));
+      },
+    );
   });
 }

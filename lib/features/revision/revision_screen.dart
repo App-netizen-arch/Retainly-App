@@ -5,8 +5,23 @@ import '../../providers/database_provider.dart';
 import '../../data/models/app_models.dart';
 import '../../data/repositories/database_repository.dart';
 
-class RevisionScreen extends ConsumerWidget {
+class RevisionScreen extends ConsumerStatefulWidget {
   const RevisionScreen({super.key});
+
+  @override
+  ConsumerState<RevisionScreen> createState() => _RevisionScreenState();
+}
+
+class _RevisionScreenState extends ConsumerState<RevisionScreen> {
+  Future<List<MapEntry<RevisionItemModel, String?>>>? _revisionFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _revisionFuture = _loadRevisionsWithTitles(
+      ref.read(databaseRepositoryProvider).value!,
+    );
+  }
 
   Future<void> _showRevisionDialog(
     DatabaseRepository db,
@@ -50,7 +65,7 @@ class RevisionScreen extends ConsumerWidget {
                         children: [
                           _Sm2RatingButton(
                             label: 'Again',
-                            color: Colors.red,
+                            color: Theme.of(context).colorScheme.error,
                             selected: sm2Rating == 0,
                             onTap: () {
                               sm2Rating = 0;
@@ -59,7 +74,7 @@ class RevisionScreen extends ConsumerWidget {
                           ),
                           _Sm2RatingButton(
                             label: 'Hard',
-                            color: Colors.orange,
+                            color: Theme.of(context).colorScheme.secondary,
                             selected: sm2Rating == 1,
                             onTap: () {
                               sm2Rating = 1;
@@ -68,7 +83,7 @@ class RevisionScreen extends ConsumerWidget {
                           ),
                           _Sm2RatingButton(
                             label: 'Good',
-                            color: Colors.blue,
+                            color: Theme.of(context).colorScheme.primary,
                             selected: sm2Rating == 2,
                             onTap: () {
                               sm2Rating = 2;
@@ -77,7 +92,7 @@ class RevisionScreen extends ConsumerWidget {
                           ),
                           _Sm2RatingButton(
                             label: 'Easy',
-                            color: Colors.green,
+                            color: Theme.of(context).colorScheme.tertiary,
                             selected: sm2Rating == 3,
                             onTap: () {
                               sm2Rating = 3;
@@ -106,7 +121,9 @@ class RevisionScreen extends ConsumerWidget {
                       ref.invalidate(todayTasksProvider);
                       ref.invalidate(allPendingTasksProvider);
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        final messenger = ScaffoldMessenger.of(context);
+                        messenger.hideCurrentSnackBar();
+                        messenger.showSnackBar(
                           SnackBar(
                             content: Text(
                               'Revision recorded (confidence: $confidence)',
@@ -144,8 +161,7 @@ class RevisionScreen extends ConsumerWidget {
     if (chapter != null) {
       final existing = await db.getTasksByChapter(chapter.id!);
       final hasDuplicate = existing.any(
-        (t) =>
-            t.title == '${chapter.title} - revision' && t.status != 'completed',
+        (t) => t.title == '${chapter.title} - revision',
       );
       if (!hasDuplicate) {
         final newTask = TaskModel(
@@ -169,7 +185,9 @@ class RevisionScreen extends ConsumerWidget {
     await db.recordRevisionFeedback(item.id!, 0, 'completed');
     ref.invalidate(dueRevisionsProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Added to planner as high-priority revision task'),
         ),
@@ -181,14 +199,18 @@ class RevisionScreen extends ConsumerWidget {
     DatabaseRepository db,
     RevisionItemModel item,
     BuildContext context,
+    WidgetRef ref,
   ) async {
     final newDue = DateTime.now().add(const Duration(days: 1));
     await db.updateRevisionItem(item.id!, {
       'due_at': newDue.toIso8601String(),
       'interval_days': item.intervalDays + 1,
     });
+    ref.invalidate(dueRevisionsProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
             'Postponed to ${DateFormat('MMM d, y').format(newDue)}',
@@ -211,21 +233,44 @@ class RevisionScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final dbAsync = ref.watch(databaseRepositoryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Revision Queue')),
       body: dbAsync.when(
         data:
             (db) => FutureBuilder<List<MapEntry<RevisionItemModel, String?>>>(
-              future: _loadRevisionsWithTitles(db),
+              future: _revisionFuture,
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      children: [
+                        const Text('Something went wrong. Please try again.'),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (context.mounted) {
+                              ref.invalidate(databaseRepositoryProvider);
+                            }
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final items = snapshot.data!;
                 if (items.isEmpty) {
-                  return const Center(child: Text('No revisions due. Complete chapters to generate revision items.'));
+                  return const Center(
+                    child: Text(
+                      'No revisions due. Complete chapters to generate revision items.',
+                    ),
+                  );
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -245,7 +290,7 @@ class RevisionScreen extends ConsumerWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             TextButton(
-                              onPressed: () => _postpone(db, item, context),
+                              onPressed: () => _postpone(db, item, context, ref),
                               child: const Text('Postpone'),
                             ),
                             TextButton(
@@ -254,11 +299,17 @@ class RevisionScreen extends ConsumerWidget {
                               },
                               child: const Text('Need more practice'),
                             ),
-                             TextButton(
-                               onPressed:
-                                   () => _markDone(db, item, context, ref, chapterTitle),
-                               child: const Text('Done'),
-                             ),
+                            TextButton(
+                              onPressed:
+                                  () => _markDone(
+                                    db,
+                                    item,
+                                    context,
+                                    ref,
+                                    chapterTitle,
+                                  ),
+                              child: const Text('Done'),
+                            ),
                           ],
                         ),
                       ),
@@ -268,7 +319,9 @@ class RevisionScreen extends ConsumerWidget {
               },
             ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Something went wrong. Please try again.')),
+        error:
+            (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
       ),
     );
   }

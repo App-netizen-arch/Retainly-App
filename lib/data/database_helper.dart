@@ -33,15 +33,22 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getApplicationDocumentsDirectory();
     final path = join(dbPath.path, filePath);
-    final db = await openDatabase(path, version: 1, onCreate: _createDB);
-    await _extendSchema(db);
+    final db = await openDatabase(
+      path,
+      version: 3,
+      onCreate: _createDB,
+      onUpgrade: (db, oldVersion, newVersion) async => _extendSchema(db),
+    );
     return db;
   }
 
   Future<void> _extendSchema(Database db) async {
     await db.transaction((txn) async {
-      final profileColumns = await txn.rawQuery("PRAGMA table_info(user_profiles)");
-      final profileNames = profileColumns.map((c) => c['name'] as String).toList();
+      final profileColumns = await txn.rawQuery(
+        "PRAGMA table_info(user_profiles)",
+      );
+      final profileNames =
+          profileColumns.map((c) => c['name'] as String).toList();
       if (!profileNames.contains('student_name')) {
         await txn.execute(
           "ALTER TABLE user_profiles ADD COLUMN student_name TEXT NOT NULL DEFAULT ''",
@@ -216,81 +223,6 @@ class DatabaseHelper {
           "ALTER TABLE revision_items ADD COLUMN last_review_at TEXT",
         );
       }
-
-      final templateColumns = await txn.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='syllabus_templates'",
-      );
-      if (templateColumns.isEmpty) {
-        await txn.execute('''
-          CREATE TABLE syllabus_templates(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            template_version INTEGER NOT NULL DEFAULT 1,
-            exported_at TEXT NOT NULL,
-            source_app TEXT,
-            source_attribution TEXT,
-            imported_at TEXT,
-            content TEXT NOT NULL
-          )
-        ''');
-      } else {
-        final templateColumnsInfo = await txn.rawQuery(
-          "PRAGMA table_info(syllabus_templates)",
-        );
-        final templateNames =
-            templateColumnsInfo.map((c) => c['name'] as String).toList();
-        if (!templateNames.contains('template_version')) {
-          await txn.execute(
-            "ALTER TABLE syllabus_templates ADD COLUMN template_version INTEGER NOT NULL DEFAULT 1",
-          );
-        }
-        if (!templateNames.contains('source_app')) {
-          await txn.execute(
-            "ALTER TABLE syllabus_templates ADD COLUMN source_app TEXT",
-          );
-        }
-        if (!templateNames.contains('source_attribution')) {
-          await txn.execute(
-            "ALTER TABLE syllabus_templates ADD COLUMN source_attribution TEXT",
-          );
-        }
-        if (!templateNames.contains('imported_at')) {
-          await txn.execute(
-            "ALTER TABLE syllabus_templates ADD COLUMN imported_at TEXT",
-          );
-        }
-        if (!templateNames.contains('content')) {
-          await txn.execute(
-            "ALTER TABLE syllabus_templates ADD COLUMN content TEXT",
-          );
-        }
-        if (!templateNames.contains('content_tier')) {
-          await txn.execute(
-            "ALTER TABLE syllabus_templates ADD COLUMN content_tier TEXT NOT NULL DEFAULT 'official'",
-          );
-        }
-      }
-
-      final syncMetaColumns = await txn.rawQuery(
-        "PRAGMA table_info(sync_meta)",
-      );
-      final syncMetaNames =
-          syncMetaColumns.map((c) => c['name'] as String).toList();
-      if (syncMetaNames.isEmpty) {
-        await txn.execute('''
-          CREATE TABLE sync_meta(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            entity TEXT NOT NULL,
-            local_id TEXT NOT NULL,
-            sync_status TEXT NOT NULL DEFAULT 'pending',
-            last_synced_at TEXT,
-            remote_version TEXT,
-            conflict_data TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            UNIQUE(entity, local_id)
-          )
-        ''');
-      }
     });
   }
 
@@ -424,20 +356,6 @@ class DatabaseHelper {
         content_tier TEXT NOT NULL DEFAULT 'official'
       )
     ''');
-    await db.execute('''
-      CREATE TABLE sync_meta(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        entity TEXT NOT NULL,
-        local_id TEXT NOT NULL,
-        sync_status TEXT NOT NULL DEFAULT 'pending',
-        last_synced_at TEXT,
-        remote_version TEXT,
-        conflict_data TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        UNIQUE(entity, local_id)
-      )
-    ''');
   }
 
   Future<int> createUserProfile(Map<String, dynamic> data) async {
@@ -531,10 +449,10 @@ class DatabaseHelper {
     final db = await instance.database;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final tomorrow = today.add(const Duration(days: 1));
     return await db.query(
       'study_tasks',
-      where: 'scheduled_at >= ? AND scheduled_at < ? AND status != ?',
+      where: 'date(scheduled_at) >= date(?) AND date(scheduled_at) < date(?) AND status != ?',
       whereArgs: [
         today.toIso8601String(),
         tomorrow.toIso8601String(),
