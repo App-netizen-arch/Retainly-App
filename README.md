@@ -87,7 +87,7 @@ flutter run -d linux
 flutter run -d android-emulator
 ```
 
-The app boots in **local-only mode**; AI and OCR are available when configured, while core study data remains on-device.
+The app boots in **local-only mode**; AI are available when configured, while core study data remains on-device.
 
 ### Building a release
 
