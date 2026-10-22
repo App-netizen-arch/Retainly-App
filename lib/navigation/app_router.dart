@@ -20,6 +20,7 @@ import '../features/ai/ocr_scan_screen.dart';
 import '../features/ai/chat_screen.dart';
 import '../features/ai/memory_screen.dart';
 import '../features/ai/textbook_library_screen.dart';
+import '../features/ai/exam_simulator_screen.dart';
 import '../features/ai/hallucination_reports_screen.dart';
 import '../features/ai/flashcard_screen.dart';
 import '../features/ai/quiz_screen.dart';
@@ -212,6 +213,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const TextbookLibraryScreen(),
       ),
       GoRoute(
+        path: '/exam-simulator',
+        builder: (context, state) => const ExamSimulatorScreen(),
+      ),
+      GoRoute(
         path: '/ai/hallucination-reports',
         builder: (context, state) => const HallucinationReportsScreen(),
       ),
@@ -242,7 +247,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               extra is Map && extra['sourceTitle'] is String
                   ? extra['sourceTitle'] as String
                   : 'Quiz';
-          return QuizScreen(sourceText: sourceText, sourceTitle: sourceTitle);
+          final questionCount =
+              extra is Map && extra['questionCount'] is int
+                  ? extra['questionCount'] as int
+                  : 5;
+          final durationMinutes =
+              extra is Map && extra['durationMinutes'] is int
+                  ? extra['durationMinutes'] as int
+                  : null;
+          return QuizScreen(
+            sourceText: sourceText,
+            sourceTitle: sourceTitle,
+            questionCount: questionCount,
+            durationMinutes: durationMinutes,
+          );
         },
       ),
       GoRoute(
