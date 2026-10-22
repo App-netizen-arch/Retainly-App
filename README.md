@@ -24,7 +24,7 @@ The user supplies their own Groq API key in Settings. Retainly stores the key in
 
 To request Groq Zero Data Retention (ZDR), enable it in Groq Console → Data Controls for the account that owns the key. Retainly cannot inspect or verify the provider-side setting. ZDR does not make inference local, and provider usage metadata may still be processed. Consult Groq's current [data controls](https://console.groq.com/docs/your-data).
 
-When Online AI is enabled, the submitted question may be sent along with recent chat turns, relevant saved memories and relevant textbook passages selected from the local index. The app stores chat history and saved memories locally, but the context used for online inference leaves the device.
+When Online AI is enabled, the submitted question may be sent along with recent chat turns, relevant saved memories and relevant textbook passages. If past-chat search is enabled, matching excerpts from earlier conversations may also be sent. The search itself is local. The app stores chat history and saved memories locally, but the context used for online inference leaves the device.
 
 ## OCR and language notes
 
