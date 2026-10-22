@@ -288,7 +288,7 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _selectedLanguage,
+            initialValue: _selectedLanguage,
             decoration: const InputDecoration(
               labelText: 'Recognition language',
               border: OutlineInputBorder(),
@@ -300,7 +300,9 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
                     ))
                 .toList(),
             onChanged: _isProcessing ? null : (value) {
-              if (value != null) setState(() => _selectedLanguage = value);
+              if (value != null) {
+                setState(() => _selectedLanguage = value);
+              }
             },
           ),
           const SizedBox(height: 10),
