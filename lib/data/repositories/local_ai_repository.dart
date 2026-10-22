@@ -390,6 +390,40 @@ class LocalAiRepository {
     return rows.take(limit).toList();
   }
 
+  Future<String> buildTextbookContextForBook(
+    int textbookId, {
+    int limit = 12,
+  }) async {
+    final db = await _db;
+    final rows = await db.rawQuery(
+      '''
+      SELECT tc.page_number, tc.chapter_title, tc.heading, tc.content,
+             tc.language, t.title AS textbook_title, t.board, t.class_level,
+             t.subject, t.edition
+      FROM textbook_chunks tc
+      JOIN textbooks t ON t.id = tc.textbook_id
+      WHERE tc.textbook_id = ?
+      ORDER BY tc.page_number ASC, tc.id ASC
+      LIMIT ?
+      ''',
+      [textbookId, limit],
+    );
+    if (rows.isEmpty) return '';
+
+    final out = StringBuffer();
+    for (final row in rows) {
+      final title = row['textbook_title'] ?? 'Untitled textbook';
+      final subject = row['subject'] ?? 'Unknown subject';
+      final chapter = row['chapter_title'] ?? row['heading'] ?? 'Unlabelled section';
+      final page = row['page_number'] ?? '?';
+      out
+        ..writeln('Source: $title; board: ${row['board'] ?? 'not specified'}; class: ${row['class_level'] ?? 'not specified'}; subject: $subject; chapter/section: $chapter; page: $page.')
+        ..writeln(row['content'])
+        ..writeln('---');
+    }
+    return out.toString();
+  }
+
   Future<String> buildTextbookContext(String query, {int limit = 5}) async {
     final passages = await searchTextbookPassages(query, limit: limit);
     if (passages.isEmpty) return '';
