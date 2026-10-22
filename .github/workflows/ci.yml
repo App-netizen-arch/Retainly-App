@@ -13,6 +13,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Prepare offline OCR language models
+        run: bash scripts/prepare_ocr_models.sh
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -47,6 +50,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Prepare offline OCR language models
+        run: bash scripts/prepare_ocr_models.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -107,6 +113,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Prepare offline OCR language models
+        run: bash scripts/prepare_ocr_models.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
