@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,12 +10,14 @@ class QuizScreen extends ConsumerStatefulWidget {
   final String sourceText;
   final String sourceTitle;
   final int questionCount;
+  final int? durationMinutes;
 
   const QuizScreen({
     super.key,
     required this.sourceText,
     required this.sourceTitle,
     this.questionCount = 5,
+    this.durationMinutes,
   });
 
   @override
@@ -32,6 +35,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   String? _error;
   String _sourceRef = '';
   final TextEditingController _sourceController = TextEditingController();
+  Timer? _examTimer;
+  int _remainingSeconds = 0;
+  bool _timeExpired = false;
+
+  bool get _isTimedExam => widget.durationMinutes != null;
+
+  String get _remainingTimeLabel {
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
 
   @override
   void initState() {
@@ -42,6 +56,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   void dispose() {
     _sourceController.dispose();
+    _examTimer?.cancel();
     super.dispose();
   }
 
@@ -88,6 +103,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _showResults = false;
         _loading = false;
       });
+      if (_isTimedExam) {
+        _startExamTimer();
+      }
     } on Exception catch (_) {
       if (!mounted) return;
       setState(() {
@@ -95,6 +113,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _loading = false;
       });
     }
+  }
+
+  void _startExamTimer() {
+    _examTimer?.cancel();
+    _remainingSeconds = (widget.durationMinutes ?? 0) * 60;
+    _timeExpired = false;
+    _examTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _showResults) {
+        timer.cancel();
+        return;
+      }
+      if (_remainingSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _remainingSeconds = 0;
+          _timeExpired = true;
+          _showResults = true;
+          _selectedAnswer = -1;
+        });
+        _saveQuizResults();
+        return;
+      }
+      setState(() => _remainingSeconds--);
+    });
   }
 
   List<QuizQuestion> _parseQuiz(String result) {
@@ -207,6 +249,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (_currentIndex < _questions.length - 1) {
       setState(() => _currentIndex++);
     } else {
+      _examTimer?.cancel();
       setState(() => _showResults = true);
       _saveQuizResults();
     }
@@ -378,6 +421,29 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final q = _questions[_currentIndex];
     return Column(
       children: [
+        if (_isTimedExam)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.timer_outlined,
+                  color: _remainingSeconds <= 60
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Time left: $_remainingTimeLabel',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: _remainingSeconds <= 60
+                        ? Theme.of(context).colorScheme.error
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.all(8),
           child: Row(
@@ -460,6 +526,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Widget _buildResults() {
+    _examTimer?.cancel();
     final score =
         _questions.isNotEmpty
             ? (_correctCount / _questions.length * 100).round()
