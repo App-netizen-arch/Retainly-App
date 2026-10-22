@@ -167,78 +167,175 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  Future<void> _showHistory() async {
-    final conversations = await _repository.getConversations();
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
+  Future<List<Map<String, Object?>>> _searchConversations(String query) async {
+    final matches = <int, Map<String, Object?>>{};
+    for (final row in await _repository.getConversations(search: query)) {
+      final id = row['id'] as int;
+      matches[id] = row;
+    }
+    if (query.trim().isNotEmpty) {
+      for (final row in await _repository.searchMessages(query)) {
+        final id = row['conversation_id'] as int;
+        matches.putIfAbsent(id, () => {
+          'id': id,
+          'title': row['conversation_title'] ?? 'Saved chat',
+          'updated_at': row['created_at'] ?? '',
+          'is_archived': 0,
+        });
+      }
+    }
+    final values = matches.values.toList();
+    values.sort((a, b) => (b['updated_at'] as String? ?? '')
+        .compareTo(a['updated_at'] as String? ?? ''));
+    return values;
+  }
+
+  Future<void> _renameConversation(int id, String currentTitle) async {
+    final controller = TextEditingController(text: currentTitle);
+    final title = await showDialog<String>(
       context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) => SafeArea(
-        child: SizedBox(
-          height: MediaQuery.of(sheetContext).size.height * 0.68,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text('Your chats', style: Theme.of(sheetContext).textTheme.titleLarge),
-                    ),
-                    IconButton(
-                      tooltip: 'Start new chat',
-                      onPressed: () {
-                        Navigator.pop(sheetContext);
-                        _startNewChat();
-                      },
-                      icon: const Icon(Icons.add_comment_outlined),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: conversations.isEmpty
-                    ? const Center(child: Text('Your saved conversations will appear here.'))
-                    : ListView.builder(
-                        itemCount: conversations.length,
-                        itemBuilder: (context, index) {
-                          final row = conversations[index];
-                          final id = row['id'] as int;
-                          return ListTile(
-                            leading: const Icon(Icons.chat_bubble_outline),
-                            title: Text(row['title'] as String? ?? 'New chat', maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: Text(row['updated_at'] as String? ?? '', maxLines: 1),
-                            onTap: () async {
-                              Navigator.pop(sheetContext);
-                              if (!mounted) return;
-                              setState(() {
-                                _conversationId = id;
-                                _messages = [];
-                              });
-                              await _loadMessages();
-                            },
-                            trailing: IconButton(
-                              tooltip: 'Delete conversation',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () async {
-                                await _repository.deleteConversation(id);
-                                if (mounted) Navigator.pop(sheetContext);
-                                if (_conversationId == id) {
-                                  await _startNewChat();
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rename chat'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(labelText: 'Chat title'),
+          onSubmitted: (_) => Navigator.pop(dialogContext, controller.text.trim()),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
+    controller.dispose();
+    if (title == null || title.trim().isEmpty) return;
+    await _repository.renameConversation(id, title);
+  }
+
+  Future<void> _showHistory() async {
+    final searchController = TextEditingController();
+    var conversations = await _repository.getConversations();
+    if (!mounted) {
+      searchController.dispose();
+      return;
+    }
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (sheetContext, setSheetState) => SafeArea(
+            child: SizedBox(
+              height: MediaQuery.of(sheetContext).size.height * 0.78,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 12, 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text('Your chats', style: Theme.of(sheetContext).textTheme.titleLarge),
+                        ),
+                        IconButton(
+                          tooltip: 'Start new chat',
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                            _startNewChat();
+                          },
+                          icon: const Icon(Icons.add_comment_outlined),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search chat titles and messages',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: IconButton(
+                          tooltip: 'Clear search',
+                          onPressed: () async {
+                            searchController.clear();
+                            final rows = await _searchConversations('');
+                            setSheetState(() => conversations = rows);
+                          },
+                          icon: const Icon(Icons.close),
+                        ),
+                        border: const OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onChanged: (query) async {
+                        final rows = await _searchConversations(query);
+                        setSheetState(() => conversations = rows);
+                      },
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: conversations.isEmpty
+                        ? const Center(child: Text('No matching saved chats.'))
+                        : ListView.builder(
+                            itemCount: conversations.length,
+                            itemBuilder: (context, index) {
+                              final row = conversations[index];
+                              final id = row['id'] as int;
+                              final title = row['title'] as String? ?? 'New chat';
+                              return ListTile(
+                                leading: const Icon(Icons.chat_bubble_outline),
+                                title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                subtitle: Text(row['updated_at'] as String? ?? '', maxLines: 1),
+                                onTap: () async {
+                                  Navigator.pop(sheetContext);
+                                  if (!mounted) return;
+                                  setState(() {
+                                    _conversationId = id;
+                                    _messages = [];
+                                  });
+                                  await _loadMessages();
+                                },
+                                trailing: PopupMenuButton<String>(
+                                  tooltip: 'Chat actions',
+                                  onSelected: (action) async {
+                                    if (action == 'rename') {
+                                      await _renameConversation(id, title);
+                                    } else if (action == 'delete') {
+                                      await _repository.deleteConversation(id);
+                                      if (_conversationId == id) {
+                                        await _startNewChat();
+                                      }
+                                    }
+                                    final rows = await _searchConversations(searchController.text);
+                                    setSheetState(() => conversations = rows);
+                                  },
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(value: 'rename', child: Text('Rename')),
+                                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } finally {
+      searchController.dispose();
+    }
   }
 
   Future<void> _saveMemory(String content) async {
