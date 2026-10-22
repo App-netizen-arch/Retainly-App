@@ -19,6 +19,7 @@ import '../features/resources/practical_records_screen.dart';
 import '../features/ai/ocr_scan_screen.dart';
 import '../features/ai/chat_screen.dart';
 import '../features/ai/memory_screen.dart';
+import '../features/ai/textbook_library_screen.dart';
 import '../features/ai/hallucination_reports_screen.dart';
 import '../features/ai/flashcard_screen.dart';
 import '../features/ai/quiz_screen.dart';
@@ -205,6 +206,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ai/memory',
         builder: (context, state) => const MemoryScreen(),
+      ),
+      GoRoute(
+        path: '/books',
+        builder: (context, state) => const TextbookLibraryScreen(),
       ),
       GoRoute(
         path: '/ai/hallucination-reports',
