@@ -20,14 +20,13 @@ void main() {
       );
     });
 
-    test('does not label the Gurmukhi model as Shahmukhi support', () {
-      expect(
-        LocalOcrService.languageOptions.keys.any(
-          (label) => label.toLowerCase().contains('shahmukhi') &&
-              !label.toLowerCase().contains('fallback'),
-        ),
-        isFalse,
+    test('labels Shahmukhi recognition as an experimental Urdu-model fallback', () {
+      final label = LocalOcrService.languageOptions.keys.firstWhere(
+        (value) => value.toLowerCase().contains('shahmukhi'),
       );
+      expect(label.toLowerCase(), contains('experimental'));
+      expect(label.toLowerCase(), contains('urdu'));
+      expect(label.toLowerCase(), isNot(contains('gurmukhi')));
     });
   });
 
