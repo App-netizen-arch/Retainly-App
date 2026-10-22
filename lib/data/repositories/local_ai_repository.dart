@@ -286,6 +286,16 @@ class LocalAiRepository {
     return db.query('textbooks', orderBy: 'title COLLATE NOCASE ASC');
   }
 
+  Future<void> deleteAllTextbooksAndFiles() async {
+    final books = await getTextbooks();
+    for (final book in books) {
+      final id = book['id'];
+      if (id is int) {
+        await deleteTextbook(id);
+      }
+    }
+  }
+
   Future<void> deleteTextbook(int id) async {
     final db = await _db;
     final rows = await db.query(
