@@ -547,6 +547,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          if (_timeExpired)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Time is up. Unanswered questions remain unanswered.'),
+            ),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
