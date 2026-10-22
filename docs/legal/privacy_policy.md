@@ -21,7 +21,7 @@ OCR can make mistakes, especially with formulas, subscripts, tables, diagrams an
 Online AI uses the user's Groq API key and requires explicit AI consent. When a user submits a question, Retainly may send to Groq:
 
 - The question the user submitted.
-- Recent conversation turns needed to maintain context.
+- Recent conversation turns needed to maintain context; and, when the local past-chat search setting is enabled, matching excerpts from earlier conversations.
 - Relevant memories the user has saved and left enabled.
 - Relevant textbook passages retrieved from the local index.
 
