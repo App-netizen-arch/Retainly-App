@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:read_pdf_text/read_pdf_text.dart';
 import 'package:tesseract_ocr/ocr_engine_config.dart';
 import 'package:tesseract_ocr/tesseract_ocr.dart';
 
@@ -10,10 +11,12 @@ class OcrPageResult {
   const OcrPageResult({
     required this.pageNumber,
     required this.text,
+    this.extractionMethod = 'tesseract_ocr',
   });
 
   final int pageNumber;
   final String text;
+  final String extractionMethod;
 }
 
 class OcrDocumentResult {
@@ -52,6 +55,7 @@ class LocalOcrService {
     if (!await File(imagePath).exists()) {
       throw const FileSystemException('The selected image could not be found.');
     }
+    _ensureSupportedPlatform();
     _validateLanguage(language);
     final text = await TesseractOcr.extractText(
       imagePath,
@@ -73,7 +77,18 @@ class LocalOcrService {
     if (!await File(pdfPath).exists()) {
       throw const FileSystemException('The selected PDF could not be found.');
     }
+    _ensureSupportedPlatform();
     _validateLanguage(language);
+
+    // Prefer the PDF's native text layer; only render/OCR pages where no text
+    // was extractable. Scanned PDFs generally return empty page strings here.
+    var nativeTextPages = <String>[];
+    try {
+      nativeTextPages = await ReadPdfText.getPDFtextPaginated(pdfPath);
+    } catch (_) {
+      // Encrypted, malformed or unsupported PDFs fall back to local OCR.
+    }
+
     final document = await PdfDocument.openFile(pdfPath);
     final pageResults = <OcrPageResult>[];
     final totalPages = document.pagesCount;
@@ -83,6 +98,18 @@ class LocalOcrService {
     try {
       for (var pageNumber = 1; pageNumber <= pagesToProcess; pageNumber++) {
         onProgress?.call(pageNumber, totalPages);
+        final nativeText = pageNumber <= nativeTextPages.length
+            ? nativeTextPages[pageNumber - 1].trim()
+            : '';
+        if (nativeText.isNotEmpty) {
+          pageResults.add(OcrPageResult(
+            pageNumber: pageNumber,
+            text: nativeText,
+            extractionMethod: 'pdf_text',
+          ));
+          continue;
+        }
+
         final page = await document.getPage(pageNumber);
         final tempImagePath = p.join(
           tempDir.path,
@@ -135,6 +162,14 @@ class LocalOcrService {
       totalPages: totalPages,
       truncated: totalPages > pagesToProcess,
     );
+  }
+
+  void _ensureSupportedPlatform() {
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      throw UnsupportedError(
+        'Local OCR is currently supported on Android and iOS builds only.',
+      );
+    }
   }
 
   void _validateLanguage(String language) {
