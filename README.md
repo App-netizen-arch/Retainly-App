@@ -1,272 +1,59 @@
 # Retainly
 
-![Retainly](logo-192.png)
-
-An offline-first Flutter study planner for Pakistani Matric (Class 9–10) students. It turns a syllabus into an adaptive daily plan, tracks focus sessions, and drives spaced-repetition revision — with optional cloud sync and AI assistance when online.
-
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?logo=githubactions)](.github/workflows/ci.yml)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)](#license--compliance)
-[![Version](https://img.shields.io/badge/version-1.0.0--1)]()
-[![Tests](https://img.shields.io/badge/tests-unit%20%26%20widget-brightgreen)]()
+Retainly is an offline-first Flutter study companion for Pakistani Matric students. Study plans, revision schedules, focus sessions, chat history, saved memories and textbook indexes are stored locally on the device.
 
----
+**Online AI is optional, but it is not on-device inference.** When enabled, Retainly sends the user's question and the context needed to answer it to Groq. Retainly does not operate a cloud account or automatic cloud synchronization service.
 
-## Key Features
+## Main features
 
-- **Offline-first study planning** — Local SQLite/Drift store; all core data stays on-device.
-- **Adaptive daily plans** — Priority-weighted scheduler that fits tasks into a daily study budget and surfaces a minimum-viable-day when overloaded.
-- **SM-2 spaced repetition** — Revision queue with 1/3/7-day intervals and per-item difficulty adjustment.
-- **Pomodoro focus sessions** — Native Android `Do Not Disturb` enforcement via a custom platform-channel foreground service (`focus_shield`).
-- **AI assistance (optional, online-only)** — Task breakdown, revision drafts, flashcards, and quizzes through external AI APIs (OpenAI, Anthropic, Gemini), gated by consent + a 50-request/day quota.
-- **Secure PDF/OCR** — PDFs are processed via external OCR API; results stay on the device.
-- **Encrypted local backups** — AES-256 local export/restore with keys held in platform secure storage; Anki CSV and syllabus-template import/export.
-- **Progressive Desktop** — Runs on Android (primary) and Linux desktop; Urdu + English localisation.
+- Local study planning, subjects, chapters, progress and spaced-repetition revision.
+- Pomodoro focus sessions and user-initiated encrypted backups.
+- Full-screen AI chat with persistent local conversation history.
+- User-approved, editable, disableable and deletable local memories.
+- Local PDF/image OCR and a page-aware textbook text index.
+- Local lexical retrieval of relevant textbook passages for AI prompts.
+- Urdu and English tutoring prompts, with experimental language support options for Arabic and Punjabi scripts.
 
----
+## Online AI through Groq
 
-## Architecture Overview
+Retainly calls Groq's official OpenAI-compatible chat-completions API. The current default model is **openai/gpt-oss-120b**, selected for reasoning-heavy tutoring and source-grounded Q&A. This model is an online service: its output quality depends on the available context and may still contain errors.
 
-Retainly is layered into a thin Flutter presentation layer on top of a repository-abstraction data layer, with local-only storage and optional online features.
+The user supplies their own Groq API key in Settings. Retainly stores the key in platform secure storage; keys must never be committed to the repository or embedded in an application release. The user is responsible for their Groq account, rate limits and any applicable charges.
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  PRESENTATION (Flutter widgets)                                   │
-│  lib/features/*  ── GoRouter navigation ── lib/navigation/*        │
-│  State via flutter_riverpod ────────────────────────────────────┐ │
-└────────────────────────────────────────────────────────────────│ │
-│  DOMAIN / SERVICES  lib/services/*                                │
-│  AIService • Connectivity ─────────────────────────────────────┘ │
-│                                                                  │
-│  DATA LAYER  lib/data/*                                          │
-│  ┌──────────────────────┐  ┌───────────────────────┐           │
-│  │ DatabaseRepository   │  │ AppDatabase (Drift)   │           │
-│  │ (business logic,     │  │ sqflite FFI desktop │           │
-│  │  SM-2, scoring, CSV) │  │ schema v3           │           │
-│  └────────┬─────────────┘  └──────────┬──────────┘           │
-│           │  adapter                  │                        │
-│           ▼                           ▼                        │
-│  ┌──────────────────────┐  ┌───────────────────────┐           │
-│  │ DatabaseHelper       │  │ Encrypted backup      │           │
-│  │ (sqflite CRUD layer) │  │ (.retainly/backup*)   │           │
-│  └──────────────────────┘  └───────────────────────┘           │
-│                                                                  │
-│  ANDROID NATIVE                                                  │
-│  MainActivity.kt ─────►│ Platform Channel                        │
-│  focus_shield: DND     │ FocusShieldForeground                   │
-│  FocusAccessibilitySvc │ Service.kt                              │
-└──────────────────────────────────────────────────────────────────┘
-```
+To request Groq Zero Data Retention (ZDR), enable it in Groq Console → Data Controls for the account that owns the key. Retainly cannot inspect or verify the provider-side setting. ZDR does not make inference local, and provider usage metadata may still be processed. Consult Groq's current [data controls](https://console.groq.com/docs/your-data).
 
-**Data flow:** User edits land in the local Drift/SQLite store. Online-only features (AI, OCR) call external APIs directly; every request is gated by explicit user consent. All core data remains on-device by default.
+When Online AI is enabled, the submitted question may be sent along with recent chat turns, relevant saved memories and relevant textbook passages selected from the local index. The app stores chat history and saved memories locally, but the context used for online inference leaves the device.
 
----
+## OCR and language notes
 
-## Getting Started
+OCR is performed locally with the Tesseract engine. PDF pages are rendered locally before recognition. A build-time preparation script downloads selected official Tesseract tessdata_fast language models and embeds them in the app bundle, so OCR does not need to download model files at runtime.
 
-### Prerequisites
+The configured models are English (eng), Urdu (urd), Arabic (ara) and Punjabi Gurmukhi (pan). **The Punjabi model is Gurmukhi, not Pakistani Punjabi Shahmukhi.** Urdu-model recognition of Shahmukhi Punjabi is an experimental fallback and must be checked against the original. OCR may also misread equations, subscripts, tables, chemical notation and mixed right-to-left text.
 
-| Tool | Version |
-|------|---------|
-| Flutter SDK | 3.24.0+ (stable) |
-| Dart SDK | 3.7.0+ |
-| Android SDK | API 24+ (for device builds) |
+A single OCR job is currently limited to 250 PDF pages. Text extraction and lexical indexing are local. Retrieval quality and the final AI answer are not guaranteed, so users should verify answers and source references against the original book.
 
-### Install dependencies
+Textbook PDFs are not automatically bundled or redistributed by Retainly. Users should import books they are authorized to use. Any future starter-book collection must be cleared for redistribution first.
 
-```bash
-flutter pub get
-```
+## Development and builds
 
-### Run locally
+Requirements include a compatible Flutter stable SDK, Dart SDK, Android SDK for Android builds, and curl to prepare OCR language data.
 
-```bash
-# Linux desktop (fully local)
-flutter run -d linux
+Before running checks or building a release, run the OCR-model preparation script, fetch Flutter dependencies, then run dart format, flutter analyze and flutter test. The release script prepares the models before building an APK. The GitHub Actions workflow also prepares the models before checking/building.
 
-# Android device or emulator
-flutter run -d android-emulator
-```
+The core planner has a Linux desktop build path. The OCR plugins have different platform support; the OCR flow is Android-first and should not be advertised as cross-platform until each target is tested.
 
-The app boots in **local-only mode**; AI are available when configured, while core study data remains on-device.
+## Privacy summary
 
-### Building a release
+- Study data, conversations, saved memories and extracted textbook passages are stored locally.
+- OCR does not upload the selected document.
+- Online AI sends the question and relevant context to Groq when the user submits a request with Online AI enabled.
+- Android automatic data backup and device-transfer backup are disabled for private app data.
+- Encrypted backups are user initiated; copies exported elsewhere are outside Retainly's control.
+- The SQLite database is not SQLCipher-encrypted. App sandboxing and operating-system encryption do not protect against every rooted or compromised-device scenario.
+- Delete All Data removes local study data, chats, memories and textbook indexes, and attempts to remove the Groq key from secure storage.
 
-```bash
-# Android App Bundle (Play Store ready)
-flutter build appbundle --release
+See the [Privacy Policy](docs/legal/privacy_policy.md), [Data Retention Policy](docs/legal/data_retention_policy.md) and [Security Review](docs/SECURITY_REVIEW.md).
 
-# Android APK
-flutter build apk --release
+## Third-party notices
 
-# Linux desktop
-flutter build linux --release
-```
-
-Release artifacts land in:
-- Android: `build/app/outputs/bundle/release/app-release.aab` (or `app-release.apk`)
-- Linux: `build/linux/x64/release/bundle/`
-
-Signing is handled via `android/keystore.properties` (gitignored). See *Sign the APK* for the keytool workflow, or run `scripts/build_release.sh` for an analyze → test → build pipeline.
-
-### Configuration
-
-Runtime behaviour is driven by these files and environment values — none are required for a local-only build.
-
-| Source | Purpose |
-|--------|---------|
-| `AI_API_KEY` | OpenAI / Anthropic / Gemini key for the AI provider. |
-| `AI_PROVIDER` | `openai` (default), `anthropic`, `gemini`, `openrouter`. |
-| `SharedPreferences` keys | `ai_daily_usage`, `ai_consent`, `ocr_consent`, theme flags. |
-
-Feature flags live in `lib/core/feature_flags.dart` and may be toggled in code.
-
----
-
-## Usage & Code Examples
-
-### CLI bootstrap
-
-```bash
-# 1. Fetch packages
-flutter pub get
-
-# 2. Run on desktop (local only)
-flutter run -d linux
-```
-
-### Programmatic API — core data layer
-
-The repository exposes a typed, synchronous-ish API over the local store. Most callers obtain it through Riverpod.
-
-```dart
-import 'package:retainly/data/repositories/database_repository.dart';
-import 'package:retainly/data/models/app_models.dart';
-
-final repo = await ref.watch(databaseRepositoryProvider.future);
-
-// Profile / syllabus setup
-await repo.createUserProfile(UserModel(
-  classLevel: '10',
-  board: 'FBISE',
-  examDate: '2026-04-30',
-  createdAt: now, updatedAt: now,
-));
-final subjectId = await repo.insertSubject(SubjectModel(
-  name: 'Mathematics', color: 0xFF1976D2, sortOrder: 0, createdAt: now,
-));
-
-// Schedule a task with a daily budget fit check
-final task = TaskModel(
-  subjectId: subjectId, title: 'Solve quadratic equations',
-  scheduledAt: now, estimatedMinutes: 30, status: 'not_started',
-  createdAt: now, updatedAt: now,
-);
-await repo.insertTask(task);
-
-// Record a focus session
-await repo.insertFocusSession(FocusSessionModel(
-  taskId: taskId, startedAt: now, plannedMinutes: 25,
-  status: 'running', completedMinutes: 0, createdAt: now,
-));
-
-// Submit revision feedback (SM-2 update)
-await repo.recordRevisionFeedback(revisionId, confidence: 80, status: 'completed');
-```
-
-### AI service (online only)
-
-```dart
-import 'package:retainly/services/ai_service.dart';
-
-final ai = AIService();
-final breakdown = await ai.generateTaskBreakdown(userId, 'Trigonometry basics');
-final flashcards = await ai.generateFlashcards(userId, sourceText);
-```
-
-All AI calls return a human-readable `String?` and handle consent, quota, and connectivity gating internally; they return a descriptive error string rather than throwing when a prerequisite is missing.
-
----
-
-## Project Layout
-
-```
-.
-├── android/                     # Android app + Kotlin platform channels
-│   └── app/src/kotlin/com/codesym/retainly/
-│       ├── MainActivity.kt          # Activity, registers focus_shield channel
-│       ├── FocusShieldForegroundService.kt  # DND + foreground timer
-│       └── FocusAccessibilityService.kt     # Usage/accessibility helper
-├── lib/
-│   ├── main.dart                     # App bootstrap: themes, routing
-│   ├── core/                         # Theme, constants, feature flags, utils
-│   ├── data/                         # DatabaseHelper (sqflite), Drift schema, models, repository
-│   ├── services/                     # AI, background worker, connectivity
-│   ├── providers/                    # Riverpod state holders (dashboard, analytics, sync)
-│   ├── navigation/                   # GoRouter routes + shell
-│   ├── features/                     # Screen-level features (planner, focus, revision, backup, ai, settings, legal)
-│   └── l10n/                         # ARB bundles: en + ur (English + Urdu)
-├── test/unit/                      # Unit tests for services, repository, planner logic, security
-├── test/widget_test.dart           # Widget smoke test
-├── scripts/                        # build_release.sh (multi-target)
-├── docs/                           # Project documentation
-│   ├── ARCHITECTURE.md             # System architecture deep-dive
-│   ├── CONTRIBUTING.md             # Contribution guidelines
-│   ├── SECURITY.md                 # Security policy
-│   ├── SECURITY_REVIEW.md          # Security audit trail and remaining risks
-│   └── legal/                      # Legal documents
-│       ├── terms_of_service.md     # Terms of Service
-│       ├── privacy_policy.md       # Privacy Policy
-│       ├── data_retention_policy.md
-│       └── threat_model.md
-├── pubspec.yaml                    # Flutter package manifest (v1.0.0+1)
-├── analysis_options.yaml           # flutter_lints baseline + custom rules
-└── README.md
-```
-
----
-
-## Testing & Benchmarking
-
-```bash
-# Static analysis + formatting gate
-dart format --set-exit-if-changed .
-flutter analyze
-
-# Unit + widget tests (Dart)
-flutter test
-
-# Targeted suites
-flutter test test/unit/planner_logic_test.dart
-flutter test test/unit/smart_planner_test.dart
-flutter test test/unit/backup_encryption_test.dart
-```
-
-There are no dedicated Dart benchmarks (`flutter drive` performance tracing is recommended for focus-session timing).
-
----
-
-## Security & Compliance
-
-- All user data stays on-device by default.
-- Online-only features require **explicit, revocable consent** stored locally.
-- AI usage is capped at **50 requests/day/user**, enforced client-side.
-- Local backups are **AES-256 encrypted**; encryption keys are stored in `FlutterSecureStorage` (Android Keystore). Backups are **never** auto-uploaded.
-- The full threat model and audit trail are in [`docs/SECURITY_REVIEW.md`](docs/SECURITY_REVIEW.md).
-
----
-
-## License & Compliance
-
-Retainly is licensed under the **Apache License, Version 2.0** — see [`LICENSE`](LICENSE). It is free, open-source software: you may use, modify, and distribute it for any purpose, provided you include the license and notices and preserve the existing attribution. Trademark and service names remain the property of their respective owners.
-
-| Aspect | Detail |
-|--------|--------|
-| License | Apache-2.0 (`LICENSE`) |
-| Usage | Free for personal, educational, and commercial use |
-| Redistribution | Include `LICENSE`; mark your changes in modified files |
-| Trademarks | Project and service names are not granted by the License |
-| AI content | Suggestions only — verify against your textbook |
-| Data retention | See [`docs/legal/data_retention_policy.md`](docs/legal/data_retention_policy.md) |
-| Privacy | See [`docs/legal/privacy_policy.md`](docs/legal/privacy_policy.md) |
-
-For licensing inquiries, contact the maintainer through the in-app "Report a problem" flow.
+Retainly is licensed under Apache-2.0. Tesseract trained-data models are sourced from the official tessdata_fast repository. The tesseract_ocr binding and pdfx renderer retain their respective upstream licenses. Verify the licenses and notices of all dependencies and model files before redistributing a release.
