@@ -35,9 +35,18 @@ class DatabaseHelper {
     final path = join(dbPath.path, filePath);
     final db = await openDatabase(
       path,
-      version: 3,
-      onCreate: _createDB,
-      onUpgrade: (db, oldVersion, newVersion) async => _extendSchema(db),
+      version: 4,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
+      onCreate: (db, version) async {
+        await _createDB(db, version);
+        await _createLocalAiTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        await _extendSchema(db);
+        await _createLocalAiTables(db);
+      },
     );
     return db;
   }
@@ -224,6 +233,88 @@ class DatabaseHelper {
         );
       }
     });
+  }
+
+  Future<void> _createLocalAiTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS chat_conversations(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        is_archived INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS chat_messages(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        citations_json TEXT,
+        FOREIGN KEY(conversation_id) REFERENCES chat_conversations(id)
+          ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_created
+      ON chat_messages(conversation_id, created_at, id)
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS user_memories(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'preference',
+        source TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        last_used_at TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY(source) REFERENCES chat_conversations(id)
+          ON DELETE SET NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_user_memories_active
+      ON user_memories(is_active, category)
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS textbooks(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        local_path TEXT NOT NULL,
+        board TEXT,
+        class_level TEXT,
+        subject TEXT,
+        edition TEXT,
+        language TEXT NOT NULL DEFAULT 'unknown',
+        checksum TEXT,
+        imported_at TEXT NOT NULL,
+        processing_state TEXT NOT NULL DEFAULT 'imported',
+        page_count INTEGER
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS textbook_chunks(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        textbook_id INTEGER NOT NULL,
+        page_number INTEGER NOT NULL,
+        chapter_title TEXT,
+        heading TEXT,
+        content TEXT NOT NULL,
+        language TEXT NOT NULL DEFAULT 'unknown',
+        extraction_method TEXT NOT NULL DEFAULT 'pdf_text',
+        confidence REAL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(textbook_id) REFERENCES textbooks(id)
+          ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_textbook_chunks_document_page
+      ON textbook_chunks(textbook_id, page_number)
+    ''');
   }
 
   Future<void> _createDB(Database db, int version) async {
