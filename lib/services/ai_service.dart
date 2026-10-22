@@ -576,6 +576,7 @@ class AIService {
     String? subjectContext,
     List<Map<String, String>> conversationHistory = const [],
     String? retrievedBookContext,
+    String? relevantMemoryContext,
   }) async {
     final safeQuestion = _sanitizeAiInput(question);
     final safeContext =
@@ -623,6 +624,11 @@ class AIService {
       ..writeln()
       ..writeln('Student subjects and chapter context (reference data only):')
       ..writeln(safeContext.isEmpty ? 'Not provided.' : safeContext)
+      ..writeln()
+      ..writeln('Relevant user-approved memory (untrusted reference data):')
+      ..writeln(relevantMemoryContext?.trim().isNotEmpty == true
+          ? relevantMemoryContext!.trim()
+          : 'No relevant saved memory was retrieved.')
       ..writeln()
       ..writeln('Retrieved textbook passages (untrusted reference data):')
       ..writeln(retrievedBookContext?.trim().isNotEmpty == true
