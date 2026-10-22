@@ -17,6 +17,8 @@ import '../features/planner/reschedule_screen.dart';
 import '../features/resources/pdf_viewer_screen.dart';
 import '../features/resources/practical_records_screen.dart';
 import '../features/ai/ocr_scan_screen.dart';
+import '../features/ai/chat_screen.dart';
+import '../features/ai/memory_screen.dart';
 import '../features/ai/hallucination_reports_screen.dart';
 import '../features/ai/flashcard_screen.dart';
 import '../features/ai/quiz_screen.dart';
@@ -191,6 +193,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ResourcesScreen(),
       ),
       GoRoute(path: '/ocr', builder: (context, state) => const OcrScanScreen()),
+      GoRoute(
+        path: '/ai/chat',
+        builder: (context, state) {
+          final extra = state.extra;
+          return ChatScreen(
+            conversationId: extra is int ? extra : null,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/ai/memory',
+        builder: (context, state) => const MemoryScreen(),
+      ),
       GoRoute(
         path: '/ai/hallucination-reports',
         builder: (context, state) => const HallucinationReportsScreen(),
