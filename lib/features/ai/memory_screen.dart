@@ -56,7 +56,7 @@ class _MemoryScreenState extends State<MemoryScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: const {'preference', 'goal', 'learning note', 'study context'}.contains(category)
+                  initialValue: const {'preference', 'goal', 'learning note', 'study context'}.contains(category)
                       ? category
                       : 'preference',
                   decoration: const InputDecoration(labelText: 'Category'),
@@ -93,7 +93,9 @@ class _MemoryScreenState extends State<MemoryScreen> {
     );
     final content = controller.text.trim();
     controller.dispose();
-    if (saved != true || content.isEmpty) return;
+    if (saved != true || content.isEmpty) {
+      return;
+    }
     if (existing == null) {
       await _repository.saveMemory(content: content, category: category);
     } else {
