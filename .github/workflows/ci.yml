@@ -42,6 +42,7 @@ jobs:
         with:
           name: formatted-dart-source
           path: |
+            pubspec.lock
             lib/**/*.dart
             test/**/*.dart
             pubspec.lock
