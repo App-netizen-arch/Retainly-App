@@ -111,7 +111,7 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
               content: text,
               chapterTitle: null,
               language: _selectedLanguage,
-              extractionMethod: 'tesseract_ocr',
+              extractionMethod: page.extractionMethod,
             ));
           }
         }
