@@ -149,8 +149,7 @@ path and the backup/restore JSON serialization.
 
 **File**: `lib/data/repositories/database_repository.dart`
 
-The central data-access facade. It wraps `DatabaseHelper` (sqflite) or
-`AppDatabase` (Drift) and provides:
+The central data-access facade. It wraps `DatabaseHelper` (sqflite) and provides:
 
 - CRUD operations for all entity types
 - The **SM-2 spaced repetition algorithm** for revision scheduling
@@ -337,11 +336,11 @@ extraction, indexing and local lexical search are performed on-device.
 
 The Flutter app runs in a single Dart isolate (with a UI thread and an
 event-loop). All database operations are `async` and run on the event loop,
-not on separate threads. The Drift layer uses
-`NativeDatabase.createInBackground()` to offload SQLite I/O to a background
-isolate, but the sqflite path runs queries on the calling isolate's event
-loop. Long-running operations (backup encryption, file I/O) are `async` but
-not multi-threaded — they yield to the event loop at `await` points.
+not on separate threads. The active database implementation is `sqflite`;
+queries use the sqflite plugin's database execution path. Long-running
+operations (backup encryption, file I/O and OCR) are asynchronous and yield at
+`await` points, but this does not guarantee CPU-heavy work runs in a separate
+isolate.
 
 ### 6.2 Local Persistence (No Cloud Sync)
 
@@ -403,7 +402,7 @@ studentName: map['student_name'] is String
 This protects against:
 - Partial/legacy database rows from older schema versions
 - Malformed data from backup imports
-- Type coercion issues between sqflite and Drift
+- Type coercion issues when mapping SQLite and imported backup data
 
 #### FlutterError.onError
 
@@ -445,9 +444,9 @@ Each failure mode is tested in `test/unit/backup_restore_test.dart`.
 - **Android DND**: `setFocusShield()` returns `false` if the user hasn't
   granted `ACCESS_NOTIFICATION_POLICY` permission. The app shows a dialog
   directing the user to the system settings via `openDndSettings()`.
-- **Desktop (Linux)**: `FlutterSecureStorage` is unavailable, so encryption
-  keys fall back to `SharedPreferences` (plaintext). The Drift database is
-  not initialized (only sqflite is used).
+- **Desktop (Linux)**: the backup key service may use `SharedPreferences` as
+  its fallback, which is plaintext and weaker than platform secure storage.
+  The active study database is `sqflite`.
 - **Web**: Explicitly unsupported. The app is designed for Android and Linux desktop.
 
 ---
