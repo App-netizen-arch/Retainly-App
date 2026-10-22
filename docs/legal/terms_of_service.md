@@ -4,12 +4,12 @@
 By using Retainly, you agree to these Terms. If you do not agree, do not use the App.
 
 ## Use License
-Permission is granted to use the App for personal, non-commercial study planning purposes only.
+Retainly is distributed under the Apache License, Version 2.0. Subject to that license, you may use, reproduce, modify, and distribute the App, including for commercial purposes. The license does not grant rights to project trademarks.
 
 ## Prohibited Uses
-- Reverse-engineering, scraping, or automated access to backend services.
-- Uploading illegal, harmful, or copyrighted content.
-- Circumventing access controls or security rules.
+- Using the App to violate applicable law or another person's rights.
+- Importing or sharing content you do not have permission to use.
+- Attempting to bypass security controls or abuse third-party services.
 
 ## AI-Generated Content
 AI-generated task breakdowns, quizzes, and flashcards are suggestions only. Verify all content against your official textbook or teacher guidance.
