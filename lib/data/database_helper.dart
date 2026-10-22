@@ -266,7 +266,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         content TEXT NOT NULL,
         category TEXT NOT NULL DEFAULT 'preference',
-        source TEXT,
+        source_conversation_id INTEGER,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         last_used_at TEXT,
