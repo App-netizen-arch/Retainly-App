@@ -10,7 +10,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'connectivity_service.dart';
 import '../core/utils/ai_utils.dart';
 
+typedef GroqApiKeyReader = Future<String?> Function();
+
 class AIService {
+  AIService({GroqApiKeyReader? apiKeyReader})
+      : _apiKeyReader = apiKeyReader ??
+            (() => _secureStorage.read(key: _groqApiKeyStorageKey));
+
+  final GroqApiKeyReader _apiKeyReader;
   static const String _consentKey = 'ai_consent';
   static const String _costWarningKey = 'ai_cost_warning_accepted';
   static const String _usageQuotaKey = 'ai_daily_usage';
@@ -45,20 +52,6 @@ class AIService {
     } finally {
       completer.complete();
       _quotaLock = null;
-    }
-  }
-
-  Future<T> _withCostLock<T>(Future<T> Function() action) async {
-    while (_costLock != null) {
-      await _costLock!.future;
-    }
-    final completer = Completer<void>();
-    _costLock = completer;
-    try {
-      return await action();
-    } finally {
-      completer.complete();
-      _costLock = null;
     }
   }
 
@@ -132,9 +125,7 @@ class AIService {
         if (gate != null) return '$_aiErrorPrefix $gate';
 
         try {
-          final apiKey = await _secureStorage.read(
-            key: _groqApiKeyStorageKey,
-          );
+          final apiKey = await _apiKeyReader();
           if (apiKey == null || apiKey.trim().isEmpty) {
             return '$_aiErrorPrefix Add your Groq API key in Settings to use online AI.';
           }
