@@ -1256,7 +1256,7 @@ ListTile(
           (ctx) => AlertDialog(
             title: const Text('Delete all data?'),
             content: const Text(
-              'This will permanently delete your profile, tasks, chapters, focus sessions, revisions, resources, and practical records. This cannot be undone.',
+              'This permanently deletes your local profile, tasks, chapters, focus sessions, revisions, resources, chat history, saved memories, and textbook index, and attempts to remove the Groq key from secure storage. This cannot be undone.',
             ),
             actions: [
               TextButton(
@@ -1273,6 +1273,9 @@ ListTile(
     if (confirmed != true) return;
 
     final rawDb = await DatabaseHelper.instance.database;
+    await rawDb.delete('chat_conversations');
+    await rawDb.delete('user_memories');
+    await rawDb.delete('textbooks');
     await rawDb.delete('backup_records');
     await rawDb.delete('practical_records');
     await rawDb.delete('resources');
@@ -1284,6 +1287,12 @@ ListTile(
     await rawDb.delete('user_profiles');
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    try {
+      await AIService().deleteGroqApiKey();
+    } catch (_) {
+      // Continue deleting local study data even if the platform credential
+      // store is unavailable; the user can separately remove the key.
+    }
     ref.invalidate(userProfileProvider);
     ref.invalidate(databaseRepositoryProvider);
     ref.invalidate(todayTasksProvider);
