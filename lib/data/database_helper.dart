@@ -53,6 +53,13 @@ class DatabaseHelper {
 
   Future<void> _extendSchema(Database db) async {
     await db.transaction((txn) async {
+      final subjectColumns = await txn.rawQuery('PRAGMA table_info(subjects)');
+      final subjectNames = subjectColumns.map((c) => c['name'] as String).toList();
+      if (!subjectNames.contains('is_active')) {
+        await txn.execute(
+          'ALTER TABLE subjects ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1',
+        );
+      }
       final profileColumns = await txn.rawQuery(
         "PRAGMA table_info(user_profiles)",
       );
@@ -339,7 +346,8 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         color INTEGER NOT NULL,
         sort_order INTEGER NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1
       )
     ''');
     await db.execute('''
@@ -467,7 +475,32 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getSubjects() async {
     final db = await instance.database;
-    return await db.query('subjects', orderBy: 'sort_order ASC');
+    return await db.query(
+      'subjects',
+      where: 'is_active = 1',
+      orderBy: 'sort_order ASC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getAllSubjects() async {
+    final db = await instance.database;
+    return db.query('subjects', orderBy: 'sort_order ASC');
+  }
+
+  Future<int> setSubjectActive(int id, bool isActive) async {
+    final db = await instance.database;
+    return db.update(
+      'subjects',
+      {'is_active': isActive ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> updateSubject(int id, Map<String, dynamic> data) async {
+    final db = await instance.database;
+    final values = Map<String, dynamic>.from(data)..remove('id');
+    return db.update('subjects', values, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<int> deleteSubject(int id) async {
