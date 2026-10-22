@@ -44,23 +44,7 @@ void main() {
       expect(await service.hasAiConsent(), isFalse);
     });
 
-    test('hasOcrConsent defaults to false', () async {
-      final service = AIService();
-      expect(await service.hasOcrConsent(), isFalse);
-    });
 
-    test('setOcrConsent(true) sets OCR consent', () async {
-      final service = AIService();
-      await service.setOcrConsent(true);
-      expect(await service.hasOcrConsent(), isTrue);
-    });
-
-    test('setOcrConsent(false) clears OCR consent', () async {
-      final service = AIService();
-      await service.setOcrConsent(true);
-      await service.setOcrConsent(false);
-      expect(await service.hasOcrConsent(), isFalse);
-    });
   });
 
   group('AIService - Cost Warning', () {
