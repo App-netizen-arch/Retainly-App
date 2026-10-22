@@ -188,11 +188,13 @@ The key is held in Flutter Secure Storage, not hard-coded into the app. The
 client quota is a local guard, not provider-side billing or account
 enforcement. Each user owns their key and Groq account.
 
-When a chat message is submitted, recent conversation turns, relevant
-user-approved memories and retrieved textbook passages may be included in the
-prompt. These inputs leave the phone for online Groq inference. ZDR must be
-enabled in the key owner's Groq Console Data Controls; the app cannot verify
-that setting. OCR and local textbook search do not upload book text.
+When a chat message is submitted, recent turns, relevant user-approved
+memories and retrieved textbook passages may be included in the prompt. If the
+user enables local past-chat search in Settings, Retainly also searches other
+saved conversations locally and may include matching excerpts. These selected
+inputs leave the phone for online Groq inference. ZDR must be enabled in the
+key owner's Groq Console Data Controls; the app cannot verify that setting.
+OCR and local textbook search do not upload book text.
 
 AI prompts separate system instructions from question/history/memory/book
 reference content and tell the model not to invent citations. This reduces
