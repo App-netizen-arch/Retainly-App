@@ -141,7 +141,7 @@ How We Use Data
 - To provide AI-generated suggestions when you explicitly opt in.
 
 Data Sharing
-We do not sell your personal data. Optional online AI uses Groq. When you submit a question, the question and relevant recent chat turns, saved memories and textbook passages may be sent to Groq for inference over HTTPS. Retainly does not include the API key in the prompt body. To request Zero Data Retention (ZDR), the key owner must enable it in Groq Console > Data Controls. Retainly cannot verify that setting; usage metadata may still be processed. OCR and local textbook search do not upload the book. See https://console.groq.com/docs/your-data.
+We do not sell your personal data. Optional online AI uses Groq. When you submit a question, the question and relevant recent chat turns, saved memories, textbook passages and—if past-chat search is enabled—matching excerpts from earlier conversations may be sent to Groq for inference over HTTPS. Retainly does not include the API key in the prompt body. To request Zero Data Retention (ZDR), the key owner must enable it in Groq Console > Data Controls. Retainly cannot verify that setting; usage metadata may still be processed. OCR and local textbook search do not upload the book. See https://console.groq.com/docs/your-data.
 
 Your Rights & Controls
 - You can export all local data at any time from Settings.
@@ -262,7 +262,7 @@ Residual Risks
 
 ڈیٹا کا اشتراک
 ہم آپ کا ذاتی ڈیٹا نہیں بیچتے۔ ایپ کے ذریعے استعمال ہونے والے تھرڈ پارٹی پروسیسرز:
-اختیاری آن لائن AI کے لیے Groq استعمال ہوتا ہے۔ سوال بھیجنے پر سوال اور متعلقہ حالیہ گفتگو، محفوظ یادیں اور کتابی اقتباسات HTTPS کے ذریعے Groq کو بھیجے جا سکتے ہیں۔ key کو prompt کے متن میں شامل نہیں کیا جاتا۔ ZDR کے لیے key کے مالک کو Groq Console > Data Controls میں اسے فعال کرنا ہوگا؛ Retainly اس سیٹنگ کی تصدیق نہیں کر سکتی اور استعمال کا metadata پھر بھی پراسیس ہو سکتا ہے۔ OCR اور مقامی کتابی تلاش کتاب اپ لوڈ نہیں کرتے۔ https://console.groq.com/docs/your-data
+اختیاری آن لائن AI کے لیے Groq استعمال ہوتا ہے۔ سوال بھیجنے پر سوال، حالیہ گفتگو، محفوظ یادیں، کتابی اقتباسات اور اگر سابقہ چیٹس کی تلاش فعال ہو تو متعلقہ پرانی گفتگو کے اقتباسات HTTPS کے ذریعے Groq کو بھیجے جا سکتے ہیں۔ key کو prompt کے متن میں شامل نہیں کیا جاتا۔ ZDR کے لیے key کے مالک کو Groq Console > Data Controls میں اسے فعال کرنا ہوگا؛ Retainly اس سیٹنگ کی تصدیق نہیں کر سکتی اور استعمال کا metadata پھر بھی پراسیس ہو سکتا ہے۔ OCR اور مقامی کتابی تلاش کتاب اپ لوڈ نہیں کرتے۔ https://console.groq.com/docs/your-data
 
 آپ کے حقوق اور کنٹرولز
 - آپ کسی بھی وقت ترتیبات سے تمام مقامی ڈیٹا برآمد کر سکتے ہیں۔
