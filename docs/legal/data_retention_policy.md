@@ -12,7 +12,7 @@ The user's Groq API key is stored in platform secure storage. It persists until 
 
 ## Online AI requests
 
-When Online AI is enabled, the question and relevant conversation, memory and textbook context are transmitted to Groq for inference. Retainly does not store a second cloud copy of requests on a Retainly-operated backend.
+When Online AI is enabled, the question and relevant current conversation, saved memory and textbook context are transmitted to Groq. If the local past-chat search setting is enabled, matching excerpts from earlier conversations may also be sent. Retainly does not store a second cloud copy of requests on a Retainly-operated backend.
 
 Groq's data retention is governed by its current terms and the key owner's Data Controls. The user must enable ZDR in the Groq account when required; Retainly cannot verify that setting. Usage metadata may still be processed. See [Groq's data controls](https://console.groq.com/docs/your-data).
 
