@@ -117,7 +117,12 @@ class LocalOcrService {
             text: text.trim(),
           ));
         } finally {
-          await File(tempImagePath).delete().catchError((_) => File(tempImagePath));
+          try {
+            final renderedFile = File(tempImagePath);
+            if (await renderedFile.exists()) await renderedFile.delete();
+          } catch (_) {
+            // Temporary-file cleanup must not mask the OCR result/error.
+          }
           await page.close();
         }
       }
