@@ -166,16 +166,7 @@ The central data-access facade. It wraps `DatabaseHelper` (sqflite) and provides
 
 ### Service Layer
 
-#### 3.1 OfflineQueueService
-
-**File**: `lib/services/offline_queue_service.dart`
-
-A local retry queue in SharedPreferences. It should not be described as cloud
-synchronization: the current application does not implement Retainly account
-sync, Firestore, or a Retainly-operated backend. Review actual call sites
-before extending or reusing the queue.
-
-#### 3.2 AIService
+#### 3.1 AIService
 
 **File**: `lib/services/ai_service.dart`
 
@@ -200,7 +191,7 @@ AI prompts separate system instructions from question/history/memory/book
 reference content and tell the model not to invent citations. This reduces
 prompt-injection risk, but does not guarantee correct answers.
 
-#### 3.4 ConnectivityService
+#### 3.2 ConnectivityService
 
 **File**: `lib/services/connectivity_service.dart`
 
@@ -208,7 +199,7 @@ A singleton wrapping `connectivity_plus`. Provides `isOnline` (a
 `Future<bool>`) and `onConnectivityChanged` (a `Stream<bool>`). The stream
 is consumed by `AppShell` to show an offline banner at the top of the screen.
 
-#### 3.5 ShortcutService
+#### 3.3 ShortcutService
 
 **File**: `lib/services/shortcut_service.dart`
 
