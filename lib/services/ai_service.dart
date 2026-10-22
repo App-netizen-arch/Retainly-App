@@ -39,7 +39,6 @@ class AIService {
 
   final ConnectivityService _connectivity = ConnectivityService();
   Completer<void>? _quotaLock;
-  Completer<void>? _costLock;
 
   Future<T> _withQuotaLock<T>(Future<T> Function() action) async {
     while (_quotaLock != null) {
