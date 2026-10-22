@@ -48,6 +48,7 @@ void main() {
 
     expect(find.text('Terms of Service'), findsOneWidget);
     expect(find.textContaining('Acceptance of Terms'), findsOneWidget);
+    expect(find.textContaining('commercial purposes'), findsOneWidget);
     expect(find.textContaining('Prohibited Uses'), findsOneWidget);
   });
 
