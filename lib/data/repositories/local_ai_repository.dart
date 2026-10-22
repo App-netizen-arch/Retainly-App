@@ -393,24 +393,42 @@ class LocalAiRepository {
   Future<String> buildTextbookContextForBook(
     int textbookId, {
     int limit = 12,
+    String? focusQuery,
   }) async {
-    final db = await _db;
-    final rows = await db.rawQuery(
-      '''
-      SELECT tc.page_number, tc.chapter_title, tc.heading, tc.content,
-             tc.language, t.title AS textbook_title, t.board, t.class_level,
-             t.subject, t.edition
-      FROM textbook_chunks tc
-      JOIN textbooks t ON t.id = tc.textbook_id
-      WHERE tc.textbook_id = ?
-      ORDER BY tc.page_number ASC, tc.id ASC
-      LIMIT ?
-      ''',
-      [textbookId, limit],
-    );
+    List<Map<String, Object?>> rows = const [];
+    if (focusQuery?.trim().isNotEmpty == true) {
+      rows = await searchTextbookPassages(
+        focusQuery!,
+        limit: limit,
+        textbookId: textbookId,
+      );
+    }
+
+    if (rows.isEmpty) {
+      final db = await _db;
+      rows = await db.rawQuery(
+        '''
+        SELECT tc.page_number, tc.chapter_title, tc.heading, tc.content,
+               tc.language, t.title AS textbook_title, t.board, t.class_level,
+               t.subject, t.edition
+        FROM textbook_chunks tc
+        JOIN textbooks t ON t.id = tc.textbook_id
+        WHERE tc.textbook_id = ?
+        ORDER BY tc.page_number ASC, tc.id ASC
+        LIMIT ?
+        ''',
+        [textbookId, limit],
+      );
+    }
     if (rows.isEmpty) return '';
 
     final out = StringBuffer();
+    if (focusQuery?.trim().isNotEmpty == true) {
+      out
+        ..writeln('Requested focus topics: ${focusQuery!.trim()}')
+        ..writeln('Prefer these topics when writing practice questions, but only use facts supported by the passages below.')
+        ..writeln();
+    }
     for (final row in rows) {
       final title = row['textbook_title'] ?? 'Untitled textbook';
       final subject = row['subject'] ?? 'Unknown subject';
