@@ -19,6 +19,7 @@ import '../../data/models/app_models.dart';
 import '../../data/repositories/database_repository.dart';
 import '../../data/database_helper.dart';
 import '../../services/ai_service.dart';
+import '../../data/repositories/local_ai_repository.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -1280,6 +1281,12 @@ ListTile(
     if (confirmed != true) return;
 
     final rawDb = await DatabaseHelper.instance.database;
+    var textbookFilesRemoved = true;
+    try {
+      await LocalAiRepository().deleteAllTextbooksAndFiles();
+    } catch (_) {
+      textbookFilesRemoved = false;
+    }
     await rawDb.delete('chat_conversations');
     await rawDb.delete('user_memories');
     await rawDb.delete('textbooks');
@@ -1294,11 +1301,13 @@ ListTile(
     await rawDb.delete('user_profiles');
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    var groqKeyRemoved = true;
     try {
       await AIService().deleteGroqApiKey();
     } catch (_) {
       // Continue deleting local study data even if the platform credential
       // store is unavailable; the user can separately remove the key.
+      groqKeyRemoved = false;
     }
     ref.invalidate(userProfileProvider);
     ref.invalidate(databaseRepositoryProvider);
