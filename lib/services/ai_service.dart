@@ -281,7 +281,7 @@ class AIService {
   }
 
   Future<bool> hasGroqApiKey() async {
-    final key = await _secureStorage.read(key: _groqApiKeyStorageKey);
+    final key = await _apiKeyReader();
     return key != null && key.trim().isNotEmpty;
   }
 
