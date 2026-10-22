@@ -54,7 +54,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                          title: const Text('Retainly AI privacy notice'),
                          content: const SingleChildScrollView(
                            child: Text(
-                             'Retainly stores chats, memories and textbook indexes on this device. If Online AI is enabled, the question you submit and relevant recent chat turns, saved memories and selected textbook passages may be sent to Groq for inference. Groq Zero Data Retention is a setting on the account that owns your API key and must be enabled separately in Groq Console > Data Controls. Retainly cannot verify that setting. Do not send content that must never leave your phone.\n\nOnline AI also requires a Groq API key and explicit consent in Settings. OCR and local search do not send the book to Groq.',
+                             'Retainly stores chats, memories and textbook indexes on this device. If Online AI is enabled, the question you submit and relevant recent chat turns, saved memories, selected textbook passages, and—if past-chat search is enabled—matching excerpts from other conversations may be sent to Groq for inference. Groq Zero Data Retention is a setting on the account that owns your API key and must be enabled separately in Groq Console > Data Controls. Retainly cannot verify that setting. Do not send content that must never leave your phone.\n\nOnline AI also requires a Groq API key and explicit consent in Settings. OCR and local search do not send the book to Groq.',
                            ),
                          ),
                          actions: [
