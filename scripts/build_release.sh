@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+bash scripts/prepare_ocr_models.sh
+
 echo "Running flutter analyze..."
 flutter analyze
 
