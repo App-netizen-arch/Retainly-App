@@ -10,7 +10,7 @@ void main() {
     test('offers English, Urdu/English, Arabic/English and Punjabi/Gurmukhi', () {
       expect(LocalOcrService.languageOptions['English'], 'eng');
       expect(
-        LocalOcrService.languageOptions['Urdu + English (Shahmukhi fallback)'],
+        LocalOcrService.languageOptions['Urdu + Punjabi Shahmukhi (experimental) + English'],
         'eng+urd',
       );
       expect(LocalOcrService.languageOptions['Arabic + English'], 'eng+ara');
