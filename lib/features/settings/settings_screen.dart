@@ -182,7 +182,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           FilledButton(
             onPressed: () {
               final entered = _groqApiKeyController.text.trim();
-              if (entered.isNotEmpty) Navigator.of(dialogContext).pop(entered);
+              if (entered.isNotEmpty) {
+                Navigator.of(dialogContext).pop(entered);
+              }
             },
             child: const Text('Save securely'),
           ),
