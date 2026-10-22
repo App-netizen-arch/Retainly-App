@@ -24,7 +24,7 @@ void main() {
     });
 
     test('checkAiGate blocks when quota is exhausted', () async {
-      final service = AIService();
+      final service = AIService(apiKeyReader: () async => 'test-groq-key');
       await service.setAiConsent(true);
       await service.acceptCostWarning();
       await service.acceptAiPolicy();
