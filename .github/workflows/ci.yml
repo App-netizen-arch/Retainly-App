@@ -125,6 +125,11 @@ jobs:
       - name: Prepare offline OCR language models
         run: bash scripts/prepare_ocr_models.sh
 
+      - name: Install Linux desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
