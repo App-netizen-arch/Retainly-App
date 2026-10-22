@@ -74,6 +74,9 @@ class _ChatScreenState extends State<ChatScreen> {
       final consent = await service.hasAiConsent();
       final policyAccepted = await service.hasAcceptedAiPolicy();
       final costAccepted = await service.hasAcceptedCostWarning();
+      final prefs = await SharedPreferences.getInstance();
+      final historyMemoryEnabled =
+          prefs.getBool('chat_history_memory_enabled') ?? true;
       if (!mounted) return;
       setState(() {
         _onlineAiReady = keyConfigured && consent && policyAccepted && costAccepted;
@@ -85,7 +88,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     ? 'Review and accept the online AI cost warning in Settings.'
                     : !policyAccepted
                         ? 'Accept the AI privacy notice before using online AI.'
-                        : 'Online AI is configured. Questions and relevant context are sent to Groq.';
+                        : historyMemoryEnabled
+                            ? 'Online AI sends your question plus relevant context to Groq, including matching excerpts from past chats when found.'
+                            : 'Online AI sends your question and relevant saved memories or textbook passages to Groq; past-chat retrieval is off.';
       });
     } catch (_) {
       if (!mounted) return;
