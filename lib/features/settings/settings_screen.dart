@@ -46,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _costWarningAccepted = false;
   int _aiRemainingQuota = 10;
   bool _groqApiKeyConfigured = false;
+  bool _chatHistoryMemoryEnabled = true;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _loadLocale();
     _loadAccessibility();
     _loadAiSettings();
+    _loadChatHistoryMemorySetting();
     _loadNotificationState();
   }
 
@@ -119,6 +121,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _groqApiKeyConfigured = keyConfigured;
       });
     }
+  }
+
+  Future<void> _loadChatHistoryMemorySetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _chatHistoryMemoryEnabled =
+          prefs.getBool('chat_history_memory_enabled') ?? true;
+    });
+  }
+
+  Future<void> _setChatHistoryMemoryEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('chat_history_memory_enabled', value);
+    if (mounted) setState(() => _chatHistoryMemoryEnabled = value);
   }
 
   Future<void> _loadNotificationState() async {
@@ -604,6 +621,15 @@ ValueListenableBuilder<bool>(
             subtitle: const Text('Saved conversations with local history and book retrieval'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => GoRouter.of(context).push('/ai/chat'),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.manage_search_outlined),
+            title: const Text('Search past chats for relevant context'),
+            subtitle: const Text(
+              'Retainly searches earlier conversations on this device. Matching excerpts may be sent to Groq when you submit an online AI request.',
+            ),
+            value: _chatHistoryMemoryEnabled,
+            onChanged: _setChatHistoryMemoryEnabled,
           ),
           ListTile(
             leading: const Icon(Icons.psychology_alt_outlined),
