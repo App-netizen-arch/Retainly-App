@@ -43,7 +43,7 @@ class LocalOcrService {
 
   static const Map<String, String> languageOptions = {
     'English': 'eng',
-    'Urdu + Punjabi Shahmukhi (experimental) + English': 'eng+urd',
+    'Urdu + Punjabi Shahmukhi (experimental fallback) + English': 'eng+urd',
     'Arabic + English': 'eng+ara',
     'Punjabi Gurmukhi + English': 'eng+pan',
   };
