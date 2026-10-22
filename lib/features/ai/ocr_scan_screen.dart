@@ -47,7 +47,9 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
     if (source == ImageSource.camera) {
       final status = await Permission.camera.request();
       if (!status.isGranted) {
-        if (mounted) setState(() => _error = 'Camera permission is required to scan a page.');
+        if (mounted) {
+          setState(() => _error = 'Camera permission is required to scan a page.');
+        }
         return;
       }
     }
@@ -64,7 +66,6 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
-      allowMultiple: false,
     );
     if (result == null || result.files.single.path == null) return;
     await _processFile(result.files.single.path!, isPdf: true);
@@ -304,7 +305,7 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: _selectedSubject,
+            initialValue: _selectedSubject,
             decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
             items: MatricSubjects.subjects
                 .map((subject) => DropdownMenuItem(
@@ -313,7 +314,9 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
                     ))
                 .toList(),
             onChanged: _isProcessing ? null : (value) {
-              if (value != null) setState(() => _selectedSubject = value);
+              if (value != null) {
+                setState(() => _selectedSubject = value);
+              }
             },
           ),
           const SizedBox(height: 10),
@@ -321,7 +324,7 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedBoard,
+                  initialValue: _selectedBoard,
                   decoration: const InputDecoration(labelText: 'Board', border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: 'PCTB', child: Text('Punjab (PCTB)')),
@@ -329,21 +332,25 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
                     DropdownMenuItem(value: 'Other', child: Text('Other')),
                   ],
                   onChanged: _isProcessing ? null : (value) {
-                    if (value != null) setState(() => _selectedBoard = value);
+                    if (value != null) {
+                      setState(() => _selectedBoard = value);
+                    }
                   },
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedClass,
+                  initialValue: _selectedClass,
                   decoration: const InputDecoration(labelText: 'Class', border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: '9', child: Text('Class 9')),
                     DropdownMenuItem(value: '10', child: Text('Class 10')),
                   ],
                   onChanged: _isProcessing ? null : (value) {
-                    if (value != null) setState(() => _selectedClass = value);
+                    if (value != null) {
+                      setState(() => _selectedClass = value);
+                    }
                   },
                 ),
               ),
