@@ -20,9 +20,7 @@ class AIService {
   static const String _sourceCitationKey = 'ai_source_citations';
   static const String _hallucinationReportKey = 'ai_hallucination_reports';
   static const String _aiPolicyKey = 'ai_policy_accepted';
-  static const String _estimatedCostKey = 'ai_estimated_cost';
   static const int _dailyQuota = 10;
-  static const double _costPerRequest = 0.002;
   static const String _groqChatCompletionsUrl =
       'https://api.groq.com/openai/v1/chat/completions';
   // Production model selected for strong reasoning and source-grounded tutoring.
@@ -397,58 +395,6 @@ class AIService {
       return 'No internet connection. Connect to use AI features.';
     }
     return null;
-  }
-
-  Future<void> estimateCost(String userId, dynamic resultData) async {
-    final raw = resultData is Map ? resultData['output'] as String? : null;
-    if (raw == null) return;
-    final output = AiTextSanitizer.sanitize(raw);
-    if (output.isEmpty) return;
-    await estimateCostFromOutput(output);
-  }
-
-  Future<void> estimateCostFromOutput(String output) async {
-    await _withCostLock(() async {
-      final estimatedTokens = (output.length / 4).ceil();
-      final rawCost = estimatedTokens * _costPerRequest;
-      final cost = rawCost > 0.5 ? 0.5 : rawCost;
-      final prefs = await SharedPreferences.getInstance();
-      final current = prefs.getDouble(_estimatedCostKey) ?? 0.0;
-      final totalCost = (current + cost > 10.0) ? 10.0 : current + cost;
-      await prefs.setDouble(_estimatedCostKey, totalCost);
-      return null;
-    });
-  }
-
-  Future<double> getEstimatedCost(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_estimatedCostKey) ?? 0.0;
-  }
-
-  Future<void> resetEstimatedCost(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_estimatedCostKey);
-  }
-
-  Future<String?> startOcrJob(
-    String userId,
-    String filePath, {
-    String language = 'en',
-    String? storagePath,
-  }) async {
-    return 'OCR is disabled in this release build. Use the online AI assistant instead.';
-  }
-
-  Future<Map<String, dynamic>?> getOcrResult(
-    String userId,
-    String jobId,
-  ) async {
-    return <String, dynamic>{
-      'status': 'disabled',
-      'extractedText':
-          'OCR is disabled in this release build. Use the online AI assistant instead.',
-      'jobId': jobId,
-    };
   }
 
   Future<int> getAiUsageQuota(String userId) async {
