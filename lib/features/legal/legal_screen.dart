@@ -161,12 +161,12 @@ Acceptance of Terms
 By using Retainly, you agree to these Terms. If you do not agree, do not use the App.
 
 Use License
-Permission is granted to use the App for personal, non-commercial study planning purposes only.
+Retainly is distributed under the Apache License, Version 2.0. Subject to that license, you may use, reproduce, modify, and distribute the App, including for commercial purposes. The license does not grant rights to project trademarks.
 
 Prohibited Uses
-- Reverse-engineering, scraping, or automated access to app services.
-- Uploading illegal, harmful, or copyrighted content.
-- Circumventing access controls or security measures.
+- Using the App to violate applicable law or another person's rights.
+- Importing or sharing content you do not have permission to use.
+- Attempting to bypass security controls or abuse third-party services.
 
 AI-Generated Content
 AI-generated task breakdowns, quizzes, and flashcards are suggestions only. Verify all content against your official textbook or teacher guidance.
@@ -282,12 +282,12 @@ Residual Risks
 میٹرک سٹڈی پلینر کے استعمال کر کے، آپ ان شرائط سے اتفاق کرتے ہیں۔ اگر آپ اتفاق نہیں کرتے، تو ایپ استعمال نہ کریں۔
 
 استعمال کا لائسنس
-ایپ کو ذاتی، غیر تجاری مطالعہ منصوبہ بندی کے مقاصد کے لیے استعمال کرنے کی اجازت دی گئی ہے۔
+یہ ایپ Apache License, Version 2.0 کے تحت فراہم کی جاتی ہے۔ اس لائسنس کی شرائط کے تابع، آپ ایپ کو استعمال، نقل، ترمیم اور تقسیم کر سکتے ہیں، بشمول تجارتی مقاصد کے لیے۔ یہ لائسنس پروجیکٹ کے تجارتی نام یا ٹریڈ مارکس کے حقوق نہیں دیتا۔
 
 ممنوعہ استعمالات
-- بیک اینڈ سروسز کے ریورس انجینئرنگ، اسکرپنگ، یا خودکار رسائی۔
-- غیر قانونی، نقصان دہ، یا کاپی رائٹ مواد اپ لوڈ کرنا۔
-- رسائی کنٹرولز یا سیکیورٹی کے قوانین کی خلاف ورزی۔
+- ایپ کا استعمال قابل اطلاق قانون یا کسی دوسرے شخص کے حقوق کی خلاف ورزی کے لیے کرنا۔
+- ایسا مواد درآمد یا شیئر کرنا جسے استعمال کرنے کی آپ کو اجازت نہ ہو۔
+- سیکیورٹی کنٹرولز کو بائی پاس کرنے یا تھرڈ پارٹی سروسز کا ناجائز استعمال کرنے کی کوشش کرنا۔
 
 AI تیار کردہ مواد
 AI سے تیار کردہ کاموں کی تفکیک، کویز، اور فلش کارڈز صرف تجاویز ہیں۔ تمام مواد کو اپنے سرکاری ٹیکسٹ بک یا استاد کی ہدایت کے خلاف تصدیق کریں۔
