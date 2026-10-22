@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database_helper.dart';
@@ -285,7 +288,28 @@ class LocalAiRepository {
 
   Future<void> deleteTextbook(int id) async {
     final db = await _db;
+    final rows = await db.query(
+      'textbooks',
+      columns: ['local_path'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
     await db.delete('textbooks', where: 'id = ?', whereArgs: [id]);
+
+    if (rows.isEmpty || rows.first['local_path'] is! String) return;
+    final storedPath = p.normalize(p.absolute(rows.first['local_path'] as String));
+    final appDirectory = await getApplicationDocumentsDirectory();
+    final libraryPath = p.normalize(p.absolute(p.join(appDirectory.path, 'textbooks')));
+    if (p.isWithin(libraryPath, storedPath)) {
+      try {
+        final file = File(storedPath);
+        if (await file.exists()) await file.delete();
+      } on FileSystemException {
+        // Metadata and index have already been deleted; an orphaned local file
+        // is safer than turning a library deletion into a failed operation.
+      }
+    }
   }
 
   Future<void> replaceTextbookChunks(
