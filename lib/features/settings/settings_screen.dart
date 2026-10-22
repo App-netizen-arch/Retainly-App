@@ -619,6 +619,15 @@ ValueListenableBuilder<bool>(
             trailing: const Icon(Icons.chevron_right),
             onTap: () => GoRouter.of(context).push('/books'),
           ),
+          ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('Exam-day Simulator'),
+            subtitle: const Text(
+              'Take a timed practice exam using indexed textbook passages',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/exam-simulator'),
+          ),
           if (_groqApiKeyConfigured)
             ListTile(
               leading: const Icon(Icons.delete_outline),
