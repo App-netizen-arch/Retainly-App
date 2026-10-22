@@ -218,26 +218,49 @@ class LocalAiRepository {
     int limit = 6,
   }) async {
     final db = await _db;
+    if (limit <= 0) return const [];
     final terms = _terms(query);
+
     if (terms.isEmpty) {
       return db.query(
         'user_memories',
         where: 'is_active = 1',
-        orderBy: 'last_used_at DESC, updated_at DESC',
-        limit: 2,
+        orderBy: 'updated_at DESC, id DESC',
+        limit: limit,
       );
     }
+
+    // Learning preferences and ongoing study context should still be available
+    // when the user's question doesn't repeat the exact words stored in memory.
+    final pinnedLimit = limit < 2 ? limit : 2;
+    final pinned = await db.query(
+      'user_memories',
+      where: "is_active = 1 AND category IN ('preference', 'study context')",
+      orderBy: 'updated_at DESC, id DESC',
+      limit: pinnedLimit,
+    );
+    final pinnedIds = pinned.map((row) => row['id']).toSet();
+
     final where = terms.map((_) => 'lower(content) LIKE ?').join(' OR ');
     final args = terms.map((term) => '%$term%').toList();
-    final rows = await db.query(
+    final matches = await db.query(
       'user_memories',
       where: 'is_active = 1 AND ($where)',
       whereArgs: args,
       limit: 100,
     );
-    rows.sort((a, b) => _score(b['content'] as String? ?? '', terms)
-        .compareTo(_score(a['content'] as String? ?? '', terms)));
-    final selected = rows.take(limit).toList();
+    matches.sort((a, b) => _score(
+      b['content'] as String? ?? '',
+      terms,
+    ).compareTo(_score(a['content'] as String? ?? '', terms)));
+
+    final selected = <Map<String, Object?>>[...pinned];
+    for (final row in matches) {
+      if (pinnedIds.contains(row['id'])) continue;
+      selected.add(row);
+      if (selected.length >= limit) break;
+    }
+
     final ids = selected.map((row) => row['id'] as int).toList();
     if (ids.isNotEmpty) {
       final now = DateTime.now().toIso8601String();
