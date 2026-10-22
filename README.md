@@ -7,6 +7,8 @@ Retainly is an offline-first Flutter study companion for Pakistani Matric studen
 ## Main features
 
 - Local study planning, subjects, chapters, progress and spaced-repetition revision.
+- Weak-topic tracking and a targeted practice-exam launcher that searches the selected textbook for the topics the student needs to revisit.
+- Timed exam simulation with configurable question count and duration, generated from locally indexed textbook passages.
 - Pomodoro focus sessions and user-initiated encrypted backups.
 - Full-screen AI chat with persistent local conversation history.
 - User-approved, editable, disableable and deletable local memories.
