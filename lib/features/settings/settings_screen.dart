@@ -595,6 +595,20 @@ ValueListenableBuilder<bool>(
             trailing: const Icon(Icons.chevron_right),
             onTap: _configureGroqApiKey,
           ),
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_outline),
+            title: const Text('Open Retainly AI Chat'),
+            subtitle: const Text('Saved conversations with local history and book retrieval'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/ai/chat'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.psychology_alt_outlined),
+            title: const Text('Manage Local Memory'),
+            subtitle: const Text('Inspect, edit, disable or delete saved memories'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/ai/memory'),
+          ),
           if (_groqApiKeyConfigured)
             ListTile(
               leading: const Icon(Icons.delete_outline),
