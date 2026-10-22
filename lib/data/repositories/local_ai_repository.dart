@@ -286,14 +286,20 @@ class LocalAiRepository {
     return db.query('textbooks', orderBy: 'title COLLATE NOCASE ASC');
   }
 
-  Future<void> deleteAllTextbooksAndFiles() async {
+  Future<bool> deleteAllTextbooksAndFiles() async {
     final books = await getTextbooks();
+    var allFilesRemoved = true;
     for (final book in books) {
       final id = book['id'];
       if (id is int) {
-        await deleteTextbook(id);
+        try {
+          await deleteTextbook(id);
+        } catch (_) {
+          allFilesRemoved = false;
+        }
       }
     }
+    return allFilesRemoved;
   }
 
   Future<void> deleteTextbook(int id) async {
@@ -312,13 +318,8 @@ class LocalAiRepository {
     final appDirectory = await getApplicationDocumentsDirectory();
     final libraryPath = p.normalize(p.absolute(p.join(appDirectory.path, 'textbooks')));
     if (p.isWithin(libraryPath, storedPath)) {
-      try {
-        final file = File(storedPath);
-        if (await file.exists()) await file.delete();
-      } on FileSystemException {
-        // Metadata and index have already been deleted; an orphaned local file
-        // is safer than turning a library deletion into a failed operation.
-      }
+      final file = File(storedPath);
+      if (await file.exists()) await file.delete();
     }
   }
 
