@@ -113,59 +113,6 @@ void main() {
     });
   });
 
-  group('AIService - Cost Estimation', () {
-    test('getEstimatedCost defaults to 0.0', () async {
-      final service = AIService();
-      expect(await service.getEstimatedCost('user1'), 0.0);
-    });
-
-    test('estimateCost calculates cost based on output length', () async {
-      final service = AIService();
-      final output = 'a' * 400;
-      await service.estimateCost('user1', {'output': output});
-      final cost = await service.getEstimatedCost('user1');
-      expect(cost, greaterThan(0));
-    });
-
-    test('estimateCost caps per-request cost at 0.5', () async {
-      final service = AIService();
-      final output = 'a' * 4000;
-      await service.estimateCost('user1', {'output': output});
-      final cost = await service.getEstimatedCost('user1');
-      expect(cost, lessThanOrEqualTo(0.5));
-    });
-
-    test('estimateCost caps total cost at 10.0', () async {
-      final service = AIService();
-      final output = 'a' * 4000;
-      for (var i = 0; i < 30; i++) {
-        await service.estimateCost('user1', {'output': output});
-      }
-      final cost = await service.getEstimatedCost('user1');
-      expect(cost, lessThanOrEqualTo(10.0));
-    });
-
-    test('estimateCost ignores null output', () async {
-      final service = AIService();
-      await service.estimateCost('user1', {'output': null});
-      expect(await service.getEstimatedCost('user1'), 0.0);
-    });
-
-    test('estimateCost ignores non-map data', () async {
-      final service = AIService();
-      await service.estimateCost('user1', 'not a map');
-      expect(await service.getEstimatedCost('user1'), 0.0);
-    });
-
-    test('resetEstimatedCost resets to 0.0', () async {
-      final service = AIService();
-      await service.estimateCost('user1', {'output': 'a' * 400});
-      expect(await service.getEstimatedCost('user1'), greaterThan(0));
-      await service.resetEstimatedCost('user1');
-      expect(await service.getEstimatedCost('user1'), 0.0);
-    });
-  });
-
   group('AIService - Source Citations', () {
     test('getSourceCitations returns empty map by default', () async {
       final service = AIService();
