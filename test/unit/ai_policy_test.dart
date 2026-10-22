@@ -43,7 +43,7 @@ void main() {
     });
 
     test('checkAiGate passes when all flags are accepted', () async {
-      final service = AIService();
+      final service = AIService(apiKeyReader: () async => 'test-groq-key');
       await service.setAiConsent(true);
       await service.acceptCostWarning();
       await service.acceptAiPolicy();
