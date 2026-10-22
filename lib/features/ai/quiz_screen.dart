@@ -234,18 +234,19 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final q = _questions[_currentIndex];
     final selected = q.options[_selectedAnswer].trim();
     final answer = q.correctAnswer.trim();
+    final exactAnswerIndex = q.options.indexWhere(
+      (option) => option.trim().toLowerCase() == answer.toLowerCase(),
+    );
     final answerLetter = RegExp(
       r'^(?:option\s*)?([A-D])(?:[).:]|\s|$)',
       caseSensitive: false,
     ).firstMatch(answer)?.group(1)?.toUpperCase();
-    final correctIndex = answerLetter == null
-        ? q.options.indexWhere(
-            (option) => option.trim().toLowerCase() == answer.toLowerCase(),
-          )
-        : answerLetter.codeUnitAt(0) - 'A'.codeUnitAt(0);
-    if (selected.isNotEmpty &&
-        (selected.toLowerCase() == answer.toLowerCase() ||
-            correctIndex == _selectedAnswer)) {
+    final correctIndex = exactAnswerIndex >= 0
+        ? exactAnswerIndex
+        : answerLetter == null
+            ? -1
+            : answerLetter.codeUnitAt(0) - 'A'.codeUnitAt(0);
+    if (selected.isNotEmpty && correctIndex == _selectedAnswer) {
       _correctCount++;
     }
     setState(() => _selectedAnswer = -1);
