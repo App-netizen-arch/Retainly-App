@@ -17,14 +17,15 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-    afterEvaluate {
-        // Some Flutter plugins (including tesseract_ocr) set Kotlin JVM 17
-        // while leaving Android Java compileOptions at 1.8. Keep Android
-        // library Java targets aligned with Kotlin to avoid Gradle's target
-        // compatibility failure during plugin compilation.
-        extensions.findByType<com.android.build.gradle.LibraryExtension>()?.compileOptions?.apply {
-            sourceCompatibility = JavaVersion.VERSION_17
-            targetCompatibility = JavaVersion.VERSION_17
+    // Configure Android libraries when their plugin is applied. An afterEvaluate
+    // callback is too late here because evaluationDependsOn(":app") can evaluate
+    // the app project before this callback is registered.
+    plugins.withId("com.android.library") {
+        extensions.configure<com.android.build.gradle.LibraryExtension> {
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
         }
     }
 }
