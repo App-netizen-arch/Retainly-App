@@ -193,6 +193,11 @@ class LocalAiRepository {
     );
   }
 
+  Future<int> clearAllMemories() async {
+    final db = await _db;
+    return db.delete('user_memories');
+  }
+
   Future<void> deleteMemory(int id) async {
     final db = await _db;
     await db.delete('user_memories', where: 'id = ?', whereArgs: [id]);
