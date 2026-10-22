@@ -1324,6 +1324,18 @@ ListTile(
     } catch (_) {
       textbookFilesRemoved = false;
     }
+    // Also remove orphaned copies left by interrupted imports or database errors.
+    // This directory is reserved for Retainly's private imported-book copies.
+    try {
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      final importedBooksDirectory =
+          Directory(p.join(documentsDirectory.path, 'textbooks'));
+      if (await importedBooksDirectory.exists()) {
+        await importedBooksDirectory.delete(recursive: true);
+      }
+    } catch (_) {
+      textbookFilesRemoved = false;
+    }
     await rawDb.delete('chat_conversations');
     await rawDb.delete('user_memories');
     await rawDb.delete('textbooks');
