@@ -10,7 +10,7 @@ Last reviewed: 22 October 2026
 - Groq API keys are stored through Flutter Secure Storage rather than being hard-coded or stored in chat rows.
 - AI requests target Groq's official OpenAI-compatible endpoint; the hard-coded Vercel/OpenRouter proxy path has been removed.
 - Retrieved memory and textbook passages are supplied as reference content and explicitly treated as untrusted, not as instructions that override the system prompt.
-- OCR uses a local Tesseract engine, and PDF pages are rendered locally.
+- PDF text layers are extracted locally with read_pdf_text when available; pages without usable text are rendered locally and passed to Tesseract OCR.
 - Android automatic backup and device-transfer rules exclude private app data.
 - Encrypted local backup remains user initiated.
 
