@@ -63,7 +63,7 @@ class AIService {
   }
 
   Future<String?> generateTaskBreakdown(String userId, String taskTitle) async {
-    return callAiProxy(
+    return callGroq(
       userId: userId,
       model: _defaultModel,
       systemPrompt:
@@ -77,7 +77,7 @@ class AIService {
     String userId,
     String chapterTitle,
   ) async {
-    return callAiProxy(
+    return callGroq(
       userId: userId,
       model: _defaultModel,
       systemPrompt:
@@ -88,7 +88,7 @@ class AIService {
   }
 
   Future<String?> generateFlashcards(String userId, String sourceText) async {
-    return callAiProxy(
+    return callGroq(
       userId: userId,
       model: _defaultModel,
       systemPrompt:
@@ -103,7 +103,7 @@ class AIService {
     String chapterTitle,
     int questionCount,
   ) async {
-    return callAiProxy(
+    return callGroq(
       userId: userId,
       model: _defaultModel,
       systemPrompt:
@@ -113,7 +113,7 @@ class AIService {
     );
   }
 
-  Future<String?> callAiProxy({
+  Future<String?> callGroq({
     required String userId,
     required String model,
     required String systemPrompt,
@@ -581,7 +581,7 @@ class AIService {
           ? retrievedBookContext!.trim()
           : 'No textbook passages were retrieved. Do not claim this answer is textbook-verified.');
 
-    return callAiProxy(
+    return callGroq(
       userId: userId,
       model: _defaultModel,
       systemPrompt: systemPrompt,
