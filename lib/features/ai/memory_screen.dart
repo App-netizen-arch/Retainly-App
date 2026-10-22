@@ -67,7 +67,9 @@ class _MemoryScreenState extends State<MemoryScreen> {
                     DropdownMenuItem(value: 'study context', child: Text('Study context')),
                   ],
                   onChanged: (value) {
-                    if (value != null) setDialogState(() => category = value);
+                    if (value != null) {
+                      setDialogState(() => category = value);
+                    }
                   },
                 ),
                 const SizedBox(height: 10),
