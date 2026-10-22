@@ -8,21 +8,20 @@ void main() {
   });
 
   group('AIService - Provider Management', () {
-    test('default provider is openrouter', () async {
+    test('default provider is Groq', () async {
       final service = AIService();
-      expect(await service.getAiProvider(), 'openrouter');
+      expect(await service.getAiProvider(), 'groq');
     });
 
-    test('setAiProvider updates the provider', () async {
+    test('setAiProvider keeps the configured provider as Groq', () async {
       final service = AIService();
-      await service.setAiProvider('anthropic');
-      expect(await service.getAiProvider(), 'anthropic');
+      await service.setAiProvider('groq');
+      expect(await service.getAiProvider(), 'groq');
     });
 
-    test('setAiProvider can switch to gemini', () async {
+    test('unsupported providers are rejected', () async {
       final service = AIService();
-      await service.setAiProvider('gemini');
-      expect(await service.getAiProvider(), 'gemini');
+      await expectLater(service.setAiProvider('anthropic'), throwsArgumentError);
     });
   });
 
