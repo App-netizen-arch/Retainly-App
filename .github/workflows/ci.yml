@@ -44,6 +44,8 @@ jobs:
           path: |
             lib/**/*.dart
             test/**/*.dart
+            pubspec.lock
+            analysis_options.yaml
           retention-days: 1
       - name: Analyze code
         run: flutter analyze
