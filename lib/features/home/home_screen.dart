@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../providers/database_provider.dart';
 import '../../data/models/app_models.dart';
 import '../../services/ai_service.dart';
-import 'ai_sidebar_panel.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -81,33 +80,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                               ElevatedButton(
                                 onPressed: () async {
-                                  await service.acceptAiPolicy();
-                                  if (ctx.mounted) {
-                                    Navigator.pop(dctx, true);
-                                    Scaffold.of(ctx).openDrawer();
-                                  }
-                                },
-                                child: const Text('Accept & Continue'),
-                              ),
-                            ],
+                    final service = AIService();
+                    final accepted = await service.hasAcceptedAiPolicy();
+                    if (!accepted) {
+                      if (!ctx.mounted) return;
+                      final proceed = await showDialog<bool>(
+                        context: ctx,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Retainly AI privacy notice'),
+                          content: const SingleChildScrollView(
+                            child: Text(
+                              'Retainly stores your chats, memories and textbook index on this device. If Online AI is enabled, the question you submit and relevant recent chat turns, saved memories and selected textbook passages may be sent to Groq for inference. Groq Zero Data Retention is a setting on the account that owns your API key and must be enabled separately in Groq Console > Data Controls. Retainly cannot verify that setting. Do not send content that must never leave your phone.\n\nOnline AI also requires a Groq API key and explicit consent in Settings. OCR and local search do not send the book to Groq.',
+                            ),
                           ),
-                    );
-                    if (!ctx.mounted) return;
-                    if (proceed != true && ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'You must accept the AI policy to use the assistant.',
-                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(dialogContext, true);
+                                GoRouter.of(ctx).push('/settings');
+                              },
+                              child: const Text('Open Settings'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(dialogContext, true),
+                              child: const Text('Accept & Continue'),
+                            ),
+                          ],
                         ),
                       );
+                      if (!ctx.mounted || proceed != true) return;
+                      await service.acceptAiPolicy();
                     }
-                    return;
-                  }
-                  if (ctx.mounted) {
-                    Scaffold.of(ctx).openDrawer();
-                  }
-                },
+                    if (ctx.mounted) {
+                      GoRouter.of(ctx).push('/ai/chat');
+                    }
+                  },
               ),
         ),
         actions: [
@@ -118,7 +129,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
-      drawer: const AiSidebarPanel(),
       body: dashboardAsync.when(
         data: (data) {
           final examDate = data['examDate'] as String?;
