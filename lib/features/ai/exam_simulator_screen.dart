@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../data/repositories/local_ai_repository.dart';
 
 class ExamSimulatorScreen extends StatefulWidget {
-  const ExamSimulatorScreen({super.key});
+  const ExamSimulatorScreen({super.key, this.focusTopics = const []});
+
+  final List<String> focusTopics;
 
   @override
   State<ExamSimulatorScreen> createState() => _ExamSimulatorScreenState();
@@ -64,6 +66,7 @@ class _ExamSimulatorScreenState extends State<ExamSimulatorScreen> {
       final sourceText = await _repository.buildTextbookContextForBook(
         id,
         limit: 14,
+        focusQuery: widget.focusTopics.isEmpty ? null : widget.focusTopics.join(' '),
       );
       if (sourceText.trim().isEmpty) {
         if (mounted) {
@@ -74,7 +77,10 @@ class _ExamSimulatorScreenState extends State<ExamSimulatorScreen> {
         }
         return;
       }
-      final title = '${book['subject'] ?? 'General'} • ${book['title'] ?? 'Textbook'}';
+      final focusTitle = widget.focusTopics.isEmpty
+          ? ''
+          : ' • Focus: ${widget.focusTopics.take(4).join(', ')}';
+      final title = '${book['subject'] ?? 'General'} • ${book['title'] ?? 'Textbook'}$focusTitle';
       if (!mounted) return;
       setState(() => _starting = false);
       await context.push(
@@ -133,6 +139,27 @@ class _ExamSimulatorScreenState extends State<ExamSimulatorScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
+                if (widget.focusTopics.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Targeted weakness practice'),
+                          const SizedBox(height: 6),
+                          Text(widget.focusTopics.join(' • ')),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Retainly will search the selected book for these topics first. If it cannot find a matching passage, it will use the first indexed passages and keep the topics as a prompt focus.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 if (_books.isEmpty)
                   Card(
                     child: Padding(
