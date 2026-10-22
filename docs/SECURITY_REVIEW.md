@@ -9,14 +9,14 @@ Last reviewed: 22 October 2026
 - SQLite foreign-key enforcement is enabled; subject setup archives unselected subjects instead of deleting records referenced by study history.
 - Groq API keys are stored through Flutter Secure Storage rather than being hard-coded or stored in chat rows.
 - AI requests target Groq's official OpenAI-compatible endpoint; the hard-coded Vercel/OpenRouter proxy path has been removed.
-- Retrieved memory and textbook passages are supplied as reference content and explicitly treated as untrusted, not as instructions that override the system prompt.
+- Retrieved memory, past-chat excerpts and textbook passages are supplied as reference content and explicitly treated as untrusted, not as instructions that override the system prompt.
 - PDF text layers are extracted locally with read_pdf_text when available; pages without usable text are rendered locally and passed to Tesseract OCR.
 - Android automatic backup and device-transfer rules exclude private app data.
 - Encrypted local backup remains user initiated.
 
 ## Known limitations and risks
 
-- Groq inference is online processing. A question, recent chat turns and relevant local memories or textbook passages may be sent to Groq when Online AI is enabled. ZDR is controlled by the key owner's Groq account; Retainly cannot verify that setting.
+- Groq inference is online processing. A question, recent chat turns and relevant local memories or textbook passages may be sent to Groq when Online AI is enabled. If local past-chat search is enabled, matching excerpts from earlier conversations may also be sent. ZDR is controlled by the key owner's Groq account; Retainly cannot verify that setting.
 - The API key is user-provided. Secure storage improves at-rest protection but cannot promise recovery is impossible on a rooted, debugged or compromised device. Never ship a shared developer key inside the app.
 - SQLite is not SQLCipher-encrypted.
 - Current textbook retrieval is lexical, not semantic. Retrieval quality and citation correctness need evaluation against a representative textbook test set.
