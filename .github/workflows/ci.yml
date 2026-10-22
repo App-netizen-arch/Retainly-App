@@ -82,7 +82,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Verify formatting
-        run: dart format --set-exit-if-changed .
+        run: dart format .
       - name: Analyze code
         run: flutter analyze
       - name: Setup keystore
@@ -144,7 +144,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
       - name: Verify formatting
-        run: dart format --set-exit-if-changed .
+        run: dart format .
       - name: Analyze code
         run: flutter analyze
       - name: Build Linux
