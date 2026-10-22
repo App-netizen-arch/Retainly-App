@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/ai_service.dart';
+import '../../data/repositories/local_ai_repository.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   final String sourceText;
@@ -57,10 +58,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     });
     final userId = 'local_user';
     try {
+      final sourceText = widget.sourceText.trim().isNotEmpty
+          ? widget.sourceText
+          : await LocalAiRepository().buildTextbookContext(widget.sourceTitle);
       final result = await service.generateQuizDraft(
         userId,
         widget.sourceTitle,
         widget.questionCount,
+        sourceText: sourceText,
       );
       if (!mounted) return;
       if (result == null || result.startsWith('AI_ERROR:')) {
@@ -130,11 +135,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           currentAnswer = null;
         }
       } else if (withoutNumber.toLowerCase().startsWith('option') ||
+          RegExp(r'^[A-D][).:]\s*', caseSensitive: false).hasMatch(withoutNumber) ||
           withoutNumber.startsWith('-') ||
           withoutNumber.startsWith('*')) {
-        currentOptions.add(
-          withoutNumber.replaceFirst(RegExp(r'^-?\s*'), '').trim(),
-        );
+        final optionText = withoutNumber
+            .replaceFirst(
+              RegExp(r'^(?:option\s*[A-D0-9]?\s*[:.)-]?|[A-D][).:])\s*', caseSensitive: false),
+              '',
+            )
+            .replaceFirst(RegExp(r'^[-*]\s*'), '')
+            .trim();
+        currentOptions.add(optionText);
       } else if (currentQuestion != null && currentOptions.length < 4) {
         currentOptions.add(withoutNumber);
       } else if (currentQuestion != null &&
@@ -176,8 +187,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (_selectedAnswer < 0 || _questions.isEmpty) return;
     _answeredCount++;
     final q = _questions[_currentIndex];
-    final selected = q.options[_selectedAnswer];
-    if (selected == q.correctAnswer) {
+    final selected = q.options[_selectedAnswer].trim();
+    final answer = q.correctAnswer.trim();
+    final answerLetter = RegExp(
+      r'^(?:option\s*)?([A-D])(?:[).:]|\s|$)',
+      caseSensitive: false,
+    ).firstMatch(answer)?.group(1)?.toUpperCase();
+    final correctIndex = answerLetter == null
+        ? q.options.indexWhere(
+            (option) => option.trim().toLowerCase() == answer.toLowerCase(),
+          )
+        : answerLetter.codeUnitAt(0) - 'A'.codeUnitAt(0);
+    if (selected.isNotEmpty &&
+        (selected.toLowerCase() == answer.toLowerCase() ||
+            correctIndex == _selectedAnswer)) {
       _correctCount++;
     }
     setState(() => _selectedAnswer = -1);
