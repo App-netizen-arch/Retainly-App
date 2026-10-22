@@ -278,7 +278,7 @@ class DatabaseHelper {
         updated_at TEXT NOT NULL,
         last_used_at TEXT,
         is_active INTEGER NOT NULL DEFAULT 1,
-        FOREIGN KEY(source) REFERENCES chat_conversations(id)
+        FOREIGN KEY(source_conversation_id) REFERENCES chat_conversations(id)
           ON DELETE SET NULL
       )
     ''');
