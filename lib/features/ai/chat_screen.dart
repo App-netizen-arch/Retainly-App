@@ -96,6 +96,21 @@ class _ChatScreenState extends State<ChatScreen> {
         role: 'user',
         content: question,
       );
+
+      // Only create a memory when the user explicitly asks Retainly to remember it.
+      final explicitMemory = _explicitMemoryFrom(question);
+      if (explicitMemory != null) {
+        await _repository.saveMemory(
+          content: explicitMemory,
+          category: 'preference',
+          sourceConversationId: conversationId,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Saved your explicit instruction to local memory.')),
+          );
+        }
+      }
       await _loadMessages();
 
       final previousRows = _messages
@@ -145,6 +160,22 @@ class _ChatScreenState extends State<ChatScreen> {
       if (mounted) setState(() => _loading = false);
       _scrollToBottom();
     }
+  }
+
+  String? _explicitMemoryFrom(String message) {
+    final trimmed = message.trim();
+    final lower = trimmed.toLowerCase();
+    for (final prefix in const [
+      'remember that ',
+      'remember: ',
+      'please remember ',
+    ]) {
+      if (lower.startsWith(prefix)) {
+        final memory = trimmed.substring(prefix.length).trim();
+        return memory.isEmpty ? null : memory;
+      }
+    }
+    return null;
   }
 
   String _friendlyAnswer(String? answer) {
@@ -480,7 +511,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                   child: TextButton.icon(
                                                     onPressed: () => _saveMemory(text),
                                                     icon: const Icon(Icons.bookmark_add_outlined, size: 17),
-                                                    label: const Text('Remember'),
+                                                    label: const Text('Save answer to memory'),
                                                   ),
                                                 ),
                                             ],
