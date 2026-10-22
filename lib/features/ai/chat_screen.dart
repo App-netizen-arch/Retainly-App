@@ -41,14 +41,16 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _initialize() async {
     try {
       final requestedId = widget.conversationId;
-      final conversation = requestedId == null
-          ? await _repository.createConversation()
-          : await _repository.getConversation(requestedId) == null
-              ? await _repository.createConversation()
-              : requestedId;
+      int conversationId;
+      if (requestedId == null ||
+          await _repository.getConversation(requestedId) == null) {
+        conversationId = await _repository.createConversation();
+      } else {
+        conversationId = requestedId;
+      }
       if (!mounted) return;
       setState(() {
-        _conversationId = conversation is int ? conversation : conversation as int;
+        _conversationId = conversationId;
         _initialized = true;
       });
       await _loadMessages();
@@ -105,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
         previousRows.removeLast();
       }
       final history = previousRows
-          .take(previousRows.length > 12 ? 12 : previousRows.length)
+          .skip(previousRows.length > 12 ? previousRows.length - 12 : 0)
           .map((row) => <String, String>{
                 'role': row['role'] as String,
                 'content': row['content'] as String,
@@ -290,6 +292,11 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Textbook library',
+            onPressed: () => context.push('/books'),
+            icon: const Icon(Icons.menu_book_outlined),
+          ),
           IconButton(
             tooltip: 'Local memory',
             onPressed: () => context.push('/ai/memory'),
