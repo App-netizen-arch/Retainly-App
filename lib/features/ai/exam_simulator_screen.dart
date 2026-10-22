@@ -198,7 +198,9 @@ class _ExamSimulatorScreenState extends State<ExamSimulatorScreen> {
                     onChanged: _starting
                         ? null
                         : (value) {
-                            if (value != null) setState(() => _selectedBookId = value);
+                            if (value != null) {
+                              setState(() => _selectedBookId = value);
+                            }
                           },
                   ),
                   if (book != null) ...[
@@ -225,7 +227,9 @@ class _ExamSimulatorScreenState extends State<ExamSimulatorScreen> {
                       DropdownMenuItem(value: 30, child: Text('30 questions')),
                     ],
                     onChanged: _starting ? null : (value) {
-                      if (value != null) setState(() => _questionCount = value);
+                      if (value != null) {
+                        setState(() => _questionCount = value);
+                      }
                     },
                   ),
                   const SizedBox(height: 14),
@@ -239,7 +243,9 @@ class _ExamSimulatorScreenState extends State<ExamSimulatorScreen> {
                       DropdownMenuItem(value: 45, child: Text('45 minutes')),
                     ],
                     onChanged: _starting ? null : (value) {
-                      if (value != null) setState(() => _durationMinutes = value);
+                      if (value != null) {
+                        setState(() => _durationMinutes = value);
+                      }
                     },
                   ),
                   const SizedBox(height: 18),
