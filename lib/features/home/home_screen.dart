@@ -86,6 +86,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.timer_outlined),
+            tooltip: 'Exam-day Simulator',
+            onPressed: () => GoRouter.of(context).push('/exam-simulator'),
+          ),
            IconButton(
             icon: const Icon(Icons.search),
             tooltip: 'Search',
