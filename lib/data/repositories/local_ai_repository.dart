@@ -144,6 +144,64 @@ class LocalAiRepository {
     );
   }
 
+  Future<String> buildConversationMemoryContext(
+    String query, {
+    required int excludeConversationId,
+    int limit = 4,
+  }) async {
+    final db = await _db;
+    final terms = _terms(query);
+    if (terms.isEmpty) return '';
+
+    final predicates = terms.take(8).map((_) => 'lower(m.content) LIKE ?').join(' OR ');
+    final args = <Object?>[
+      ...terms.take(8).map((term) => '%$term%'),
+      excludeConversationId,
+    ];
+    final rows = await db.rawQuery(
+      '''
+      SELECT m.id, m.conversation_id, m.role, m.content, m.created_at,
+             c.title AS conversation_title
+      FROM chat_messages m
+      JOIN chat_conversations c ON c.id = m.conversation_id
+      WHERE ($predicates)
+        AND m.conversation_id != ?
+        AND m.role IN ('user', 'assistant')
+      ORDER BY m.id DESC
+      LIMIT 150
+      ''',
+      args,
+    );
+
+    rows.sort((a, b) => _score(
+      b['content'] as String? ?? '',
+      terms,
+    ).compareTo(_score(a['content'] as String? ?? '', terms)));
+
+    final selected = <Map<String, Object?>>[];
+    final seen = <int>{};
+    for (final row in rows) {
+      final score = _score(row['content'] as String? ?? '', terms);
+      if (score == 0) continue;
+      final id = row['id'] as int;
+      if (!seen.add(id)) continue;
+      selected.add(row);
+      if (selected.length >= limit) break;
+    }
+    if (selected.isEmpty) return '';
+
+    final out = StringBuffer();
+    for (final row in selected) {
+      var content = (row['content'] as String? ?? '').trim();
+      if (content.length > 700) content = '${content.substring(0, 700)}…';
+      out
+        ..writeln('Prior conversation: ${row['conversation_title'] ?? 'Saved chat'}; role: ${row['role']}; date: ${row['created_at'] ?? 'unknown'}.')
+        ..writeln(content)
+        ..writeln('---');
+    }
+    return out.toString();
+  }
+
   Future<int> saveMemory({
     required String content,
     String category = 'preference',
