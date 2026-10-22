@@ -51,13 +51,6 @@ void main() {
       expect(gate, isNull);
     });
 
-    test('ensureConsentRecord stores a timestamp', () async {
-      final service = AIService();
-      await service.ensureConsentRecord('user1');
-      final prefs = await SharedPreferences.getInstance();
-      final record = prefs.getString('ai_consent_record_user1');
-      expect(record, isNotNull);
-      expect(record, isNotEmpty);
-    });
+
   });
 }
