@@ -93,13 +93,18 @@ class _MemoryScreenState extends State<MemoryScreen> {
     );
     final content = controller.text.trim();
     controller.dispose();
-    if (saved != true || content.isEmpty) {
-      return;
-    }
-    if (existing == null) {
-      await _repository.saveMemory(content: content, category: category);
+    if (saved == true && content.isNotEmpty) {
+      if (existing == null) {
+        await _repository.saveMemory(content: content, category: category);
+      } else {
+        await _repository.updateMemory(
+          existing['id'] as int,
+          content,
+          category: category,
+        );
+      }
     } else {
-      await _repository.updateMemory(existing['id'] as int, content, category: category);
+      return;
     }
     await _reload();
   }
