@@ -23,6 +23,8 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, Object?>> _messages = [];
   bool _loading = false;
   bool _initialized = false;
+  bool _onlineAiReady = false;
+  String _onlineAiStatus = 'Checking AI setup…';
   String? _loadError;
 
   @override
@@ -54,6 +56,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _initialized = true;
       });
       await _loadMessages();
+      await _refreshOnlineAiStatus();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -61,6 +64,40 @@ class _ChatScreenState extends State<ChatScreen> {
         _initialized = true;
       });
     }
+  }
+
+  Future<void> _refreshOnlineAiStatus() async {
+    try {
+      final service = AIService();
+      final keyConfigured = await service.hasGroqApiKey();
+      final consent = await service.hasAiConsent();
+      final policyAccepted = await service.hasAcceptedAiPolicy();
+      final costAccepted = await service.hasAcceptedCostWarning();
+      if (!mounted) return;
+      setState(() {
+        _onlineAiReady = keyConfigured && consent && policyAccepted && costAccepted;
+        _onlineAiStatus = !keyConfigured
+            ? 'Add a Groq API key in Settings to answer questions online.'
+            : !consent
+                ? 'Enable Online AI Assistance in Settings to send questions to Groq.'
+                : !costAccepted
+                    ? 'Review and accept the online AI cost warning in Settings.'
+                    : !policyAccepted
+                        ? 'Accept the AI privacy notice before using online AI.'
+                        : 'Online AI is configured. Questions and relevant context are sent to Groq.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _onlineAiReady = false;
+        _onlineAiStatus = 'Retainly could not read secure AI settings on this device.';
+      });
+    }
+  }
+
+  Future<void> _openAiSettings() async {
+    await context.push('/settings');
+    await _refreshOnlineAiStatus();
   }
 
   Future<void> _loadMessages() async {
@@ -531,13 +568,37 @@ class _ChatScreenState extends State<ChatScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Online AI sends your question and relevant context to Groq. Chat history and saved memories stay on this device.',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                            if (!_onlineAiReady)
+                              Card(
+                                margin: EdgeInsets.zero,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.info_outline, color: colors.primary),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _onlineAiStatus,
+                                          style: Theme.of(context).textTheme.bodySmall,
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: _openAiSettings,
+                                        child: const Text('Settings'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  _onlineAiStatus,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                                ),
                               ),
-                            ),
                             const SizedBox(height: 8),
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.end,
