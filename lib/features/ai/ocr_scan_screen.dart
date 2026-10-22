@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/constants/matric_subjects.dart';
@@ -86,10 +87,12 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
       final String title = p.basenameWithoutExtension(filePath).trim().isEmpty
           ? 'Scanned study material'
           : p.basenameWithoutExtension(filePath);
+      final storedPath = await _copyToLocalLibrary(filePath);
+      if (mounted) setState(() => _previewPath = storedPath);
 
       if (isPdf) {
         final extracted = await _ocr.extractPdfText(
-          filePath,
+          storedPath,
           language: _selectedLanguage,
           onProgress: (current, total) {
             if (!mounted) return;
@@ -119,7 +122,7 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
         }
         final textbookId = await _repository.addTextbook(
           title: title,
-          localPath: filePath,
+          localPath: storedPath,
           board: _selectedBoard,
           classLevel: _selectedClass,
           subject: _selectedSubject,
@@ -138,7 +141,7 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
       } else {
         setState(() => _status = 'Recognizing image on this device…');
         final text = await _ocr.extractImageText(
-          filePath,
+          storedPath,
           language: _selectedLanguage,
         );
         if (text.trim().isEmpty) {
@@ -183,6 +186,22 @@ class _OcrScanScreenState extends State<OcrScanScreen> {
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  Future<String> _copyToLocalLibrary(String sourcePath) async {
+    final source = File(sourcePath);
+    if (!await source.exists()) {
+      throw const FileSystemException('The selected document is no longer available.');
+    }
+    final appDirectory = await getApplicationDocumentsDirectory();
+    final libraryDirectory = Directory(p.join(appDirectory.path, 'textbooks'));
+    await libraryDirectory.create(recursive: true);
+
+    final originalName = p.basename(sourcePath).replaceAll(RegExp(r'[^a-zA-Z0-9._ -]'), '_');
+    final safeName = originalName.isEmpty ? 'study_document' : originalName;
+    final uniqueName = '${DateTime.now().millisecondsSinceEpoch}_$safeName';
+    final target = p.join(libraryDirectory.path, uniqueName);
+    return (await source.copy(target)).path;
   }
 
   List<String> _splitForIndex(String source) {
