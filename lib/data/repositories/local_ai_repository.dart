@@ -371,7 +371,7 @@ class LocalAiRepository {
              t.edition
       FROM textbook_chunks tc
       JOIN textbooks t ON t.id = tc.textbook_id
-      WHERE ${filters.join(' AND ')}
+      WHERE ${filters.join(' OR ')}
       LIMIT 250
       ''',
       args,
