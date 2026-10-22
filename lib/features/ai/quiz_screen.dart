@@ -153,14 +153,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
       if (withoutNumber.toLowerCase().startsWith('q:') ||
           withoutNumber.toLowerCase().startsWith('question:')) {
-        currentQuestion =
-            withoutNumber.replaceFirst(RegExp(r'^[Qq]?:?\s*'), '').trim();
+        currentQuestion = withoutNumber
+            .replaceFirst(RegExp(r'^(?:question|q)[:\s]*', caseSensitive: false), '')
+            .trim();
         currentOptions.clear();
         currentAnswer = null;
       } else if (withoutNumber.toLowerCase().startsWith('a:') ||
           withoutNumber.toLowerCase().startsWith('answer:')) {
-        currentAnswer =
-            withoutNumber.replaceFirst(RegExp(r'^[Aa]?:?\s*'), '').trim();
+        currentAnswer = withoutNumber
+            .replaceFirst(RegExp(r'^(?:answer|a)[:\s]*', caseSensitive: false), '')
+            .trim();
         if (currentQuestion != null) {
           questions.add(
             QuizQuestion(
@@ -193,8 +195,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       } else if (currentQuestion != null &&
           currentAnswer == null &&
           withoutNumber.toLowerCase().contains('answer')) {
-        currentAnswer =
-            withoutNumber.replaceFirst(RegExp(r'^[Aa]nswer[:\s]*'), '').trim();
+        currentAnswer = withoutNumber
+            .replaceFirst(RegExp(r'^(?:answer|a)[:\s]*', caseSensitive: false), '')
+            .trim();
         questions.add(
           QuizQuestion(
             question: currentQuestion,
