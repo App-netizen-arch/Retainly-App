@@ -1283,7 +1283,7 @@ ListTile(
     final rawDb = await DatabaseHelper.instance.database;
     var textbookFilesRemoved = true;
     try {
-      await LocalAiRepository().deleteAllTextbooksAndFiles();
+      textbookFilesRemoved = await LocalAiRepository().deleteAllTextbooksAndFiles();
     } catch (_) {
       textbookFilesRemoved = false;
     }
@@ -1320,7 +1320,17 @@ ListTile(
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('All local data deleted')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            !groqKeyRemoved
+                ? 'Local data deleted, but Retainly could not remove the Groq key. Revoke it in Groq Console.'
+                : !textbookFilesRemoved
+                    ? 'Local data deleted, but some imported book files could not be removed.'
+                    : 'All local data deleted',
+          ),
+        ),
+      );
       GoRouter.of(context).go('/onboarding');
     }
   }
