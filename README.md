@@ -26,7 +26,7 @@ When Online AI is enabled, the submitted question may be sent along with recent 
 
 ## OCR and language notes
 
-OCR is performed locally with the Tesseract engine. PDF pages are rendered locally before recognition. A build-time preparation script downloads selected official Tesseract tessdata_fast language models and embeds them in the app bundle, so OCR does not need to download model files at runtime.
+OCR is performed locally with the Tesseract engine. For searchable PDFs, Retainly first extracts each page's existing text layer with the open-source read_pdf_text plugin; pages without extractable text are rendered locally and passed to Tesseract. A build-time preparation script downloads selected official Tesseract tessdata_fast language models and embeds them in the app bundle, so OCR does not need to download model files at runtime.
 
 The configured models are English (eng), Urdu (urd), Arabic (ara) and Punjabi Gurmukhi (pan). **The Punjabi model is Gurmukhi, not Pakistani Punjabi Shahmukhi.** Urdu-model recognition of Shahmukhi Punjabi is an experimental fallback and must be checked against the original. OCR may also misread equations, subscripts, tables, chemical notation and mixed right-to-left text.
 
