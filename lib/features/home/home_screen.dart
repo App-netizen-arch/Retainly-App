@@ -44,81 +44,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                  ),
                  tooltip: 'Open AI assistant',
                  onPressed: () async {
-                  final service = AIService();
-                  final consented = await service.hasAiConsent();
-                  final accepted = await service.hasAcceptedAiPolicy();
-                  if (!consented || !accepted) {
-                    if (!ctx.mounted) return;
-                    final proceed = await showDialog<bool>(
-                      context: ctx,
-                      builder:
-                          (dctx) => AlertDialog(
-                            title: const Text('AI Assistant Policy'),
-                            content: SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'This AI study assistant uses online AI services to answer questions, generate quizzes, and create flashcards.',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'Key points:\n'
-                                    '• AI content is a draft only — you must review before adding to your study plan.\n'
-                                    '• Responses are based on your uploaded subjects and chapters.\n'
-                                    '• We do not store personal data in AI requests.\n'
-                                    '• AI may occasionally make mistakes; always verify with your textbook.',
-                                    style: TextStyle(fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(dctx, false),
-                                child: const Text('Decline'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () async {
-                    final service = AIService();
-                    final accepted = await service.hasAcceptedAiPolicy();
-                    if (!accepted) {
-                      if (!ctx.mounted) return;
-                      final proceed = await showDialog<bool>(
-                        context: ctx,
-                        builder: (dialogContext) => AlertDialog(
-                          title: const Text('Retainly AI privacy notice'),
-                          content: const SingleChildScrollView(
-                            child: Text(
-                              'Retainly stores your chats, memories and textbook index on this device. If Online AI is enabled, the question you submit and relevant recent chat turns, saved memories and selected textbook passages may be sent to Groq for inference. Groq Zero Data Retention is a setting on the account that owns your API key and must be enabled separately in Groq Console > Data Controls. Retainly cannot verify that setting. Do not send content that must never leave your phone.\n\nOnline AI also requires a Groq API key and explicit consent in Settings. OCR and local search do not send the book to Groq.',
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(dialogContext, false),
-                              child: const Text('Cancel'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(dialogContext, true);
-                                GoRouter.of(ctx).push('/settings');
-                              },
-                              child: const Text('Open Settings'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.pop(dialogContext, true),
-                              child: const Text('Accept & Continue'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (!ctx.mounted || proceed != true) return;
-                      await service.acceptAiPolicy();
-                    }
-                    if (ctx.mounted) {
-                      GoRouter.of(ctx).push('/ai/chat');
-                    }
-                  },
+                   final service = AIService();
+                   final accepted = await service.hasAcceptedAiPolicy();
+                   if (!accepted) {
+                     if (!ctx.mounted) return;
+                     final proceed = await showDialog<bool>(
+                       context: ctx,
+                       builder: (dialogContext) => AlertDialog(
+                         title: const Text('Retainly AI privacy notice'),
+                         content: const SingleChildScrollView(
+                           child: Text(
+                             'Retainly stores chats, memories and textbook indexes on this device. If Online AI is enabled, the question you submit and relevant recent chat turns, saved memories and selected textbook passages may be sent to Groq for inference. Groq Zero Data Retention is a setting on the account that owns your API key and must be enabled separately in Groq Console > Data Controls. Retainly cannot verify that setting. Do not send content that must never leave your phone.\n\nOnline AI also requires a Groq API key and explicit consent in Settings. OCR and local search do not send the book to Groq.',
+                           ),
+                         ),
+                         actions: [
+                           TextButton(
+                             onPressed: () => Navigator.pop(dialogContext, false),
+                             child: const Text('Cancel'),
+                           ),
+                           TextButton(
+                             onPressed: () {
+                               Navigator.pop(dialogContext, false);
+                               GoRouter.of(ctx).push('/settings');
+                             },
+                             child: const Text('Open Settings'),
+                           ),
+                           FilledButton(
+                             onPressed: () => Navigator.pop(dialogContext, true),
+                             child: const Text('Accept & Continue'),
+                           ),
+                         ],
+                       ),
+                     );
+                     if (!ctx.mounted || proceed != true) return;
+                     await service.acceptAiPolicy();
+                   }
+                   if (ctx.mounted) {
+                     GoRouter.of(ctx).push('/ai/chat');
+                   }
+                 },
               ),
         ),
         actions: [
