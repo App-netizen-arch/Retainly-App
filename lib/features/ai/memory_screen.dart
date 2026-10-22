@@ -111,6 +111,35 @@ class _MemoryScreenState extends State<MemoryScreen> {
     await _reload();
   }
 
+  Future<void> _clearAllMemories() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear all memories?'),
+        content: const Text(
+          'This permanently deletes every saved memory on this device. Your conversations and textbook library will remain.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Clear all'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _repository.clearAllMemories();
+    await _reload();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('All saved memories were deleted from this device.')),
+    );
+  }
+
   Future<void> _deleteMemory(Map<String, Object?> memory) async {
     final id = memory['id'] as int;
     final confirm = await showDialog<bool>(
@@ -139,6 +168,11 @@ class _MemoryScreenState extends State<MemoryScreen> {
       appBar: AppBar(
         title: const Text('My local memory'),
         actions: [
+          IconButton(
+            tooltip: 'Clear all memories',
+            onPressed: _memories.isEmpty ? null : _clearAllMemories,
+            icon: const Icon(Icons.delete_sweep_outlined),
+          ),
           IconButton(
             tooltip: 'Add memory',
             onPressed: () => _editMemory(),
