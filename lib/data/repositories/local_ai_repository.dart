@@ -383,7 +383,7 @@ class LocalAiRepository {
   static List<String> _terms(String query) {
     return query
         .toLowerCase()
-        .replaceAll(RegExp(r'[^\p{L}\p{N}\s]', unicode: true), ' ')
+        .replaceAll(RegExp(r'[^a-z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]'), ' ')
         .split(RegExp(r'\s+'))
         .where((term) => term.length >= 3)
         .toSet()
