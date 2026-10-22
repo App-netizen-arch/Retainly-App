@@ -362,6 +362,19 @@ class DatabaseRepository {
     final result = await db.deleteSubject(id);
     return result;
   }
+  Future<List<SubjectModel>> getAllSubjects() async {
+    final maps = await db.getAllSubjects();
+    return maps.map((map) => SubjectModel.fromMap(map)).toList();
+  }
+
+  Future<int> setSubjectActive(int id, bool active) {
+    return db.setSubjectActive(id, active);
+  }
+
+  Future<int> updateSubject(int id, SubjectModel subject) {
+    return db.updateSubject(id, subject.toMap());
+  }
+
 
   Future<List<ChapterModel>> getChaptersBySubject(int subjectId) async {
     final maps = await db.getChaptersBySubject(subjectId);
