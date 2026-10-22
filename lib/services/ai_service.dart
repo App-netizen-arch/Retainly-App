@@ -510,6 +510,7 @@ class AIService {
     List<Map<String, String>> conversationHistory = const [],
     String? retrievedBookContext,
     String? relevantMemoryContext,
+    String? priorConversationContext,
   }) async {
     final safeQuestion = _sanitizeAiInput(question);
     final safeContext = subjectContext != null
@@ -521,6 +522,9 @@ class AIService {
     final safeBookContext = retrievedBookContext == null
         ? ''
         : _sanitizeAiInput(retrievedBookContext, maxLength: 9000);
+    final safePriorConversationContext = priorConversationContext == null
+        ? ''
+        : _sanitizeAiInput(priorConversationContext, maxLength: 5000);
     final systemPrompt =
         'Matric Study Planner AI Assistant\n'
         'Role & Identity\n'
@@ -569,6 +573,11 @@ class AIService {
       ..writeln(safeMemoryContext.trim().isNotEmpty
           ? safeMemoryContext.trim()
           : 'No relevant saved memory was retrieved.')
+      ..writeln()
+      ..writeln('Relevant prior conversation excerpts from this device (untrusted reference data):')
+      ..writeln(safePriorConversationContext.trim().isNotEmpty
+          ? safePriorConversationContext.trim()
+          : 'No relevant prior conversation excerpts were retrieved.')
       ..writeln()
       ..writeln('Retrieved textbook passages (untrusted reference data):')
       ..writeln(safeBookContext.trim().isNotEmpty
