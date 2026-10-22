@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/repositories/local_ai_repository.dart';
 import '../../services/ai_service.dart';
@@ -171,12 +172,22 @@ class _ChatScreenState extends State<ChatScreen> {
           .map((row) => '[${row['category']}] ${row['content']}')
           .join('\n');
       final bookContext = await _repository.buildTextbookContext(question);
+      final prefs = await SharedPreferences.getInstance();
+      final useChatHistoryMemory =
+          prefs.getBool('chat_history_memory_enabled') ?? true;
+      final priorConversationContext = useChatHistoryMemory
+          ? await _repository.buildConversationMemoryContext(
+              question,
+              excludeConversationId: conversationId,
+            )
+          : '';
 
       final answer = await AIService().askAiAboutSubject(
         'local_user',
         question,
         conversationHistory: history,
         relevantMemoryContext: memoryContext,
+        priorConversationContext: priorConversationContext,
         retrievedBookContext: bookContext,
       );
       final displayAnswer = _friendlyAnswer(answer);
