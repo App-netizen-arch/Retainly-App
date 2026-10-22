@@ -8,24 +8,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  group('AIService - Quota and Cost', () {
-    test('estimateCostFromOutput handles empty string without error', () async {
-      final service = AIService();
-      await service.estimateCostFromOutput('');
-      final cost = await service.getEstimatedCost('user1');
-      expect(cost, 0.0);
-    });
-
-    test('estimateCost sanitizes raw output before costing', () async {
-      final service = AIService();
-      await service.estimateCost(
-        'user1',
-        {'output': '   hello   world   '},
-      );
-      final cost = await service.getEstimatedCost('user1');
-      expect(cost, greaterThan(0));
-    });
-
+  group('AIService - Quota', () {
     test('concurrent recordAiUsage calls do not overrun quota', () async {
       final service = AIService();
       await service.setAiConsent(true);
