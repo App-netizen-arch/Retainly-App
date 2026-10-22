@@ -1,5 +1,9 @@
 name: CI
 
+concurrency:
+  group: retainly-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [ main, develop ]
@@ -45,7 +49,6 @@ jobs:
             pubspec.lock
             lib/**/*.dart
             test/**/*.dart
-            pubspec.lock
             analysis_options.yaml
           retention-days: 1
       - name: Analyze code
