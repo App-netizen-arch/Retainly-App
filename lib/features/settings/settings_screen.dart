@@ -609,6 +609,13 @@ ValueListenableBuilder<bool>(
             trailing: const Icon(Icons.chevron_right),
             onTap: () => GoRouter.of(context).push('/ai/memory'),
           ),
+          ListTile(
+            leading: const Icon(Icons.menu_book_outlined),
+            title: const Text('Textbook Library'),
+            subtitle: const Text('Manage imported books and search recognized pages on this device'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/books'),
+          ),
           if (_groqApiKeyConfigured)
             ListTile(
               leading: const Icon(Icons.delete_outline),
@@ -667,7 +674,7 @@ ValueListenableBuilder<bool>(
           ListTile(
             leading: const Icon(Icons.speed),
             title: const Text('AI Quota Remaining'),
-            subtitle: Text('$_aiRemainingQuota / 10 requests (resets after 24 hours)'),
+            subtitle: Text('$_aiRemainingQuota / 10 requests remaining today'),
           ),
           ListTile(
             leading: const Icon(Icons.report_problem),
