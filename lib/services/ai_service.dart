@@ -299,32 +299,6 @@ class AIService {
     await _secureStorage.delete(key: _groqApiKeyStorageKey);
   }
 
-  Future<bool> hasOcrConsent() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('ocr_consent') ?? false;
-  }
-
-  Future<void> setOcrConsent(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('ocr_consent', value);
-  }
-
-  Future<String?> uploadPdfToStorage(
-    String userId,
-    String filePath, {
-    String? destination,
-  }) async {
-    return 'PDF upload is not available in this offline-first release build.';
-  }
-
-  Future<void> ensureConsentRecord(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'ai_consent_record_$userId',
-      DateTime.now().toIso8601String(),
-    );
-  }
-
   Future<bool> hasAiConsent() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_consentKey) ?? false;
