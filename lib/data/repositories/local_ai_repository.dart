@@ -353,14 +353,12 @@ class LocalAiRepository {
     final db = await _db;
     final terms = _terms(query);
     if (terms.isEmpty) return const [];
-    final filters = <String>[];
-    final args = <Object?>[];
-    for (final term in terms.take(8)) {
-      filters.add('lower(tc.content) LIKE ?');
-      args.add('%$term%');
-    }
+    final termsToSearch = terms.take(8).toList();
+    final filters = termsToSearch.map((_) => 'lower(tc.content) LIKE ?').toList();
+    final args = termsToSearch.map((term) => '%$term%').cast<Object?>().toList();
+    final where = StringBuffer('(${filters.join(' OR ')})');
     if (textbookId != null) {
-      filters.add('tc.textbook_id = ?');
+      where.write(' AND tc.textbook_id = ?');
       args.add(textbookId);
     }
     final rows = await db.rawQuery(
@@ -371,7 +369,7 @@ class LocalAiRepository {
              t.edition
       FROM textbook_chunks tc
       JOIN textbooks t ON t.id = tc.textbook_id
-      WHERE ${filters.join(' OR ')}
+      WHERE $where
       LIMIT 250
       ''',
       args,
@@ -407,7 +405,7 @@ class LocalAiRepository {
   static List<String> _terms(String query) {
     return query
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s]'), ' ')
+        .replaceAll(RegExp(r'[^a-z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u0A00-\u0A7F\s]'), ' ')
         .split(RegExp(r'\s+'))
         .where((term) => term.length >= 3)
         .toSet()
