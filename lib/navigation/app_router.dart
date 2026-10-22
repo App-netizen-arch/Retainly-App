@@ -214,7 +214,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/exam-simulator',
-        builder: (context, state) => const ExamSimulatorScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          final focusTopics = extra is Map && extra['focusTopics'] is List
+              ? (extra['focusTopics'] as List).whereType<String>().toList()
+              : const <String>[];
+          return ExamSimulatorScreen(focusTopics: focusTopics);
+        },
       ),
       GoRoute(
         path: '/ai/hallucination-reports',
