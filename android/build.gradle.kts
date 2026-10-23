@@ -39,6 +39,17 @@ gradle.projectsEvaluated {
             sourceCompatibility = JavaVersion.VERSION_17.toString()
             targetCompatibility = JavaVersion.VERSION_17.toString()
         }
+
+        // Some Flutter plugins (notably pdfx) still default Kotlin to JVM 11.
+        // Match their Kotlin bytecode target to the Java 17 target above to
+        // prevent Gradle's inconsistent JVM-target validation from failing.
+        subproject.tasks
+            .withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>()
+            .configureEach {
+                compilerOptions {
+                    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+                }
+            }
     }
 }
 
