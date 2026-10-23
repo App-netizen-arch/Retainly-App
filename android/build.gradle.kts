@@ -53,7 +53,7 @@ gradle.projectsEvaluated {
                     // is only a platform-version stub. Compile the Java class and
                     // exclude that duplicate Kotlin stub.
                     setSource(
-                        project.files(source).asFileTree.matching {
+                        getSource().matching {
                             exclude("**/TesseractOcrPlugin.kt")
                         }
                     )
