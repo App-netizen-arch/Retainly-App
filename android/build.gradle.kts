@@ -46,6 +46,18 @@ gradle.projectsEvaluated {
         subproject.tasks
             .withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>()
             .configureEach {
+                if (subproject.name == "tesseract_ocr") {
+                    // tesseract_ocr 0.5.0 ships both a Java and Kotlin class with
+                    // the same fully qualified name. Its Java source contains the
+                    // real extractText/extractHocr implementation; the Kotlin file
+                    // is only a platform-version stub. Compile the Java class and
+                    // exclude that duplicate Kotlin stub.
+                    setSource(
+                        project.files(source).asFileTree.matching {
+                            exclude("**/TesseractOcrPlugin.kt")
+                        }
+                    )
+                }
                 compilerOptions {
                     jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
                 }
