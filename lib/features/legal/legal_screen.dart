@@ -130,24 +130,23 @@ class LegalScreen extends ConsumerWidget {
   static const _privacyPolicyEn = '''Privacy Policy
 
 Overview
-Retainly ("the App") is built to help students plan their studies while respecting user privacy. This policy explains what data the App collects, how it is used, and the controls available to you.
+Retainly is an offline-first study companion. Study planning, chat history, saved memories, textbook indexing and OCR run locally on your device. Retainly does not provide an account or automatic Retainly-operated cloud sync.
 
 Data We Collect
-- Local device data: subjects, chapters, tasks, focus sessions, revisions, and preferences are stored primarily in local SQLite/Drift databases on your device.
-- AI / OCR consents: if you enable AI features, consent flags and daily quota counters are stored locally.
+- Local device data: subjects, chapters, tasks, focus sessions, revisions, chat history, saved memories, textbook metadata and extracted text are stored in local SQLite/app-private storage.
+- Online AI consent flags and the daily quota counter are stored locally. OCR does not require an online service or send the selected document.
 
 How We Use Data
 - To provide core study-planning functionality (tasks, revisions, progress).
 - To provide AI-generated suggestions when you explicitly opt in.
 
 Data Sharing
-We do not sell your personal data. Third-party processors used by the App:
-- OpenAI (optional AI provider): task breakdowns, quiz generation, flashcard drafts when you enable AI assistance.
+We do not sell your personal data. Optional online AI uses Groq. When you submit a question, the question and relevant recent chat turns, saved memories, textbook passages and—if past-chat search is enabled—matching excerpts from earlier conversations may be sent to Groq for inference over HTTPS. Retainly does not include the API key in the prompt body. To request Zero Data Retention (ZDR), the key owner must enable it in Groq Console > Data Controls. Retainly cannot verify that setting; usage metadata may still be processed. OCR and local textbook search do not upload the book. See https://console.groq.com/docs/your-data.
 
 Your Rights & Controls
 - You can export all local data at any time from Settings.
 - You can delete all data from Settings, which removes local databases.
-- You can disable AI assistance and OCR independently.
+- You can disable online AI assistance. Local OCR and study planning work without the Groq API.
 - You can clear app data via your device OS settings.
 
 Children
@@ -162,12 +161,12 @@ Acceptance of Terms
 By using Retainly, you agree to these Terms. If you do not agree, do not use the App.
 
 Use License
-Permission is granted to use the App for personal, non-commercial study planning purposes only.
+Retainly is distributed under the Apache License, Version 2.0. Subject to that license, you may use, reproduce, modify, and distribute the App, including for commercial purposes. The license does not grant rights to project trademarks.
 
 Prohibited Uses
-- Reverse-engineering, scraping, or automated access to app services.
-- Uploading illegal, harmful, or copyrighted content.
-- Circumventing access controls or security measures.
+- Using the App to violate applicable law or another person's rights.
+- Importing or sharing content you do not have permission to use.
+- Attempting to bypass security controls or abuse third-party services.
 
 AI-Generated Content
 AI-generated task breakdowns, quizzes, and flashcards are suggestions only. Verify all content against your official textbook or teacher guidance.
@@ -187,11 +186,12 @@ Local Data
 - All study data is stored locally on your device by default.
 - Data persists until you delete it through the App or your device OS.
 
-Cloud Data
-- When online sync is enabled, data is retained on your device until you delete your account or disable sync.
+Online AI Requests
+- Retainly does not run automatic cloud sync or keep a second copy of chat/memory/book data on a Retainly-operated backend.
+- Online AI sends the question and relevant context to Groq. ZDR must be enabled by the key owner in Groq Console > Data Controls; Retainly cannot verify the setting.
 
 AI / OCR Data
-- AI request logs are retained for quota enforcement.
+- The local daily quota counter is stored in device preferences; Retainly does not maintain a remote AI request log.
 - OCR outputs are stored locally and may be deleted via the App.
 
 Crash / Analytics Data
@@ -228,13 +228,13 @@ Special Protections
 Assets
 - Local study data: subjects, chapters, tasks, focus sessions, revisions, resources.
 - Authentication state: PIN hash (encrypted).
-- AI / OCR data: consents, request logs, OCR outputs.
+- AI and document data: online-AI consent, local conversations, saved memories, imported books and OCR/extracted text.
 
 Threats
 - Device loss / theft: local SQLite database and encrypted token vault may be accessed if device is unlocked.
-- AI prompt injection: external AI provider could return malicious content; responses are not sanitized for code execution.
-- Man-in-the-middle: external API traffic uses HTTPS; local HTTP calls use encrypted channels.
-- Insider threat: developer or maintainer access to backend infrastructure could read data.
+- Prompt injection: a malicious imported passage or online model response could contain hostile instructions; retrieved material is treated as untrusted and the app does not execute model output as code.
+- Network disclosure: online AI requests use HTTPS and send selected context to Groq; OCR and local textbook search do not send document content.
+- Retainly has no Retainly-operated AI inference backend. For online inference, Groq receives the request context sent by the user.
 - Denial of service: quota exhaustion or AI provider outages.
 
 Mitigations
@@ -253,8 +253,8 @@ Residual Risks
 میٹرک سٹڈی پلینر ("ایپ") طلباء کے مطالعے کی منصوبہ بندی کرنے کے لیے بنائی گئی ہے اور صارف کی رازداری کا احترام کرتی ہے۔ یہ پالیسی وضاحت کرتی ہے کہ ایپ کس ڈیٹا اکٹھا کرتی ہے، اس کا استعمال کیسے ہوتا ہے، اور آپ کے پاس کون سے کنٹرول دستیاب ہیں۔
 
 ڈیٹا جو ہم اکٹھا کرتے ہیں
-- مقامی آلے کا ڈیٹا: مضامین، ابواب، کام، فوکس سیشنز، مراجعات، اور ترجیحات عمدہ طور پر آپ کے آلے پر مقامی SQLite/Drift ڈیٹابیس میں محفوظ ہوتے ہیں۔
-- AI / OCR رضامندی: اگر آپ AI خصوصیات فعال کرتے ہیں، تو رضامندی اور روزانہ کوٹا کاؤنٹر مقامی طور پر محفوظ ہوتے ہیں۔
+- مقامی آلے کا ڈیٹا: مضامین، ابواب، کام، فوکس سیشنز، چیٹ ہسٹری، محفوظ یادیں، کتابوں کی معلومات اور نکالا گیا متن مقامی SQLite اور ایپ کی نجی اسٹوریج میں محفوظ ہوتے ہیں۔
+- آن لائن AI کی رضامندی اور روزانہ quota مقامی طور پر محفوظ ہوتے ہیں۔ OCR مقامی طور پر چلتا ہے اور منتخب کتاب کو آن لائن نہیں بھیجتا۔
 
 ڈیٹا کا استعمال
 - بنیادی مطالعہ منصوبہ بندی کے فعالیت (کام، مراجعات، ترقی) فراہم کرنے کے لیے۔
@@ -262,12 +262,12 @@ Residual Risks
 
 ڈیٹا کا اشتراک
 ہم آپ کا ذاتی ڈیٹا نہیں بیچتے۔ ایپ کے ذریعے استعمال ہونے والے تھرڈ پارٹی پروسیسرز:
-- OpenAI (اختیاری AI فراہم کار): جب آپ AI معاونت فعال کرتے ہیں تو کاموں کی تفکیک، کویز تیاری، اور فلش کارڈ کے مسودات۔
+اختیاری آن لائن AI کے لیے Groq استعمال ہوتا ہے۔ سوال بھیجنے پر سوال، حالیہ گفتگو، محفوظ یادیں، کتابی اقتباسات اور اگر سابقہ چیٹس کی تلاش فعال ہو تو متعلقہ پرانی گفتگو کے اقتباسات HTTPS کے ذریعے Groq کو بھیجے جا سکتے ہیں۔ key کو prompt کے متن میں شامل نہیں کیا جاتا۔ ZDR کے لیے key کے مالک کو Groq Console > Data Controls میں اسے فعال کرنا ہوگا؛ Retainly اس سیٹنگ کی تصدیق نہیں کر سکتی اور استعمال کا metadata پھر بھی پراسیس ہو سکتا ہے۔ OCR اور مقامی کتابی تلاش کتاب اپ لوڈ نہیں کرتے۔ https://console.groq.com/docs/your-data
 
 آپ کے حقوق اور کنٹرولز
 - آپ کسی بھی وقت ترتیبات سے تمام مقامی ڈیٹا برآمد کر سکتے ہیں۔
 - آپ ترتیبات سے تمام ڈیٹا حذف کر سکتے ہیں، جو مقامی ڈیٹابیس کو حذف کرتا ہے۔
-- آپ AI معاونت اور OCR کو الگ الگ غیر فعال کر سکتے ہیں۔
+- آپ آن لائن AI معاونت بند کر سکتے ہیں؛ مقامی OCR اور مطالعے کی منصوبہ بندی Groq کے بغیر کام کرتے ہیں۔
 - آپ اپنے آلے کی OS ترتیبات کے ذریعے ایپ ڈیٹا صاف کر سکتے ہیں۔
 
 بچے
@@ -282,12 +282,12 @@ Residual Risks
 میٹرک سٹڈی پلینر کے استعمال کر کے، آپ ان شرائط سے اتفاق کرتے ہیں۔ اگر آپ اتفاق نہیں کرتے، تو ایپ استعمال نہ کریں۔
 
 استعمال کا لائسنس
-ایپ کو ذاتی، غیر تجاری مطالعہ منصوبہ بندی کے مقاصد کے لیے استعمال کرنے کی اجازت دی گئی ہے۔
+یہ ایپ Apache License, Version 2.0 کے تحت فراہم کی جاتی ہے۔ اس لائسنس کی شرائط کے تابع، آپ ایپ کو استعمال، نقل، ترمیم اور تقسیم کر سکتے ہیں، بشمول تجارتی مقاصد کے لیے۔ یہ لائسنس پروجیکٹ کے تجارتی نام یا ٹریڈ مارکس کے حقوق نہیں دیتا۔
 
 ممنوعہ استعمالات
-- بیک اینڈ سروسز کے ریورس انجینئرنگ، اسکرپنگ، یا خودکار رسائی۔
-- غیر قانونی، نقصان دہ، یا کاپی رائٹ مواد اپ لوڈ کرنا۔
-- رسائی کنٹرولز یا سیکیورٹی کے قوانین کی خلاف ورزی۔
+- ایپ کا استعمال قابل اطلاق قانون یا کسی دوسرے شخص کے حقوق کی خلاف ورزی کے لیے کرنا۔
+- ایسا مواد درآمد یا شیئر کرنا جسے استعمال کرنے کی آپ کو اجازت نہ ہو۔
+- سیکیورٹی کنٹرولز کو بائی پاس کرنے یا تھرڈ پارٹی سروسز کا ناجائز استعمال کرنے کی کوشش کرنا۔
 
 AI تیار کردہ مواد
 AI سے تیار کردہ کاموں کی تفکیک، کویز، اور فلش کارڈز صرف تجاویز ہیں۔ تمام مواد کو اپنے سرکاری ٹیکسٹ بک یا استاد کی ہدایت کے خلاف تصدیق کریں۔
@@ -307,11 +307,12 @@ AI سے تیار کردہ کاموں کی تفکیک، کویز، اور فلش 
 - تمام مطالعہ ڈیٹا پہلے سے آپ کے آلے پر مقامی طور پر محفوظ ہوتا ہے۔
 - ڈیٹا تب تک برقرار رہتا ہے جب تک آپ اسے ایپ یا اپنے آلے کی OS کے ذریعے حذف نہیں کرتے۔
 
-کلاؤڈ ڈیٹا
-- جب آن لائن سنک فعال ہو تو، ڈیٹا آپ اکاؤنٹ حذف کرنے یا سنک غیر فعال کرنے تک برقرار رہتا ہے۔
+آن لائن AI درخواستیں
+- Retainly خودکار cloud sync نہیں چلاتی اور اپنی کسی backend پر چیٹ، یادوں یا کتابی متن کی دوسری نقل نہیں رکھتی۔
+- Online AI سوال اور متعلقہ context کو Groq بھیجتا ہے۔ ZDR کے لیے key کے مالک کو Groq Console > Data Controls میں اسے فعال کرنا ہوگا؛ Retainly اس کی تصدیق نہیں کر سکتی۔
 
 AI / OCR ڈیٹا
-- AI درخواست لاگز کوٹا کے نفاذ کے لیے برقرار رکھے جاتے ہیں۔
+- روزانہ quota کا شمار مقامی preferences میں رکھا جاتا ہے؛ Retainly کوئی remote AI request log نہیں رکھتی۔
 - OCR آؤٹ پٹ مقامی طور پر محفوظ ہوتا ہے اور ایپ کے ذریعے حذف کیا جا سکتا ہے۔
 
 کراش / اینالیٹکس ڈیٹا
@@ -352,9 +353,9 @@ AI / OCR ڈیٹا
 
 خطرات
 - آلے کا نقصان / چوری: مقامی SQLite ڈیٹابیس اور خفیہ ٹوکن والٹ اگر آلے غیر مقفل ہو تو قابل رسائی ہو سکتا ہے۔
-- AI پرامپٹ انجیکشن: بیرون AI فراہم کار نقصان دہ مواد واپس کر سکتا ہے؛ جوابات کو کوڈ کے اجراء کے لیے صاف نہیں کیا جاتا۔
-- میڈل آف دی میڈل: بیرونی API کا ٹریفک HTTPS استعمال کرتا ہے؛ مقامی HTTP کالز خفیہ چینلز استعمال کرتے ہیں۔
-- اندرونی خطرہ: ڈیولپر یا ایڈمن کی بنیادی ڈیٹا تک رسائی ممکن ہے۔
+- AI پرامپٹ انجیکشن: درآمد شدہ کتاب یا آن لائن ماڈل کے جواب میں نقصان دہ ہدایات ہو سکتی ہیں؛ حاصل کردہ متن کو غیر معتبر سمجھا جاتا ہے اور ایپ ماڈل کے متن کو کوڈ کے طور پر execute نہیں کرتی۔
+- میڈل آف دی میڈل: آن لائن AI درخواستیں HTTPS کے ذریعے Groq کو بھیجی جاتی ہیں؛ مقامی OCR اور کتابی تلاش دستاویز کا متن باہر نہیں بھیجتے۔
+- Retainly اپنا AI backend نہیں چلاتی۔ آن لائن inference کے لیے Groq کو وہ context موصول ہوتا ہے جو صارف سوال کے ساتھ بھیجتا ہے۔
 - انکارِ خدمت: کوٹا ختم ہو جانا یا AI فراہم کار کے outages۔
 
 سازگارانہ تدابیر

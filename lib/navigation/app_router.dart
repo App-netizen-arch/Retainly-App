@@ -17,6 +17,10 @@ import '../features/planner/reschedule_screen.dart';
 import '../features/resources/pdf_viewer_screen.dart';
 import '../features/resources/practical_records_screen.dart';
 import '../features/ai/ocr_scan_screen.dart';
+import '../features/ai/chat_screen.dart';
+import '../features/ai/memory_screen.dart';
+import '../features/ai/textbook_library_screen.dart';
+import '../features/ai/exam_simulator_screen.dart';
 import '../features/ai/hallucination_reports_screen.dart';
 import '../features/ai/flashcard_screen.dart';
 import '../features/ai/quiz_screen.dart';
@@ -192,6 +196,33 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/ocr', builder: (context, state) => const OcrScanScreen()),
       GoRoute(
+        path: '/ai/chat',
+        builder: (context, state) {
+          final extra = state.extra;
+          return ChatScreen(
+            conversationId: extra is int ? extra : null,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/ai/memory',
+        builder: (context, state) => const MemoryScreen(),
+      ),
+      GoRoute(
+        path: '/books',
+        builder: (context, state) => const TextbookLibraryScreen(),
+      ),
+      GoRoute(
+        path: '/exam-simulator',
+        builder: (context, state) {
+          final extra = state.extra;
+          final focusTopics = extra is Map && extra['focusTopics'] is List
+              ? (extra['focusTopics'] as List).whereType<String>().toList()
+              : const <String>[];
+          return ExamSimulatorScreen(focusTopics: focusTopics);
+        },
+      ),
+      GoRoute(
         path: '/ai/hallucination-reports',
         builder: (context, state) => const HallucinationReportsScreen(),
       ),
@@ -222,7 +253,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               extra is Map && extra['sourceTitle'] is String
                   ? extra['sourceTitle'] as String
                   : 'Quiz';
-          return QuizScreen(sourceText: sourceText, sourceTitle: sourceTitle);
+          final questionCount =
+              extra is Map && extra['questionCount'] is int
+                  ? extra['questionCount'] as int
+                  : 5;
+          final durationMinutes =
+              extra is Map && extra['durationMinutes'] is int
+                  ? extra['durationMinutes'] as int
+                  : null;
+          return QuizScreen(
+            sourceText: sourceText,
+            sourceTitle: sourceTitle,
+            questionCount: questionCount,
+            durationMinutes: durationMinutes,
+          );
         },
       ),
       GoRoute(

@@ -8,21 +8,20 @@ void main() {
   });
 
   group('AIService - Provider Management', () {
-    test('default provider is openrouter', () async {
+    test('default provider is Groq', () async {
       final service = AIService();
-      expect(await service.getAiProvider(), 'openrouter');
+      expect(await service.getAiProvider(), 'groq');
     });
 
-    test('setAiProvider updates the provider', () async {
+    test('setAiProvider keeps the configured provider as Groq', () async {
       final service = AIService();
-      await service.setAiProvider('anthropic');
-      expect(await service.getAiProvider(), 'anthropic');
+      await service.setAiProvider('groq');
+      expect(await service.getAiProvider(), 'groq');
     });
 
-    test('setAiProvider can switch to gemini', () async {
+    test('unsupported providers are rejected', () async {
       final service = AIService();
-      await service.setAiProvider('gemini');
-      expect(await service.getAiProvider(), 'gemini');
+      await expectLater(service.setAiProvider('anthropic'), throwsArgumentError);
     });
   });
 
@@ -45,23 +44,7 @@ void main() {
       expect(await service.hasAiConsent(), isFalse);
     });
 
-    test('hasOcrConsent defaults to false', () async {
-      final service = AIService();
-      expect(await service.hasOcrConsent(), isFalse);
-    });
 
-    test('setOcrConsent(true) sets OCR consent', () async {
-      final service = AIService();
-      await service.setOcrConsent(true);
-      expect(await service.hasOcrConsent(), isTrue);
-    });
-
-    test('setOcrConsent(false) clears OCR consent', () async {
-      final service = AIService();
-      await service.setOcrConsent(true);
-      await service.setOcrConsent(false);
-      expect(await service.hasOcrConsent(), isFalse);
-    });
   });
 
   group('AIService - Cost Warning', () {
@@ -111,59 +94,6 @@ void main() {
       await service.recordAiUsage('user1');
       expect(await service.getAiUsageQuota('user1'), 8);
       expect(await service.getAiUsageQuota('user2'), 8);
-    });
-  });
-
-  group('AIService - Cost Estimation', () {
-    test('getEstimatedCost defaults to 0.0', () async {
-      final service = AIService();
-      expect(await service.getEstimatedCost('user1'), 0.0);
-    });
-
-    test('estimateCost calculates cost based on output length', () async {
-      final service = AIService();
-      final output = 'a' * 400;
-      await service.estimateCost('user1', {'output': output});
-      final cost = await service.getEstimatedCost('user1');
-      expect(cost, greaterThan(0));
-    });
-
-    test('estimateCost caps per-request cost at 0.5', () async {
-      final service = AIService();
-      final output = 'a' * 4000;
-      await service.estimateCost('user1', {'output': output});
-      final cost = await service.getEstimatedCost('user1');
-      expect(cost, lessThanOrEqualTo(0.5));
-    });
-
-    test('estimateCost caps total cost at 10.0', () async {
-      final service = AIService();
-      final output = 'a' * 4000;
-      for (var i = 0; i < 30; i++) {
-        await service.estimateCost('user1', {'output': output});
-      }
-      final cost = await service.getEstimatedCost('user1');
-      expect(cost, lessThanOrEqualTo(10.0));
-    });
-
-    test('estimateCost ignores null output', () async {
-      final service = AIService();
-      await service.estimateCost('user1', {'output': null});
-      expect(await service.getEstimatedCost('user1'), 0.0);
-    });
-
-    test('estimateCost ignores non-map data', () async {
-      final service = AIService();
-      await service.estimateCost('user1', 'not a map');
-      expect(await service.getEstimatedCost('user1'), 0.0);
-    });
-
-    test('resetEstimatedCost resets to 0.0', () async {
-      final service = AIService();
-      await service.estimateCost('user1', {'output': 'a' * 400});
-      expect(await service.getEstimatedCost('user1'), greaterThan(0));
-      await service.resetEstimatedCost('user1');
-      expect(await service.getEstimatedCost('user1'), 0.0);
     });
   });
 

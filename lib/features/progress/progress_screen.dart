@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/database_provider.dart';
 import '../../data/models/app_models.dart';
 
@@ -464,6 +465,23 @@ color:
                           ],
                         ),
                       ),
+                    ),
+                  ],
+                  if (weakTopics.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        final focusTopics = weakTopics
+                            .whereType<ChapterModel>()
+                            .map((chapter) => chapter.title)
+                            .toList();
+                        GoRouter.of(context).push(
+                          '/exam-simulator',
+                          extra: <String, dynamic>{'focusTopics': focusTopics},
+                        );
+                      },
+                      icon: const Icon(Icons.track_changes),
+                      label: const Text('Build a targeted practice exam'),
                     ),
                   ],
                   if (productive.isNotEmpty) ...[

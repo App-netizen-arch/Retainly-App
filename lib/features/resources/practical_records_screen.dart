@@ -211,7 +211,9 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                     ),
                   );
                 }
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
                 final records = snapshot.data!;
                 return Column(
                   children: [

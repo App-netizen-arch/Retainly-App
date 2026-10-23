@@ -14,10 +14,7 @@ strategies for contributors and code auditors.
 
 All core study-planning data (subjects, chapters, tasks, focus sessions,
 revision items, resources, practical records) is stored in a local SQLite
-database. Optional online features (AI assistance, OCR) are available when
-configured. If network access fails — due to missing configuration, no network,
-or unsupported platform — the app falls back to **local-only mode** and all
-core functionality remains available.
+database. PDF text extraction and OCR are on-device. Optional Groq AI generation needs internet access and a user-provided API key; it is not local inference. If Groq is unavailable, the planner, local chat history, memory manager, PDF library and OCR remain usable.
 
 ### 2. Single source of truth: local database
 
@@ -65,9 +62,7 @@ separates:
   repositories into higher-level workflows
 - `presentation/` — UI screens
 
-This separation allows the data-access contracts to be mocked in tests
-without touching UI code, and allows alternative implementations (e.g., a
-cloud-based backup service) to be added by implementing the same interfaces.
+This separation allows data-access contracts to be mocked in tests without touching UI code. Retainly's current backup implementation is deliberately local and user initiated; a cloud backup service is not part of the current architecture.
 
 ### 4. State machine: user onboarding flow
 
@@ -154,8 +149,7 @@ path and the backup/restore JSON serialization.
 
 **File**: `lib/data/repositories/database_repository.dart`
 
-The central data-access facade. It wraps `DatabaseHelper` (sqflite) or
-`AppDatabase` (Drift) and provides:
+The central data-access facade. It wraps `DatabaseHelper` (sqflite) and provides:
 
 - CRUD operations for all entity types
 - The **SM-2 spaced repetition algorithm** for revision scheduling
@@ -172,40 +166,32 @@ The central data-access facade. It wraps `DatabaseHelper` (sqflite) or
 
 ### Service Layer
 
-#### 3.1 OfflineQueueService
-
-**File**: `lib/services/offline_queue_service.dart`
-
-A client-side queue persisted in `SharedPreferences` (as a JSON string under
-the key `offline_queue`). It holds `QueuedOperation` objects with a type
-(`sync`, `ai`, `tombstone`), payload, attempt count, and timestamps. The
-queue is processed by `processQueue()`, which attempts each operation,
-increments the attempt counter on failure, and drops items that exceed
-`_maxAttempts` (3). A `StreamController<void>.broadcast()` notifies
-listeners of queue changes.
-
-#### 3.2 AIService
+#### 3.1 AIService
 
 **File**: `lib/services/ai_service.dart`
 
-The client-side gateway for AI-powered features. It calls external AI APIs
-directly. The service enforces:
+AIService gates online generation on explicit consent, policy and cost-warning
+acknowledgements, the locally stored daily request limit, connectivity, and
+the presence of a Groq API key. It calls the official Groq OpenAI-compatible
+chat-completions endpoint and defaults to `openai/gpt-oss-120b`.
 
-- **Consent checks**: `hasAiConsent()` and `hasOcrConsent()` gate access.
-   Consent is stored locally in `SharedPreferences`.
-- **Cost warning acceptance**: `hasAcceptedCostWarning()` must be `true`.
-- **Daily quota**: 50 requests per user per day, tracked client-side
-   (SharedPreferences with date-rollover reset).
-- **Connectivity check**: Every AI/OCR request is gated by
-   `ConnectivityService.isOnline`.
-- **Offline fallback**: If the external API is unavailable, returns a
-   localizable message string.
+The key is held in Flutter Secure Storage, not hard-coded into the app. The
+client quota is a local guard, not provider-side billing or account
+enforcement. Each user owns their key and Groq account.
 
-AI prompts include a detailed system prompt embedded in the client that
-enforces pedagogical rules, draft-only output, source grounding, and
-academic-integrity guardrails.
+When a chat message is submitted, recent turns, relevant user-approved
+memories and retrieved textbook passages may be included in the prompt. If the
+user enables local past-chat search in Settings, Retainly also searches other
+saved conversations locally and may include matching excerpts. These selected
+inputs leave the phone for online Groq inference. ZDR must be enabled in the
+key owner's Groq Console Data Controls; the app cannot verify that setting.
+OCR and local textbook search do not upload book text.
 
-#### 3.4 ConnectivityService
+AI prompts separate system instructions from question/history/memory/book
+reference content and tell the model not to invent citations. This reduces
+prompt-injection risk, but does not guarantee correct answers.
+
+#### 3.2 ConnectivityService
 
 **File**: `lib/services/connectivity_service.dart`
 
@@ -213,7 +199,7 @@ A singleton wrapping `connectivity_plus`. Provides `isOnline` (a
 `Future<bool>`) and `onConnectivityChanged` (a `Stream<bool>`). The stream
 is consumed by `AppShell` to show an offline banner at the top of the screen.
 
-#### 3.5 ShortcutService
+#### 3.3 ShortcutService
 
 **File**: `lib/services/shortcut_service.dart`
 
@@ -311,38 +297,31 @@ method respects user-configured frequency (daily/weekly/monthly) and is
 off by default. Restores validate the schema version (must equal `_schemaVersion = 2`)
 and required fields before importing.
 
-#### 4.6 AI Feature
+#### 4.6 Chat, Memory, Textbooks and OCR
 
-**Files**: `lib/features/ai/`
+**Files**: `lib/features/ai/`, `lib/services/local_ocr_service.dart`,
+`lib/data/repositories/local_ai_repository.dart`
 
-Three AI-powered screens:
+- `chat_screen.dart` — Persistent full-screen chat UI; messages and
+  conversation metadata are saved locally.
+- `memory_screen.dart` — Lets users inspect, edit, disable and delete saved
+  memories. Memories are user-controlled rather than silently extracted from
+  every message.
+- `textbook_library_screen.dart` — Manages imported books and searches indexed
+  passages locally, with page-aware metadata.
+- `ocr_scan_screen.dart` — Copies selected files into app-private storage,
+  extracts native PDF text where available, and uses local Tesseract OCR for
+  scanned PDF pages and images. It does not call a cloud OCR API.
+- `quiz_screen.dart` and `flashcard_screen.dart` — Generate drafts using
+  the optional online AI service.
+- `hallucination_reports_screen.dart` — Shows locally stored reports.
 
-- `ocr_scan_screen.dart` — Uploads PDFs for OCR processing via external API,
-   and polls for results.
-- `quiz_screen.dart` — Generates MCQs via the external AI API.
-- `flashcard_screen.dart` — Generates flashcards via external AI API.
-- `hallucination_reports_screen.dart` — Displays locally-stored hallucination
-  reports (stored in SharedPreferences as a JSON array).
+### Optional Online Inference
 
-All AI features require explicit opt-in consent (`hasAiConsent()` +
-`hasAcceptedCostWarning()`) and enforce the daily quota.
-
----
-
-### Optional Online Features
-
-#### 5.1 External AI APIs
-
-The app can call external AI providers (OpenAI, Anthropic, Gemini, OpenRouter)
-directly for AI assistance and OCR features. The service enforces:
-
-- User consent checks
-- Daily quota limits
-- Connectivity gating
-
-Requests are made directly from the client to the external API.
-
----
+Groq is the configured online generation provider in this branch. Questions
+and relevant recent conversation, saved memory and selected textbook passages
+may be sent directly to Groq when online AI is enabled. OCR, PDF text
+extraction, indexing and local lexical search are performed on-device.
 
 ## Concurrency & Synchronization Model
 
@@ -350,24 +329,30 @@ Requests are made directly from the client to the external API.
 
 The Flutter app runs in a single Dart isolate (with a UI thread and an
 event-loop). All database operations are `async` and run on the event loop,
-not on separate threads. The Drift layer uses
-`NativeDatabase.createInBackground()` to offload SQLite I/O to a background
-isolate, but the sqflite path runs queries on the calling isolate's event
-loop. Long-running operations (backup encryption, file I/O) are `async` but
-not multi-threaded — they yield to the event loop at `await` points.
+not on separate threads. The active database implementation is `sqflite`;
+queries use the sqflite plugin's database execution path. Long-running
+operations (backup encryption, file I/O and OCR) are asynchronous and yield at
+`await` points, but this does not guarantee CPU-heavy work runs in a separate
+isolate.
 
-### 6.2 Synchronization: Offline-First
+### 6.2 Local Persistence (No Cloud Sync)
 
-The sync architecture is **local-first**:
+The current architecture has no Retainly account sync or cloud database.
+Local SQLite is the source of truth for study records, chat history, saved
+memories and the textbook index. Imported documents are copied into
+app-private storage for durable offline access. Android automatic backup and
+device-transfer backup are disabled for private app data.
 
-**Stage 1 — Local change capture**: When the app writes to the local SQLite
-database, `DatabaseRepository` inserts a record into the local database.
-All core data remains on-device by default.
+Encrypted user-initiated exports are distinct from cloud sync; copies moved by
+the user to another destination are outside Retainly's control.
 
-### 6.3 Conflict Resolution
+### 6.3 Migration and Data Integrity
 
-Conflicts are handled locally when possible. Local operations remain
-authoritative unless explicitly overridden by the user.
+Schema changes use versioned SQLite migrations. SQLite foreign keys are
+enabled. Subject setup archives unselected subjects instead of deleting and
+recreating them, so chapters and study records can continue to reference the
+same subject identifiers. Test migration and subject-switching behavior
+against representative existing databases.
 
 ### 6.3 Locking and Thread Safety
 
@@ -410,7 +395,7 @@ studentName: map['student_name'] is String
 This protects against:
 - Partial/legacy database rows from older schema versions
 - Malformed data from backup imports
-- Type coercion issues between sqflite and Drift
+- Type coercion issues when mapping SQLite and imported backup data
 
 #### FlutterError.onError
 
@@ -452,9 +437,9 @@ Each failure mode is tested in `test/unit/backup_restore_test.dart`.
 - **Android DND**: `setFocusShield()` returns `false` if the user hasn't
   granted `ACCESS_NOTIFICATION_POLICY` permission. The app shows a dialog
   directing the user to the system settings via `openDndSettings()`.
-- **Desktop (Linux)**: `FlutterSecureStorage` is unavailable, so encryption
-  keys fall back to `SharedPreferences` (plaintext). The Drift database is
-  not initialized (only sqflite is used).
+- **Desktop (Linux)**: the backup key service may use `SharedPreferences` as
+  its fallback, which is plaintext and weaker than platform secure storage.
+  The active study database is `sqflite`.
 - **Web**: Explicitly unsupported. The app is designed for Android and Linux desktop.
 
 ---
@@ -468,22 +453,21 @@ Each failure mode is tested in `test/unit/backup_restore_test.dart`.
    → DatabaseHelper.insertSubject() writes to SQLite
 ```
 
-### Pathway B: AI request (client → external API → client)
+### Pathway B: Groq AI request (client → Groq → client)
 
 ```
-1. UI calls AIService.generateTaskBreakdown()
-   → Checks consent, cost warning, quota, connectivity
-   → Returns error string if any gate fails (no exception)
-
-2. If passed:
-   → Calls external AI API directly
-   → Returns { output, provider, model, requestId, notice }
-
-3. Client:
-   → Records local quota usage (SharedPreferences)
-   → Estimates cost, updates local cost counter
-   → Returns output string to UI
+1. Chat UI saves the user message to local SQLite.
+2. Local retrieval searches user-approved memories and indexed textbook passages.
+3. AIService checks online-AI consent, policy/cost acknowledgement, local quota,
+   connectivity and Groq API-key availability.
+4. The question plus recent turns and relevant retrieved context are sent over
+   HTTPS to Groq's chat-completions endpoint.
+5. The response is saved to local chat history. Retainly does not store a second
+   copy on a Retainly-operated backend.
 ```
+
+ZDR is controlled by the user's Groq account. Retainly cannot verify whether it
+is enabled. This remains online inference, not on-device AI.
 
 ### Pathway C: Backup creation
 

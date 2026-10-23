@@ -184,17 +184,44 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
               .toList();
       allSubjects.addAll(selectedElectives);
 
-      // Clear existing subjects
-      final existingSubjects = await db.getSubjects();
-      for (final subject in existingSubjects) {
-        if (subject.id != null) {
-          await db.deleteSubject(subject.id!);
-        }
+      // Preserve subject identities and history. Unselected subjects are
+      // archived, not deleted, because chapters/tasks/revisions reference them.
+      final existingSubjects = await db.getAllSubjects();
+      final selectedByName = <String, Map<String, String>>{
+        for (final subject in allSubjects)
+          subject['name']!.trim().toLowerCase(): subject,
+      };
+      final keptNames = <String>{};
+
+      for (final existing in existingSubjects) {
+        final id = existing.id;
+        if (id == null) continue;
+        final key = existing.name.trim().toLowerCase();
+        final selected = selectedByName[key];
+        await db.setSubjectActive(id, selected != null);
+        if (selected == null) continue;
+
+        final index = allSubjects.indexWhere(
+          (subject) => subject['name']!.trim().toLowerCase() == key,
+        );
+        await db.updateSubject(
+          id,
+          SubjectModel(
+            id: id,
+            name: selected['name']!,
+            color: _getColorForSubject(selected['name']!),
+            sortOrder: index < 0 ? existing.sortOrder : index,
+            createdAt: existing.createdAt,
+          ),
+        );
+        keptNames.add(key);
       }
 
-      // Insert all subjects
+      // Only create a record if this subject has never existed on this device.
       for (int i = 0; i < allSubjects.length; i++) {
         final subject = allSubjects[i];
+        final name = subject['name']!.trim().toLowerCase();
+        if (keptNames.contains(name)) continue;
         await db.insertSubject(
           SubjectModel(
             name: subject['name']!,

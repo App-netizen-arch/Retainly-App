@@ -1,19 +1,23 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/ai_service.dart';
+import '../../data/repositories/local_ai_repository.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   final String sourceText;
   final String sourceTitle;
   final int questionCount;
+  final int? durationMinutes;
 
   const QuizScreen({
     super.key,
     required this.sourceText,
     required this.sourceTitle,
     this.questionCount = 5,
+    this.durationMinutes,
   });
 
   @override
@@ -31,6 +35,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   String? _error;
   String _sourceRef = '';
   final TextEditingController _sourceController = TextEditingController();
+  Timer? _examTimer;
+  int _remainingSeconds = 0;
+  bool _timeExpired = false;
+
+  bool get _isTimedExam => widget.durationMinutes != null;
+
+  String get _remainingTimeLabel {
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
 
   @override
   void initState() {
@@ -41,6 +56,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   void dispose() {
     _sourceController.dispose();
+    _examTimer?.cancel();
     super.dispose();
   }
 
@@ -57,10 +73,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     });
     final userId = 'local_user';
     try {
+      final sourceText = widget.sourceText.trim().isNotEmpty
+          ? widget.sourceText
+          : await LocalAiRepository().buildTextbookContext(widget.sourceTitle);
       final result = await service.generateQuizDraft(
         userId,
         widget.sourceTitle,
         widget.questionCount,
+        sourceText: sourceText,
       );
       if (!mounted) return;
       if (result == null || result.startsWith('AI_ERROR:')) {
@@ -83,6 +103,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _showResults = false;
         _loading = false;
       });
+      if (_isTimedExam) {
+        _startExamTimer();
+      }
     } on Exception catch (_) {
       if (!mounted) return;
       setState(() {
@@ -90,6 +113,30 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         _loading = false;
       });
     }
+  }
+
+  void _startExamTimer() {
+    _examTimer?.cancel();
+    _remainingSeconds = (widget.durationMinutes ?? 0) * 60;
+    _timeExpired = false;
+    _examTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _showResults) {
+        timer.cancel();
+        return;
+      }
+      if (_remainingSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _remainingSeconds = 0;
+          _timeExpired = true;
+          _showResults = true;
+          _selectedAnswer = -1;
+        });
+        _saveQuizResults();
+        return;
+      }
+      setState(() => _remainingSeconds--);
+    });
   }
 
   List<QuizQuestion> _parseQuiz(String result) {
@@ -106,14 +153,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
       if (withoutNumber.toLowerCase().startsWith('q:') ||
           withoutNumber.toLowerCase().startsWith('question:')) {
-        currentQuestion =
-            withoutNumber.replaceFirst(RegExp(r'^[Qq]?:?\s*'), '').trim();
+        currentQuestion = withoutNumber
+            .replaceFirst(RegExp(r'^(?:question|q)[:\s]*', caseSensitive: false), '')
+            .trim();
         currentOptions.clear();
         currentAnswer = null;
       } else if (withoutNumber.toLowerCase().startsWith('a:') ||
           withoutNumber.toLowerCase().startsWith('answer:')) {
-        currentAnswer =
-            withoutNumber.replaceFirst(RegExp(r'^[Aa]?:?\s*'), '').trim();
+        currentAnswer = withoutNumber
+            .replaceFirst(RegExp(r'^(?:answer|a)[:\s]*', caseSensitive: false), '')
+            .trim();
         if (currentQuestion != null) {
           questions.add(
             QuizQuestion(
@@ -130,18 +179,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           currentAnswer = null;
         }
       } else if (withoutNumber.toLowerCase().startsWith('option') ||
+          RegExp(r'^[A-D][).:]\s*', caseSensitive: false).hasMatch(withoutNumber) ||
           withoutNumber.startsWith('-') ||
           withoutNumber.startsWith('*')) {
-        currentOptions.add(
-          withoutNumber.replaceFirst(RegExp(r'^-?\s*'), '').trim(),
-        );
+        final optionText = withoutNumber
+            .replaceFirst(
+              RegExp(r'^(?:option\s*[A-D0-9]?\s*[:.)-]?|[A-D][).:])\s*', caseSensitive: false),
+              '',
+            )
+            .replaceFirst(RegExp(r'^[-*]\s*'), '')
+            .trim();
+        currentOptions.add(optionText);
       } else if (currentQuestion != null && currentOptions.length < 4) {
         currentOptions.add(withoutNumber);
       } else if (currentQuestion != null &&
           currentAnswer == null &&
           withoutNumber.toLowerCase().contains('answer')) {
-        currentAnswer =
-            withoutNumber.replaceFirst(RegExp(r'^[Aa]nswer[:\s]*'), '').trim();
+        currentAnswer = withoutNumber
+            .replaceFirst(RegExp(r'^(?:answer|a)[:\s]*', caseSensitive: false), '')
+            .trim();
         questions.add(
           QuizQuestion(
             question: currentQuestion,
@@ -176,14 +232,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     if (_selectedAnswer < 0 || _questions.isEmpty) return;
     _answeredCount++;
     final q = _questions[_currentIndex];
-    final selected = q.options[_selectedAnswer];
-    if (selected == q.correctAnswer) {
+    final selected = q.options[_selectedAnswer].trim();
+    final answer = q.correctAnswer.trim();
+    final exactAnswerIndex = q.options.indexWhere(
+      (option) => option.trim().toLowerCase() == answer.toLowerCase(),
+    );
+    final answerLetter = RegExp(
+      r'^(?:option\s*)?([A-D])(?:[).:]|\s|$)',
+      caseSensitive: false,
+    ).firstMatch(answer)?.group(1)?.toUpperCase();
+    final correctIndex = exactAnswerIndex >= 0
+        ? exactAnswerIndex
+        : answerLetter == null
+            ? -1
+            : answerLetter.codeUnitAt(0) - 'A'.codeUnitAt(0);
+    if (selected.isNotEmpty && correctIndex == _selectedAnswer) {
       _correctCount++;
     }
     setState(() => _selectedAnswer = -1);
     if (_currentIndex < _questions.length - 1) {
       setState(() => _currentIndex++);
     } else {
+      _examTimer?.cancel();
       setState(() => _showResults = true);
       _saveQuizResults();
     }
@@ -355,6 +425,29 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final q = _questions[_currentIndex];
     return Column(
       children: [
+        if (_isTimedExam)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.timer_outlined,
+                  color: _remainingSeconds <= 60
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Time left: $_remainingTimeLabel',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: _remainingSeconds <= 60
+                        ? Theme.of(context).colorScheme.error
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.all(8),
           child: Row(
@@ -437,6 +530,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Widget _buildResults() {
+    _examTimer?.cancel();
     final score =
         _questions.isNotEmpty
             ? (_correctCount / _questions.length * 100).round()
@@ -453,6 +547,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          if (_timeExpired)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Time is up. Unanswered questions remain unanswered.'),
+            ),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(24),

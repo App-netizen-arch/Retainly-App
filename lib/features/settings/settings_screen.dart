@@ -19,6 +19,7 @@ import '../../data/models/app_models.dart';
 import '../../data/repositories/database_repository.dart';
 import '../../data/database_helper.dart';
 import '../../services/ai_service.dart';
+import '../../data/repositories/local_ai_repository.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -36,6 +37,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _studentIdController = TextEditingController();
   final _institutionController = TextEditingController();
   final _dailyMinutesController = TextEditingController(text: '120');
+  final _groqApiKeyController = TextEditingController();
   String _selectedLocale = 'en';
   bool _reducedMotion = false;
   bool _dynamicType = false;
@@ -43,6 +45,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _aiAssistance = false;
   bool _costWarningAccepted = false;
   int _aiRemainingQuota = 10;
+  bool _groqApiKeyConfigured = false;
+  bool _chatHistoryMemoryEnabled = true;
 
   @override
   void initState() {
@@ -51,6 +55,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _loadLocale();
     _loadAccessibility();
     _loadAiSettings();
+    _loadChatHistoryMemorySetting();
     _loadNotificationState();
   }
 
@@ -107,13 +112,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final ai = await service.hasAiConsent();
     final cost = await service.hasAcceptedCostWarning();
     final quota = await service.getAiUsageQuota('local_user');
+    final keyConfigured = await service.hasGroqApiKey();
     if (mounted) {
       setState(() {
         _aiAssistance = ai;
         _costWarningAccepted = cost;
         _aiRemainingQuota = quota;
+        _groqApiKeyConfigured = keyConfigured;
       });
     }
+  }
+
+  Future<void> _loadChatHistoryMemorySetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _chatHistoryMemoryEnabled =
+          prefs.getBool('chat_history_memory_enabled') ?? true;
+    });
+  }
+
+  Future<void> _setChatHistoryMemoryEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('chat_history_memory_enabled', value);
+    if (mounted) setState(() => _chatHistoryMemoryEnabled = value);
   }
 
   Future<void> _loadNotificationState() async {
@@ -130,6 +152,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _configureGroqApiKey() async {
+    final service = AIService();
+    _groqApiKeyController.clear();
+    final key = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Connect Groq API'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Paste your own Groq API key. Retainly stores it in platform secure storage and does not include it in exported chat or memory data.',
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Privacy note: online AI sends your question, relevant conversation turns and any selected textbook passages to Groq for processing. To request Zero Data Retention, enable it in Groq Console > Data Controls for the account that owns this key. Retainly cannot verify that account setting.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _groqApiKeyController,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'Groq API key',
+                  hintText: 'gsk_…',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Never paste this key into a public issue or commit it to GitHub.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final entered = _groqApiKeyController.text.trim();
+              if (entered.isNotEmpty) {
+                Navigator.of(dialogContext).pop(entered);
+              }
+            },
+            child: const Text('Save securely'),
+          ),
+        ],
+      ),
+    );
+    _groqApiKeyController.clear();
+    if (key == null || key.trim().isEmpty) return;
+    try {
+      await service.saveGroqApiKey(key);
+      if (!mounted) return;
+      setState(() => _groqApiKeyConfigured = true);
+      _showTransientSnackBar('Groq API key saved to secure storage.');
+    } catch (_) {
+      if (!mounted) return;
+      _showTransientSnackBar(
+        'Could not save the key securely on this device. Check platform secure-storage support.',
+      );
+    }
+  }
+
+  Future<void> _removeGroqApiKey() async {
+    await AIService().deleteGroqApiKey();
+    if (!mounted) return;
+    setState(() => _groqApiKeyConfigured = false);
+    _showTransientSnackBar('Groq API key removed from this device.');
+  }
+
   Future<void> _acceptCostWarning() async {
     final service = AIService();
     await service.acceptCostWarning();
@@ -144,6 +244,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _studentIdController.dispose();
     _institutionController.dispose();
     _dailyMinutesController.dispose();
+    _groqApiKeyController.dispose();
     super.dispose();
   }
 
@@ -503,11 +604,68 @@ ValueListenableBuilder<bool>(
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.key_rounded),
+            title: const Text('Groq API Key'),
+            subtitle: Text(
+              _groqApiKeyConfigured
+                  ? 'Configured • key stored in device secure storage'
+                  : 'Not configured • add your own key for online AI',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _configureGroqApiKey,
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_outline),
+            title: const Text('Open Retainly AI Chat'),
+            subtitle: const Text('Saved conversations with local history and book retrieval'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/ai/chat'),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.manage_search_outlined),
+            title: const Text('Search past chats for relevant context'),
+            subtitle: const Text(
+              'Retainly searches earlier conversations on this device. Matching excerpts may be sent to Groq when you submit an online AI request.',
+            ),
+            value: _chatHistoryMemoryEnabled,
+            onChanged: _setChatHistoryMemoryEnabled,
+          ),
+          ListTile(
+            leading: const Icon(Icons.psychology_alt_outlined),
+            title: const Text('Manage Local Memory'),
+            subtitle: const Text('Inspect, edit, disable or delete saved memories'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/ai/memory'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.menu_book_outlined),
+            title: const Text('Textbook Library'),
+            subtitle: const Text('Manage imported books and search recognized pages on this device'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/books'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('Exam-day Simulator'),
+            subtitle: const Text(
+              'Take a timed practice exam using indexed textbook passages',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/exam-simulator'),
+          ),
+          if (_groqApiKeyConfigured)
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Remove Groq API Key'),
+              subtitle: const Text('Remove the key from this device'),
+              onTap: _removeGroqApiKey,
+            ),
           SwitchListTile(
             secondary: const Icon(Icons.auto_awesome),
-            title: const Text('AI Assistance'),
+            title: const Text('Online AI Assistance'),
             subtitle: const Text(
-              'Requires internet. AI task breakdown, quizzes, and flashcards',
+              'Uses Groq over the internet. Questions and relevant context leave this device when you submit them.',
             ),
             value: _aiAssistance,
             onChanged: (v) async {
@@ -528,8 +686,8 @@ ValueListenableBuilder<bool>(
                               (ctx) => AlertDialog(
                                 title: const Text('AI Usage Costs'),
                                 content: const Text(
-                                   'AI features use external APIs that may incur costs. '
-                                   'Quota: 10 requests per 24 hours. Verify AI responses with your textbook.',
+                                   'Online AI uses your Groq account and may be subject to its rate limits or charges. '
+                                   'Retainly tracks a local 10-request daily limit. Verify AI responses against your textbook.',
                                 ),
                                 actions: [
                                   TextButton(
@@ -554,7 +712,7 @@ ValueListenableBuilder<bool>(
           ListTile(
             leading: const Icon(Icons.speed),
             title: const Text('AI Quota Remaining'),
-            subtitle: Text('$_aiRemainingQuota / 10 requests (resets after 24 hours)'),
+            subtitle: Text('$_aiRemainingQuota / 10 requests remaining today'),
           ),
           ListTile(
             leading: const Icon(Icons.report_problem),
@@ -1143,7 +1301,7 @@ ListTile(
           (ctx) => AlertDialog(
             title: const Text('Delete all data?'),
             content: const Text(
-              'This will permanently delete your profile, tasks, chapters, focus sessions, revisions, resources, and practical records. This cannot be undone.',
+              'This permanently deletes your local profile, tasks, chapters, focus sessions, revisions, resources, chat history, saved memories, and textbook index, and attempts to remove the Groq key from secure storage. This cannot be undone.',
             ),
             actions: [
               TextButton(
@@ -1160,6 +1318,27 @@ ListTile(
     if (confirmed != true) return;
 
     final rawDb = await DatabaseHelper.instance.database;
+    var textbookFilesRemoved = true;
+    try {
+      textbookFilesRemoved = await LocalAiRepository().deleteAllTextbooksAndFiles();
+    } catch (_) {
+      textbookFilesRemoved = false;
+    }
+    // Also remove orphaned copies left by interrupted imports or database errors.
+    // This directory is reserved for Retainly's private imported-book copies.
+    try {
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      final importedBooksDirectory =
+          Directory(p.join(documentsDirectory.path, 'textbooks'));
+      if (await importedBooksDirectory.exists()) {
+        await importedBooksDirectory.delete(recursive: true);
+      }
+    } catch (_) {
+      textbookFilesRemoved = false;
+    }
+    await rawDb.delete('chat_conversations');
+    await rawDb.delete('user_memories');
+    await rawDb.delete('textbooks');
     await rawDb.delete('backup_records');
     await rawDb.delete('practical_records');
     await rawDb.delete('resources');
@@ -1171,6 +1350,14 @@ ListTile(
     await rawDb.delete('user_profiles');
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    var groqKeyRemoved = true;
+    try {
+      await AIService().deleteGroqApiKey();
+    } catch (_) {
+      // Continue deleting local study data even if the platform credential
+      // store is unavailable; the user can separately remove the key.
+      groqKeyRemoved = false;
+    }
     ref.invalidate(userProfileProvider);
     ref.invalidate(databaseRepositoryProvider);
     ref.invalidate(todayTasksProvider);
@@ -1182,7 +1369,17 @@ ListTile(
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('All local data deleted')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            !groqKeyRemoved
+                ? 'Local data deleted, but Retainly could not remove the Groq key. Revoke it in Groq Console.'
+                : !textbookFilesRemoved
+                    ? 'Local data deleted, but some imported book files could not be removed.'
+                    : 'All local data deleted',
+          ),
+        ),
+      );
       GoRouter.of(context).go('/onboarding');
     }
   }

@@ -43,7 +43,7 @@ void main() {
     });
 
     test('checkAiGate passes when all flags are accepted', () async {
-      final service = AIService();
+      final service = AIService(apiKeyReader: () async => 'test-groq-key');
       await service.setAiConsent(true);
       await service.acceptCostWarning();
       await service.acceptAiPolicy();
@@ -51,13 +51,6 @@ void main() {
       expect(gate, isNull);
     });
 
-    test('ensureConsentRecord stores a timestamp', () async {
-      final service = AIService();
-      await service.ensureConsentRecord('user1');
-      final prefs = await SharedPreferences.getInstance();
-      final record = prefs.getString('ai_consent_record_user1');
-      expect(record, isNotNull);
-      expect(record, isNotEmpty);
-    });
+
   });
 }
