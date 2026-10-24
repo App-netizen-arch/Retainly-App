@@ -1,0 +1,93 @@
+name: Publish Retainly v1.0.1
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: startsWith(github.event.head_commit.message, 'release: Retainly v1.0.1')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Android SDK platforms
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0"
+
+      - name: Prepare offline OCR models
+        run: bash scripts/prepare_ocr_models.sh
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Format Dart source
+        run: dart format .
+
+      - name: Analyze code
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp build/app/outputs/flutter-apk/app-release.apk release/retainly.apk
+          sha256sum release/retainly.apk > release/SHA256SUMS.txt
+          ls -lh release/retainly.apk release/SHA256SUMS.txt
+
+      - name: Move v1.0.1 tag to this verified commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --force v1.0.1 "$GITHUB_SHA"
+          git push --force origin refs/tags/v1.0.1
+
+      - name: Update GitHub release assets and notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          # Retainly v1.0.1
+
+          - Local-first study planner with persistent local chat history and editable local memories.
+          - Optional Groq online inference. Users supply their own API key; ZDR must be configured in the account that owns that key.
+          - Offline textbook text extraction and OCR using bundled language models.
+          - Timed textbook-grounded practice exams and study progress tools.
+
+          **Privacy:** When Online AI is enabled, the submitted question and relevant conversation, memory, or textbook context may be sent to Groq. Retainly cannot verify provider-side Zero Data Retention settings.
+
+          **APK signing:** This workflow builds using the Android project's current debug signing configuration. This APK is for direct installation/testing; configure a private release keystore before distributing a production or Play Store build.
+
+          Verify the download with the SHA-256 value in `SHA256SUMS.txt`.
+          EOF
+          gh release edit v1.0.1 --title "Retainly v1.0.1" --notes-file release-notes.md
+          gh release upload v1.0.1 release/retainly.apk#retainly.apk release/SHA256SUMS.txt#SHA256SUMS.txt --clobber
