@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   publish:
-    if: startsWith(github.event.head_commit.message, 'release: Retainly v1.0.1')
+    if: "${{ startsWith(github.event.head_commit.message, 'release: Retainly v1.0.1') }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
