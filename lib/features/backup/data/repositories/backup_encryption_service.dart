@@ -32,9 +32,9 @@ class LocalBackupEncryptionService implements BackupEncryptionService {
   LocalBackupEncryptionService({
     SecureStorage? secureStorage,
     bool Function()? platformCheckOverride,
-  }) : _secureStorage = secureStorage ??
-        FlutterSecureStorageWrapper(FlutterSecureStorage()),
-     _platformCheckOverride = platformCheckOverride;
+  }) : _secureStorage =
+           secureStorage ?? FlutterSecureStorageWrapper(FlutterSecureStorage()),
+       _platformCheckOverride = platformCheckOverride;
 
   bool get _isSupportedPlatform {
     final override = _platformCheckOverride;

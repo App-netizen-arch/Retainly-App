@@ -31,42 +31,40 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         ],
       ),
       body: dbAsync.when(
-        data:
-            (db) => FutureBuilder<List<ResourceModel>>(
-              future: db.getAllResources(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      children: [
-                        const Text('Something went wrong. Please try again.'),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            if (context.mounted) {
-                              setState(() {});
-                            }
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ],
+        data: (db) => FutureBuilder<List<ResourceModel>>(
+          future: db.getAllResources(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  children: [
+                    const Text('Something went wrong. Please try again.'),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        if (context.mounted) {
+                          setState(() {});
+                        }
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
                     ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final allResources = snapshot.data!;
-                final customNotes =
-                    allResources
-                        .where((r) => r.folder == 'Custom Notes')
-                        .toList();
-                final subjects = db.getSubjects();
+                  ],
+                ),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final allResources = snapshot.data!;
+            final customNotes = allResources
+                .where((r) => r.folder == 'Custom Notes')
+                .toList();
+            final subjects = db.getSubjects();
 
-                return FutureBuilder<List<SubjectModel>>(
-                  future: subjects,
-                  builder: (context, subjectSnapshot) {
+            return FutureBuilder<List<SubjectModel>>(
+              future: subjects,
+              builder: (context, subjectSnapshot) {
                 if (subjectSnapshot.hasError) {
                   return Center(
                     child: Column(
@@ -92,144 +90,148 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                 }
                 final subjectList = subjectSnapshot.data!;
                 return ListView(
-                      padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Custom Notes folder - always visible
+                    Row(
                       children: [
-                        // Custom Notes folder - always visible
-                        Row(
-                          children: [
-                             Icon(
-                               Icons.folder_special,
-                               color: Theme.of(context).colorScheme.tertiary,
-                               size: 22,
-                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Custom Notes',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const Spacer(),
-                          ],
+                        Icon(
+                          Icons.folder_special,
+                          color: Theme.of(context).colorScheme.tertiary,
+                          size: 22,
                         ),
-                        const SizedBox(height: 8),
-                        if (customNotes.isEmpty)
-                          Card(
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.surfaceContainerHighest,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Text(
-                                'No custom notes yet. Import documents from Settings to add notes here.',
-                                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                              ),
-                            ),
-                          )
-                        else
-                          ...customNotes.map(
-                            (note) => Card(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                                  child: Icon(
-                                    _getIconForType(note.type),
-                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                    size: 18,
-                                  ),
-                                ),
-                                title: Text(note.title),
-                                subtitle: Text(
-                                  '${note.type.toUpperCase()} • ${_formatDate(note.createdAt)}',
-                                ),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.visibility, size: 18),
-                                  tooltip: 'View note',
-                                  onPressed: () => _openNote(context, note),
-                                ),
-                              ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Custom Notes',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const Spacer(),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (customNotes.isEmpty)
+                      Card(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'No custom notes yet. Import documents from Settings to add notes here.',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
-                        const SizedBox(height: 16),
-                        const Divider(),
-                        const SizedBox(height: 12),
-                        // Subjects section
-                        Row(
-                          children: [
- Icon(
-                             Icons.book,
-                             color: Theme.of(context).colorScheme.tertiary,
-                             size: 20,
-                           ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Subjects',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const Spacer(),
-                            TextButton.icon(
-                              onPressed: () {
-Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      SubjectSetupScreen(),
-                                ),
-                              );
-                              },
-                              icon: const Icon(Icons.edit, size: 18),
-                              label: const Text('Edit'),
-                            ),
-                          ],
                         ),
-                        const SizedBox(height: 8),
-                        if (subjectList.isEmpty)
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: TextButton.icon(
-                                onPressed: () {
-Navigator.push(
+                      )
+                    else
+                      ...customNotes.map(
+                        (note) => Card(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Theme.of(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      SubjectSetupScreen(),
-                                ),
-                              );
-                                },
-                                icon: const Icon(Icons.add),
-                                label: const Text('Setup Subjects'),
+                              ).colorScheme.primaryContainer,
+                              child: Icon(
+                                _getIconForType(note.type),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                                size: 18,
                               ),
                             ),
-                          )
-                        else
-                          ...subjectList.map((subject) {
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 6),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Color(subject.color),
-                                 child: Icon(
-                                     Icons.book,
-                                     color: Theme.of(context).colorScheme.onPrimary,
-                                     size: 18,
-                                   ),
-                                ),
-                                title: Text(subject.name),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap:
-                                    () => GoRouter.of(
-                                      context,
-                                    ).push('/subjects/${subject.id}'),
+                            title: Text(note.title),
+                            subtitle: Text(
+                              '${note.type.toUpperCase()} • ${_formatDate(note.createdAt)}',
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.visibility, size: 18),
+                              tooltip: 'View note',
+                              onPressed: () => _openNote(context, note),
+                            ),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    // Subjects section
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.book,
+                          color: Theme.of(context).colorScheme.tertiary,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Subjects',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SubjectSetupScreen(),
                               ),
                             );
-                          }),
+                          },
+                          icon: const Icon(Icons.edit, size: 18),
+                          label: const Text('Edit'),
+                        ),
                       ],
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 8),
+                    if (subjectList.isEmpty)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: TextButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SubjectSetupScreen(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Setup Subjects'),
+                          ),
+                        ),
+                      )
+                    else
+                      ...subjectList.map((subject) {
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Color(subject.color),
+                              child: Icon(
+                                Icons.book,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                size: 18,
+                              ),
+                            ),
+                            title: Text(subject.name),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => GoRouter.of(
+                              context,
+                            ).push('/subjects/${subject.id}'),
+                          ),
+                        );
+                      }),
+                  ],
                 );
               },
-            ),
+            );
+          },
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
@@ -260,7 +262,7 @@ Navigator.push(
 
   Future<void> _openNote(BuildContext context, ResourceModel note) async {
     final file = File(note.localPath);
-      if (!await file.exists()) {
+    if (!await file.exists()) {
       if (context.mounted) {
         final messenger = ScaffoldMessenger.of(context);
         messenger.hideCurrentSnackBar();
@@ -298,9 +300,9 @@ Navigator.push(
       final gate = await service.checkAiGate('local_user');
       if (gate != null) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(gate)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(gate)));
         return;
       }
       final answer = await service.askAiAboutSubject(
@@ -313,19 +315,16 @@ Navigator.push(
           : (answer ?? 'Could not generate suggestion.');
       showDialog(
         context: context,
-        builder:
-            (ctx) => AlertDialog(
-              title: const Text('AI Notes Assistant'),
-              content: SingleChildScrollView(
-                child: Text(display),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close'),
-                ),
-              ],
+        builder: (ctx) => AlertDialog(
+          title: const Text('AI Notes Assistant'),
+          content: SingleChildScrollView(child: Text(display)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
             ),
+          ],
+        ),
       );
     } catch (_) {
       if (!context.mounted) return;
@@ -346,10 +345,10 @@ class ImagePreviewScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Image Preview')),
       body: Center(
         child: InteractiveViewer(
-           child: Semantics(
-             label: 'Subject cover image',
-             child: Image.file(File(path), fit: BoxFit.contain),
-           ),
+          child: Semantics(
+            label: 'Subject cover image',
+            child: Image.file(File(path), fit: BoxFit.contain),
+          ),
         ),
       ),
     );

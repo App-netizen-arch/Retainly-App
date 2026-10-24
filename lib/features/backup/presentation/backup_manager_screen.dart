@@ -136,56 +136,52 @@ class _BackupManagerScreenState extends ConsumerState<BackupManagerScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => StatefulBuilder(
-            builder:
-                (dialogContext, setDialogState) {
-                  final controller = TextEditingController();
-                  bool canRestore = false;
-                  return AlertDialog(
-                    title: const Text('Restore from backup?'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'This will overwrite your current data with the backup from:\n${p.basename(file.path)}\n\nThis cannot be undone.',
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Type "restore" to confirm:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: controller,
-                          decoration: const InputDecoration(
-                            hintText: 'Type restore',
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (value) {
-                            setDialogState(() {
-                              canRestore = value.toLowerCase() == 'restore';
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: canRestore
-                            ? () => Navigator.pop(ctx, true)
-                            : null,
-                        child: const Text('Restore'),
-                      ),
-                    ],
-                  );
-                },
-          ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final controller = TextEditingController();
+          bool canRestore = false;
+          return AlertDialog(
+            title: const Text('Restore from backup?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This will overwrite your current data with the backup from:\n${p.basename(file.path)}\n\nThis cannot be undone.',
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Type "restore" to confirm:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    hintText: 'Type restore',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      canRestore = value.toLowerCase() == 'restore';
+                    });
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: canRestore ? () => Navigator.pop(ctx, true) : null,
+                child: const Text('Restore'),
+              ),
+            ],
+          );
+        },
+      ),
     );
     if (confirmed != true) return;
 
@@ -193,9 +189,8 @@ class _BackupManagerScreenState extends ConsumerState<BackupManagerScreen> {
     final restoreResult = await _manager!.restoreBackup(file.path);
     if (restoreResult.success) {
       setState(
-        () =>
-            _statusMessage =
-                'Restore successful. ${restoreResult.recordsRestored} records restored.',
+        () => _statusMessage =
+            'Restore successful. ${restoreResult.recordsRestored} records restored.',
       );
       ref.invalidate(databaseRepositoryProvider);
       ref.invalidate(userProfileProvider);
@@ -215,23 +210,22 @@ class _BackupManagerScreenState extends ConsumerState<BackupManagerScreen> {
   Future<void> _deleteBackup(String id) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Delete backup?'),
-            content: const Text(
-              'This will permanently delete the selected backup.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Delete'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete backup?'),
+        content: const Text(
+          'This will permanently delete the selected backup.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
     if (confirmed != true) return;
     if (_manager == null) return;
@@ -272,167 +266,167 @@ class _BackupManagerScreenState extends ConsumerState<BackupManagerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Backup Manager')),
-      body:
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (_statusMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        _statusMessage!,
-                        style: Theme.of(context).textTheme.bodyMedium,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (_statusMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      _statusMessage!,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.backup_rounded),
+                  title: const Text('Enable Backup'),
+                  subtitle: const Text('Turn on local encrypted backups'),
+                  value: _backupEnabled,
+                  onChanged: _setBackupEnabled,
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<BackupFrequency>(
+                  decoration: const InputDecoration(
+                    labelText: 'Backup Frequency',
+                    border: OutlineInputBorder(),
+                  ),
+                  initialValue: _frequency,
+                  items: BackupFrequency.values
+                      .map(
+                        (f) => DropdownMenuItem(
+                          value: f,
+                          child: Text(
+                            f.name == 'manualOnly'
+                                ? 'Manual Only'
+                                : f.name.capitalize(),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) _setFrequency(value);
+                  },
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  secondary: const Icon(Icons.autorenew_rounded),
+                  title: const Text('Auto-backup reminders'),
+                  subtitle: const Text('Notify when a backup is due'),
+                  value: _autoBackupEnabled,
+                  onChanged: _setAutoBackup,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _createBackup,
+                        icon: const Icon(Icons.backup_rounded),
+                        label: const Text('Create Backup Now'),
                       ),
                     ),
-                  SwitchListTile(
-                    secondary: const Icon(Icons.backup_rounded),
-                    title: const Text('Enable Backup'),
-                    subtitle: const Text('Turn on local encrypted backups'),
-                    value: _backupEnabled,
-                    onChanged: _setBackupEnabled,
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<BackupFrequency>(
-                    decoration: const InputDecoration(
-                      labelText: 'Backup Frequency',
-                      border: OutlineInputBorder(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _importBackup,
+                        icon: const Icon(Icons.restore_rounded),
+                        label: const Text('Restore'),
+                      ),
                     ),
-                    initialValue: _frequency,
-                    items:
-                        BackupFrequency.values
-                            .map(
-                              (f) => DropdownMenuItem(
-                                value: f,
-                                child: Text(
-                                  f.name == 'manualOnly'
-                                      ? 'Manual Only'
-                                      : f.name.capitalize(),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Text(
+                      'Backup History',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    FutureBuilder<int>(
+                      future: _getAvailableStorageBytes(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Something went wrong. Please try again.',
                                 ),
-                              ),
-                            )
-                            .toList(),
-                    onChanged: (value) {
-                      if (value != null) _setFrequency(value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    secondary: const Icon(Icons.autorenew_rounded),
-                    title: const Text('Auto-backup reminders'),
-                    subtitle: const Text('Notify when a backup is due'),
-                    value: _autoBackupEnabled,
-                    onChanged: _setAutoBackup,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: _createBackup,
-                          icon: const Icon(Icons.backup_rounded),
-                          label: const Text('Create Backup Now'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _importBackup,
-                          icon: const Icon(Icons.restore_rounded),
-                          label: const Text('Restore'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Text(
-                        'Backup History',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const Spacer(),
-                      FutureBuilder<int>(
-                        future: _getAvailableStorageBytes(),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return Center(
-                              child: Column(
-                                children: [
-                                  const Text('Something went wrong. Please try again.'),
-                                  const SizedBox(height: 8),
-                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      if (context.mounted) {
-                                        setState(() {});
-                                      }
-                                    },
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                          final bytes = snapshot.data ?? 0;
-                          return Text(
-                            'Storage: ${_formatBytes(bytes)}',
-                            style: Theme.of(context).textTheme.bodySmall,
+                                const SizedBox(height: 8),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    if (context.mounted) {
+                                      setState(() {});
+                                    }
+                                  },
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Retry'),
+                                ),
+                              ],
+                            ),
                           );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (_history.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('No backups yet.'),
-                    )
-                  else
-                    ..._history.map((record) {
-                      final date = DateFormat(
-                        'yyyy-MM-dd HH:mm',
-                      ).format(record.createdAt);
-                      return Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.lock_rounded),
-                          title: Text(record.fileName),
-                          subtitle: Text(
-                            '$date • ${_formatBytes(record.sizeBytes)} • ${record.status}',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                               IconButton(
-                                 iconSize: 18,
-                                 icon: const Icon(
-                                   Icons.file_download_rounded,
-                                   size: 20,
-                                 ),
-                                 tooltip: 'Download backup',
-                                 onPressed:
-                                     () => _exportBackup(record.id.toString()),
-                               ),
-                               IconButton(
-                                 iconSize: 18,
-                                 icon: Icon(
-                                   Icons.delete_rounded,
-                                   size: 20,
-                                   color: Theme.of(context).colorScheme.error,
-                                 ),
-                                 tooltip: 'Delete backup',
-                                 onPressed:
-                                     () => _deleteBackup(record.id.toString()),
-                               ),
-                            ],
-                          ),
+                        }
+                        final bytes = snapshot.data ?? 0;
+                        return Text(
+                          'Storage: ${_formatBytes(bytes)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (_history.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Text('No backups yet.'),
+                  )
+                else
+                  ..._history.map((record) {
+                    final date = DateFormat(
+                      'yyyy-MM-dd HH:mm',
+                    ).format(record.createdAt);
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.lock_rounded),
+                        title: Text(record.fileName),
+                        subtitle: Text(
+                          '$date • ${_formatBytes(record.sizeBytes)} • ${record.status}',
                         ),
-                      );
-                    }),
-                ],
-              ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              iconSize: 18,
+                              icon: const Icon(
+                                Icons.file_download_rounded,
+                                size: 20,
+                              ),
+                              tooltip: 'Download backup',
+                              onPressed: () =>
+                                  _exportBackup(record.id.toString()),
+                            ),
+                            IconButton(
+                              iconSize: 18,
+                              icon: Icon(
+                                Icons.delete_rounded,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              tooltip: 'Delete backup',
+                              onPressed: () =>
+                                  _deleteBackup(record.id.toString()),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+              ],
+            ),
     );
   }
 }

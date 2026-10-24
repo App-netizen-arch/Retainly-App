@@ -6,8 +6,9 @@ class ShortcutService {
 
   static Future<bool> checkFocusShortcut() async {
     try {
-      final method =
-          Platform.isIOS ? 'checkFocusShortcutIOS' : 'checkFocusShortcut';
+      final method = Platform.isIOS
+          ? 'checkFocusShortcutIOS'
+          : 'checkFocusShortcut';
       final result = await _channel.invokeMethod<bool>(method);
       return result ?? false;
     } on PlatformException {

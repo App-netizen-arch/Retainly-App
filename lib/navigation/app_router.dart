@@ -17,6 +17,10 @@ import '../features/planner/reschedule_screen.dart';
 import '../features/resources/pdf_viewer_screen.dart';
 import '../features/resources/practical_records_screen.dart';
 import '../features/ai/ocr_scan_screen.dart';
+import '../features/ai/chat_screen.dart';
+import '../features/ai/memory_screen.dart';
+import '../features/ai/textbook_library_screen.dart';
+import '../features/ai/exam_simulator_screen.dart';
 import '../features/ai/hallucination_reports_screen.dart';
 import '../features/ai/flashcard_screen.dart';
 import '../features/ai/quiz_screen.dart';
@@ -54,7 +58,11 @@ class DatabaseErrorScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline_rounded, size: 64, color: Theme.of(context).colorScheme.error),
+              Icon(
+                Icons.error_outline_rounded,
+                size: 64,
+                color: Theme.of(context).colorScheme.error,
+              ),
               const SizedBox(height: 24),
               Text(
                 'Unable to load local storage',
@@ -129,8 +137,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       ShellRoute(
-        builder:
-            (context, state, child) => AppShell(state: state, child: child),
+        builder: (context, state, child) =>
+            AppShell(state: state, child: child),
         routes: [
           GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
           GoRoute(
@@ -175,10 +183,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/focus',
         builder: (context, state) {
           final extra = state.extra;
-          final taskId =
-              extra is Map && extra['taskId'] is int
-                  ? extra['taskId'] as int
-                  : null;
+          final taskId = extra is Map && extra['taskId'] is int
+              ? extra['taskId'] as int
+              : null;
           return FocusScreen(taskId: taskId);
         },
       ),
@@ -192,6 +199,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/ocr', builder: (context, state) => const OcrScanScreen()),
       GoRoute(
+        path: '/ai/chat',
+        builder: (context, state) {
+          final extra = state.extra;
+          return ChatScreen(conversationId: extra is int ? extra : null);
+        },
+      ),
+      GoRoute(
+        path: '/ai/memory',
+        builder: (context, state) => const MemoryScreen(),
+      ),
+      GoRoute(
+        path: '/books',
+        builder: (context, state) => const TextbookLibraryScreen(),
+      ),
+      GoRoute(
+        path: '/exam-simulator',
+        builder: (context, state) {
+          final extra = state.extra;
+          final focusTopics = extra is Map && extra['focusTopics'] is List
+              ? (extra['focusTopics'] as List).whereType<String>().toList()
+              : const <String>[];
+          return ExamSimulatorScreen(focusTopics: focusTopics);
+        },
+      ),
+      GoRoute(
         path: '/ai/hallucination-reports',
         builder: (context, state) => const HallucinationReportsScreen(),
       ),
@@ -199,42 +231,53 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/ai/flashcards',
         builder: (context, state) {
           final extra = state.extra;
-          final sourceText =
-              extra is Map && extra['sourceText'] is String
-                  ? extra['sourceText'] as String
-                  : '';
-          final sourceTitle =
-              extra is Map && extra['sourceTitle'] is String
-                  ? extra['sourceTitle'] as String
-                  : 'Flashcards';
-          return FlashcardScreen(sourceText: sourceText, sourceTitle: sourceTitle);
+          final sourceText = extra is Map && extra['sourceText'] is String
+              ? extra['sourceText'] as String
+              : '';
+          final sourceTitle = extra is Map && extra['sourceTitle'] is String
+              ? extra['sourceTitle'] as String
+              : 'Flashcards';
+          return FlashcardScreen(
+            sourceText: sourceText,
+            sourceTitle: sourceTitle,
+          );
         },
       ),
       GoRoute(
         path: '/ai/quiz',
         builder: (context, state) {
           final extra = state.extra;
-          final sourceText =
-              extra is Map && extra['sourceText'] is String
-                  ? extra['sourceText'] as String
-                  : '';
-          final sourceTitle =
-              extra is Map && extra['sourceTitle'] is String
-                  ? extra['sourceTitle'] as String
-                  : 'Quiz';
-          return QuizScreen(sourceText: sourceText, sourceTitle: sourceTitle);
+          final sourceText = extra is Map && extra['sourceText'] is String
+              ? extra['sourceText'] as String
+              : '';
+          final sourceTitle = extra is Map && extra['sourceTitle'] is String
+              ? extra['sourceTitle'] as String
+              : 'Quiz';
+          final questionCount = extra is Map && extra['questionCount'] is int
+              ? extra['questionCount'] as int
+              : 5;
+          final durationMinutes =
+              extra is Map && extra['durationMinutes'] is int
+              ? extra['durationMinutes'] as int
+              : null;
+          return QuizScreen(
+            sourceText: sourceText,
+            sourceTitle: sourceTitle,
+            questionCount: questionCount,
+            durationMinutes: durationMinutes,
+          );
         },
       ),
       GoRoute(
         path: '/pdf',
         builder: (context, state) {
-          final extra =
-              state.extra is Map<String, dynamic>
-                  ? state.extra as Map<String, dynamic>
-                  : const {};
+          final extra = state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : const {};
           final path = extra['path'] is String ? extra['path'] as String : '';
-          final title =
-              extra['title'] is String ? extra['title'] as String : '';
+          final title = extra['title'] is String
+              ? extra['title'] as String
+              : '';
           return PdfViewerScreen(path: path, title: title);
         },
       ),
@@ -258,10 +301,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/reschedule',
         builder: (context, state) {
           final extra = state.extra;
-          final tasks =
-              extra is List
-                  ? extra.whereType<TaskModel>().toList()
-                  : const <TaskModel>[];
+          final tasks = extra is List
+              ? extra.whereType<TaskModel>().toList()
+              : const <TaskModel>[];
           return RescheduleScreen(tasks: tasks);
         },
       ),
@@ -291,9 +333,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/loading',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
     ],
   );

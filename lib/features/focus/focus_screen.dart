@@ -54,9 +54,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       iOS: DarwinInitializationSettings(),
     );
     try {
-      await _focusNotifications!.initialize(
-        settings: settings,
-      );
+      await _focusNotifications!.initialize(settings: settings);
     } catch (_) {}
   }
 
@@ -65,12 +63,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     if (_running && _sessionId != null) {
       final db = ref.read(databaseRepositoryProvider).value;
       if (db != null) {
-        db.updateFocusSession(_sessionId!, {
-          'status': 'discarded',
-          'ended_at': DateTime.now().toIso8601String(),
-        }).catchError((_) {
-          return 0;
-        });
+        db
+            .updateFocusSession(_sessionId!, {
+              'status': 'discarded',
+              'ended_at': DateTime.now().toIso8601String(),
+            })
+            .catchError((_) {
+              return 0;
+            });
       }
       _clearSavedSession().catchError((_) {});
     }
@@ -116,10 +116,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
       if (_running && _sessionId != null) {
         final startedAtMs = prefs.getInt('focus_started_at');
         if (startedAtMs != null) {
-          final elapsed =
-              DateTime.now()
-                  .difference(DateTime.fromMillisecondsSinceEpoch(startedAtMs))
-                  .inSeconds;
+          final elapsed = DateTime.now()
+              .difference(DateTime.fromMillisecondsSinceEpoch(startedAtMs))
+              .inSeconds;
           _seconds += elapsed > 0 ? elapsed : 0;
           await prefs.setInt(
             'focus_started_at',
@@ -186,9 +185,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
           createdAt: now.toIso8601String(),
         ),
       );
-_sessionId = newSessionId;
-       _saveSession();
-     }
+      _sessionId = newSessionId;
+      _saveSession();
+    }
     setState(() => _running = !_running);
     if (_running) {
       _timer?.cancel();
@@ -224,15 +223,13 @@ _sessionId = newSessionId;
           'ended_at': endedAt.toIso8601String(),
           'completed_minutes': completedMinutes,
           'status': _seconds >= 60 ? 'completed' : 'discarded',
-          'notes':
-              _notesController.text.trim().isEmpty
-                  ? null
-                  : _notesController.text.trim(),
+          'notes': _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
           'reflection_status': _reflectionStatus,
-          'parking_lot_notes':
-              _parkingLotController.text.trim().isEmpty
-                  ? null
-                  : _parkingLotController.text.trim(),
+          'parking_lot_notes': _parkingLotController.text.trim().isEmpty
+              ? null
+              : _parkingLotController.text.trim(),
         });
         if (widget.taskId != null && completedMinutes > 0) {
           final task = await db.getTaskById(widget.taskId!);
@@ -265,20 +262,20 @@ _sessionId = newSessionId;
       await _clearSavedSession();
     }
     if (!mounted) return;
-      if (completedMinutes >= 60) {
-        _startBreak();
-      } else {
-        setState(() {
-          _seconds = 0;
-          _notesController.clear();
-          _parkingLotController.clear();
-          _reflectionStatus = null;
-        });
-        if (GoRouter.of(context).canPop()) {
-          GoRouter.of(context).pop();
-        }
+    if (completedMinutes >= 60) {
+      _startBreak();
+    } else {
+      setState(() {
+        _seconds = 0;
+        _notesController.clear();
+        _parkingLotController.clear();
+        _reflectionStatus = null;
+      });
+      if (GoRouter.of(context).canPop()) {
+        GoRouter.of(context).pop();
       }
     }
+  }
 
   void _startBreak() {
     setState(() {
@@ -342,9 +339,7 @@ _sessionId = newSessionId;
       iOS: DarwinInitializationSettings(),
     );
     try {
-      await _focusNotifications!.initialize(
-        settings: settings,
-      );
+      await _focusNotifications!.initialize(settings: settings);
     } catch (_) {}
     const androidDetails = AndroidNotificationDetails(
       _focusShieldChannelId,
@@ -437,10 +432,9 @@ _sessionId = newSessionId;
       await _cancelFocusShieldNotification();
       if (Platform.isAndroid) {
         try {
-          await _focusShieldChannel.invokeMethod<bool>(
-            'toggleFocusShield',
-            {'enable': false},
-          );
+          await _focusShieldChannel.invokeMethod<bool>('toggleFocusShield', {
+            'enable': false,
+          });
         } on PlatformException catch (_) {}
       }
       if (mounted) {
@@ -462,68 +456,61 @@ _sessionId = newSessionId;
     String? selected = _reflectionStatus;
     final result = await showDialog<String>(
       context: context,
-      builder:
-          (ctx) => StatefulBuilder(
-            builder: (ctx, setDialogState) {
-              return AlertDialog(
-                title: const Text('How did this session go?'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      leading: Radio<String>(
-                        value: 'understood',
-                        groupValue: selected,
-                        onChanged: (v) => setDialogState(() => selected = v),
-                      ),
-                      title: const Text('Understood it'),
-                      onTap:
-                          () => setDialogState(() => selected = 'understood'),
-                    ),
-                    ListTile(
-                      leading: Radio<String>(
-                        value: 'need_practice',
-                        groupValue: selected,
-                        onChanged: (v) => setDialogState(() => selected = v),
-                      ),
-                      title: const Text('Need more practice'),
-                      onTap:
-                          () =>
-                              setDialogState(() => selected = 'need_practice'),
-                    ),
-                    ListTile(
-                      leading: Radio<String>(
-                        value: 'could_not_finish',
-                        groupValue: selected,
-                        onChanged: (v) => setDialogState(() => selected = v),
-                      ),
-                      title: const Text('Could not finish'),
-                      onTap:
-                          () => setDialogState(
-                            () => selected = 'could_not_finish',
-                          ),
-                    ),
-                  ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: const Text('How did this session go?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Radio<String>(
+                    value: 'understood',
+                    groupValue: selected,
+                    onChanged: (v) => setDialogState(() => selected = v),
+                  ),
+                  title: const Text('Understood it'),
+                  onTap: () => setDialogState(() => selected = 'understood'),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Cancel'),
+                ListTile(
+                  leading: Radio<String>(
+                    value: 'need_practice',
+                    groupValue: selected,
+                    onChanged: (v) => setDialogState(() => selected = v),
                   ),
-                  ElevatedButton(
-                    onPressed:
-                        selected == null
-                            ? null
-                            : () {
-                              _reflectionStatus = selected;
-                              Navigator.pop(ctx, selected);
-                            },
-                    child: const Text('Save'),
+                  title: const Text('Need more practice'),
+                  onTap: () => setDialogState(() => selected = 'need_practice'),
+                ),
+                ListTile(
+                  leading: Radio<String>(
+                    value: 'could_not_finish',
+                    groupValue: selected,
+                    onChanged: (v) => setDialogState(() => selected = v),
                   ),
-                ],
-              );
-            },
-          ),
+                  title: const Text('Could not finish'),
+                  onTap: () =>
+                      setDialogState(() => selected = 'could_not_finish'),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: selected == null
+                    ? null
+                    : () {
+                        _reflectionStatus = selected;
+                        Navigator.pop(ctx, selected);
+                      },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
     );
     if (result != null) {
       await _finishSession();
@@ -561,147 +548,148 @@ _sessionId = newSessionId;
         }
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: Semantics(
-          label: _breakMode ? 'Break Time' : 'Focus Session',
-          child: Text(_breakMode ? 'Break Time' : 'Focus Session'),
+        appBar: AppBar(
+          title: Semantics(
+            label: _breakMode ? 'Break Time' : 'Focus Session',
+            child: Text(_breakMode ? 'Break Time' : 'Focus Session'),
+          ),
         ),
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Semantics(
-                label: 'Timer $_timeString',
-                child: Text(
-                  _timeString,
-                  style: const TextStyle(
-                    fontSize: 72,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_breakMode)
-                Text(
-                  'Take a breather. Come back refreshed.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              if (_breakMode) const SizedBox(height: 24),
-              if (!_breakMode) ...[
-                if (Platform.isAndroid || Platform.isIOS)
-                  SwitchListTile(
-                    secondary: const Icon(
-                      Icons.do_not_disturb_on_total_silence,
+        body: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Semantics(
+                  label: 'Timer $_timeString',
+                  child: Text(
+                    _timeString,
+                    style: const TextStyle(
+                      fontSize: 72,
+                      fontWeight: FontWeight.bold,
                     ),
-                    title: const Text('Focus Shield'),
-                    subtitle: const Text('Reduce distractions during session'),
-                    value: _focusShieldEnabled,
-                    onChanged: _toggleFocusShield,
-                  ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: TextField(
-                    controller: _notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'Session notes',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: TextField(
-                    controller: _parkingLotController,
-                    decoration: const InputDecoration(
-                      labelText: 'Parking lot (distractions)',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
                   ),
                 ),
                 const SizedBox(height: 16),
-                SegmentedButton<int>(
-                  segments: const [
-                    ButtonSegment(value: 25, label: Text('25 min')),
-                    ButtonSegment(value: 45, label: Text('45 min')),
-                  ],
-                  onSelectionChanged: (Set<int> selection) {
-                    _selectDuration(selection.first);
-                  },
-                  selected: {_plannedMinutes},
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Semantics(
-                      button: true,
-                      label:
-                          _running
-                              ? 'Pause focus session'
-                              : 'Start focus session',
-                      child: ElevatedButton(
-                        onPressed: _toggleTimer,
-                        child: Text(_running ? 'Pause' : 'Start'),
+                if (_breakMode)
+                  Text(
+                    'Take a breather. Come back refreshed.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                if (_breakMode) const SizedBox(height: 24),
+                if (!_breakMode) ...[
+                  if (Platform.isAndroid || Platform.isIOS)
+                    SwitchListTile(
+                      secondary: const Icon(
+                        Icons.do_not_disturb_on_total_silence,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Semantics(
-                      button: true,
-                      label: 'Finish focus session',
-                      child: ElevatedButton(
-                        onPressed: _showReflectionDialog,
-                        child: const Text('Finish'),
+                      title: const Text('Focus Shield'),
+                      subtitle: const Text(
+                        'Reduce distractions during session',
                       ),
+                      value: _focusShieldEnabled,
+                      onChanged: _toggleFocusShield,
                     ),
-                  ],
-                ),
-              ] else ...[
-                SegmentedButton<int>(
-                  segments: const [
-                    ButtonSegment(value: 5, label: Text('5 min')),
-                    ButtonSegment(value: 10, label: Text('10 min')),
-                  ],
-                  onSelectionChanged: (Set<int> selection) {
-                    if (!_running) {
-                      setState(() => _breakDurationMinutes = selection.first);
-                    }
-                  },
-                  selected: {_breakDurationMinutes},
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton(
-                      onPressed:
-                          _breakMode && _breakSeconds <= 0 ? null : _skipBreak,
-                      child: const Text('Skip Break'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: TextField(
+                      controller: _notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Session notes',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
                     ),
-                    const SizedBox(width: 16),
-                    ElevatedButton(
-                      onPressed:
-                          _breakMode && _breakSeconds <= 0
-                              ? () {
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: TextField(
+                      controller: _parkingLotController,
+                      decoration: const InputDecoration(
+                        labelText: 'Parking lot (distractions)',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 25, label: Text('25 min')),
+                      ButtonSegment(value: 45, label: Text('45 min')),
+                    ],
+                    onSelectionChanged: (Set<int> selection) {
+                      _selectDuration(selection.first);
+                    },
+                    selected: {_plannedMinutes},
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Semantics(
+                        button: true,
+                        label: _running
+                            ? 'Pause focus session'
+                            : 'Start focus session',
+                        child: ElevatedButton(
+                          onPressed: _toggleTimer,
+                          child: Text(_running ? 'Pause' : 'Start'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Semantics(
+                        button: true,
+                        label: 'Finish focus session',
+                        child: ElevatedButton(
+                          onPressed: _showReflectionDialog,
+                          child: const Text('Finish'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 5, label: Text('5 min')),
+                      ButtonSegment(value: 10, label: Text('10 min')),
+                    ],
+                    onSelectionChanged: (Set<int> selection) {
+                      if (!_running) {
+                        setState(() => _breakDurationMinutes = selection.first);
+                      }
+                    },
+                    selected: {_breakDurationMinutes},
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _breakMode && _breakSeconds <= 0
+                            ? null
+                            : _skipBreak,
+                        child: const Text('Skip Break'),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: _breakMode && _breakSeconds <= 0
+                            ? () {
                                 _endBreak();
                                 if (mounted && GoRouter.of(context).canPop()) {
                                   GoRouter.of(context).pop();
                                 }
                               }
-                              : null,
-                     child: const Text('Done'),
+                            : null,
+                        child: const Text('Done'),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
-          ],
+              ],
+            ),
+          ),
         ),
-        ),
-      ),
       ),
     );
   }

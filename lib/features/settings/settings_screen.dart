@@ -19,6 +19,7 @@ import '../../data/models/app_models.dart';
 import '../../data/repositories/database_repository.dart';
 import '../../data/database_helper.dart';
 import '../../services/ai_service.dart';
+import '../../data/repositories/local_ai_repository.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -36,6 +37,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _studentIdController = TextEditingController();
   final _institutionController = TextEditingController();
   final _dailyMinutesController = TextEditingController(text: '120');
+  final _groqApiKeyController = TextEditingController();
   String _selectedLocale = 'en';
   bool _reducedMotion = false;
   bool _dynamicType = false;
@@ -43,6 +45,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _aiAssistance = false;
   bool _costWarningAccepted = false;
   int _aiRemainingQuota = 10;
+  bool _groqApiKeyConfigured = false;
+  bool _chatHistoryMemoryEnabled = true;
 
   @override
   void initState() {
@@ -51,6 +55,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _loadLocale();
     _loadAccessibility();
     _loadAiSettings();
+    _loadChatHistoryMemorySetting();
     _loadNotificationState();
   }
 
@@ -107,13 +112,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final ai = await service.hasAiConsent();
     final cost = await service.hasAcceptedCostWarning();
     final quota = await service.getAiUsageQuota('local_user');
+    final keyConfigured = await service.hasGroqApiKey();
     if (mounted) {
       setState(() {
         _aiAssistance = ai;
         _costWarningAccepted = cost;
         _aiRemainingQuota = quota;
+        _groqApiKeyConfigured = keyConfigured;
       });
     }
+  }
+
+  Future<void> _loadChatHistoryMemorySetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _chatHistoryMemoryEnabled =
+          prefs.getBool('chat_history_memory_enabled') ?? true;
+    });
+  }
+
+  Future<void> _setChatHistoryMemoryEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('chat_history_memory_enabled', value);
+    if (mounted) setState(() => _chatHistoryMemoryEnabled = value);
   }
 
   Future<void> _loadNotificationState() async {
@@ -130,6 +152,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _configureGroqApiKey() async {
+    final service = AIService();
+    _groqApiKeyController.clear();
+    final key = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Connect Groq API'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Paste your own Groq API key. Retainly stores it in platform secure storage and does not include it in exported chat or memory data.',
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Privacy note: online AI sends your question, relevant conversation turns and any selected textbook passages to Groq for processing. To request Zero Data Retention, enable it in Groq Console > Data Controls for the account that owns this key. Retainly cannot verify that account setting.',
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _groqApiKeyController,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'Groq API key',
+                  hintText: 'gsk_…',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Never paste this key into a public issue or commit it to GitHub.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final entered = _groqApiKeyController.text.trim();
+              if (entered.isNotEmpty) {
+                Navigator.of(dialogContext).pop(entered);
+              }
+            },
+            child: const Text('Save securely'),
+          ),
+        ],
+      ),
+    );
+    _groqApiKeyController.clear();
+    if (key == null || key.trim().isEmpty) return;
+    try {
+      await service.saveGroqApiKey(key);
+      if (!mounted) return;
+      setState(() => _groqApiKeyConfigured = true);
+      _showTransientSnackBar('Groq API key saved to secure storage.');
+    } catch (_) {
+      if (!mounted) return;
+      _showTransientSnackBar(
+        'Could not save the key securely on this device. Check platform secure-storage support.',
+      );
+    }
+  }
+
+  Future<void> _removeGroqApiKey() async {
+    await AIService().deleteGroqApiKey();
+    if (!mounted) return;
+    setState(() => _groqApiKeyConfigured = false);
+    _showTransientSnackBar('Groq API key removed from this device.');
+  }
+
   Future<void> _acceptCostWarning() async {
     final service = AIService();
     await service.acceptCostWarning();
@@ -144,96 +244,91 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _studentIdController.dispose();
     _institutionController.dispose();
     _dailyMinutesController.dispose();
+    _groqApiKeyController.dispose();
     super.dispose();
   }
 
-Future<void> _reportProblem() async {
-     final controller = TextEditingController();
-     if (mounted) {
-       final confirmed = await showDialog<bool>(
-         context: context,
-         builder:
-             (ctx) => AlertDialog(
-               title: const Text('Report a problem'),
-               content: TextField(
-                 controller: controller,
-                 decoration: const InputDecoration(
-                   labelText: 'Describe the issue',
-                 ),
-                 maxLines: 4,
-               ),
-               actions: [
-                 TextButton(
-                   onPressed: () => Navigator.pop(ctx, false),
-                   child: const Text('Cancel'),
-                 ),
-                 ElevatedButton(
-                   onPressed: () => Navigator.pop(ctx, true),
-                   child: const Text('Send'),
-                 ),
-               ],
-             ),
-       );
-       if (confirmed == true && controller.text.isNotEmpty) {
-         await DatabaseHelper.instance.insertBackupRecord({
-           'created_at': DateTime.now().toIso8601String(),
-           'destination': 'support:problem',
-           'status': controller.text,
-         });
-         if (mounted) {
-           final messenger = ScaffoldMessenger.of(context);
-           messenger.hideCurrentSnackBar();
-           messenger.showSnackBar(
-             const SnackBar(content: Text('Report submitted. Thank you.')),
-           );
-         }
-       }
-     }
-   }
+  Future<void> _reportProblem() async {
+    final controller = TextEditingController();
+    if (mounted) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Report a problem'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'Describe the issue'),
+            maxLines: 4,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Send'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && controller.text.isNotEmpty) {
+        await DatabaseHelper.instance.insertBackupRecord({
+          'created_at': DateTime.now().toIso8601String(),
+          'destination': 'support:problem',
+          'status': controller.text,
+        });
+        if (mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Report submitted. Thank you.')),
+          );
+        }
+      }
+    }
+  }
 
-Future<void> _reportOutdatedContent() async {
-     final controller = TextEditingController();
-     if (mounted) {
-       final confirmed = await showDialog<bool>(
-         context: context,
-         builder:
-             (ctx) => AlertDialog(
-               title: const Text('Report outdated content'),
-               content: TextField(
-                 controller: controller,
-                 decoration: const InputDecoration(
-                   labelText: 'What looks wrong?',
-                 ),
-                 maxLines: 4,
-               ),
-               actions: [
-                 TextButton(
-                   onPressed: () => Navigator.pop(ctx, false),
-                   child: const Text('Cancel'),
-                 ),
-                 ElevatedButton(
-                   onPressed: () => Navigator.pop(ctx, true),
-                   child: const Text('Send'),
-                 ),
-               ],
-             ),
-       );
-       if (confirmed == true && controller.text.isNotEmpty) {
-         await DatabaseHelper.instance.insertBackupRecord({
-           'created_at': DateTime.now().toIso8601String(),
-           'destination': 'content:report',
-           'status': controller.text,
-         });
-         if (mounted) {
-           final messenger = ScaffoldMessenger.of(context);
-           messenger.hideCurrentSnackBar();
-           messenger.showSnackBar(
-             const SnackBar(content: Text('Content report submitted.')),
-           );
-         }
-       }
-     }
-   }
+  Future<void> _reportOutdatedContent() async {
+    final controller = TextEditingController();
+    if (mounted) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Report outdated content'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: 'What looks wrong?'),
+            maxLines: 4,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Send'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && controller.text.isNotEmpty) {
+        await DatabaseHelper.instance.insertBackupRecord({
+          'created_at': DateTime.now().toIso8601String(),
+          'destination': 'content:report',
+          'status': controller.text,
+        });
+        if (mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Content report submitted.')),
+          );
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -292,7 +387,9 @@ Future<void> _reportOutdatedContent() async {
               decoration: InputDecoration(
                 labelText: 'Default study session duration (minutes)',
                 border: OutlineInputBorder(),
-                errorText: _dailyMinutesController.text.isEmpty ? 'Enter a valid number' : null,
+                errorText: _dailyMinutesController.text.isEmpty
+                    ? 'Enter a valid number'
+                    : null,
               ),
               keyboardType: TextInputType.number,
             ),
@@ -413,101 +510,156 @@ Future<void> _reportOutdatedContent() async {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-ValueListenableBuilder<bool>(
-             valueListenable: _notificationsEnabled,
-             builder:
-                 (context, enabled, _) => SwitchListTile(
-                   secondary: const Icon(Icons.notifications),
-                   title: const Text('Enable Notifications'),
-                   subtitle: const Text('Allow local reminders'),
-                   value: enabled,
-                   onChanged: (v) async {
-                     final messenger = ScaffoldMessenger.of(context);
-                     if (!Platform.isAndroid) {
-                       if (mounted) {
-                         messenger.hideCurrentSnackBar();
-                         messenger.showSnackBar(
-                           const SnackBar(
-                             content: Text(
-                               'Notifications are not supported on this platform.',
-                             ),
-                           ),
-                         );
-                       }
-                       return;
-                     }
-                      if (v) {
-                        final status = await Permission.notification.status;
-                        if (status.isPermanentlyDenied) {
-                          await openAppSettings();
-                          return;
-                        }
-                        final granted = await Permission.notification.request();
-                        if (granted.isGranted) {
-                          tz_data.initializeTimeZones();
-                          await _notifications.initialize(
-                            settings: const InitializationSettings(
-                              android: AndroidInitializationSettings(
-                                '@mipmap/ic_launcher',
-                              ),
-                              iOS: DarwinInitializationSettings(),
-                            ),
-                          );
-                          await _notifications.zonedSchedule(
-                            id: 0,
-                            title: 'Study Reminder',
-                            body: 'Time to focus!',
-                            scheduledDate: _nextInstanceOfTenAM(),
-                            notificationDetails: const NotificationDetails(
-                              android: AndroidNotificationDetails(
-                                'study_reminders',
-                                'Study Reminders',
-                                importance: Importance.max,
-                                priority: Priority.high,
-                              ),
-                              iOS: DarwinNotificationDetails(),
-                            ),
-                            androidScheduleMode:
-                                AndroidScheduleMode.exactAllowWhileIdle,
-                          );
-                          _notificationsEnabled.value = true;
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('notifications_enabled', true);
-                          messenger.hideCurrentSnackBar();
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Notifications enabled'),
-                            ),
-                          );
-                        }
-                      } else {
-                        await _notifications.cancel(id: 0);
-                        _notificationsEnabled.value = false;
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setBool('notifications_enabled', false);
-                        messenger.hideCurrentSnackBar();
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Notifications disabled'),
-                          ),
-                        );
-                      }
-                    },
-                 ),
-           ),
+          ValueListenableBuilder<bool>(
+            valueListenable: _notificationsEnabled,
+            builder: (context, enabled, _) => SwitchListTile(
+              secondary: const Icon(Icons.notifications),
+              title: const Text('Enable Notifications'),
+              subtitle: const Text('Allow local reminders'),
+              value: enabled,
+              onChanged: (v) async {
+                final messenger = ScaffoldMessenger.of(context);
+                if (!Platform.isAndroid) {
+                  if (mounted) {
+                    messenger.hideCurrentSnackBar();
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Notifications are not supported on this platform.',
+                        ),
+                      ),
+                    );
+                  }
+                  return;
+                }
+                if (v) {
+                  final status = await Permission.notification.status;
+                  if (status.isPermanentlyDenied) {
+                    await openAppSettings();
+                    return;
+                  }
+                  final granted = await Permission.notification.request();
+                  if (granted.isGranted) {
+                    tz_data.initializeTimeZones();
+                    await _notifications.initialize(
+                      settings: const InitializationSettings(
+                        android: AndroidInitializationSettings(
+                          '@mipmap/ic_launcher',
+                        ),
+                        iOS: DarwinInitializationSettings(),
+                      ),
+                    );
+                    await _notifications.zonedSchedule(
+                      id: 0,
+                      title: 'Study Reminder',
+                      body: 'Time to focus!',
+                      scheduledDate: _nextInstanceOfTenAM(),
+                      notificationDetails: const NotificationDetails(
+                        android: AndroidNotificationDetails(
+                          'study_reminders',
+                          'Study Reminders',
+                          importance: Importance.max,
+                          priority: Priority.high,
+                        ),
+                        iOS: DarwinNotificationDetails(),
+                      ),
+                      androidScheduleMode:
+                          AndroidScheduleMode.exactAllowWhileIdle,
+                    );
+                    _notificationsEnabled.value = true;
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('notifications_enabled', true);
+                    messenger.hideCurrentSnackBar();
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Notifications enabled')),
+                    );
+                  }
+                } else {
+                  await _notifications.cancel(id: 0);
+                  _notificationsEnabled.value = false;
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('notifications_enabled', false);
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('Notifications disabled')),
+                  );
+                }
+              },
+            ),
+          ),
           const Divider(height: 32),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'AI',
-              style: Theme.of(context).textTheme.titleMedium,
+            child: Text('AI', style: Theme.of(context).textTheme.titleMedium),
+          ),
+          ListTile(
+            leading: const Icon(Icons.key_rounded),
+            title: const Text('Groq API Key'),
+            subtitle: Text(
+              _groqApiKeyConfigured
+                  ? 'Configured • key stored in device secure storage'
+                  : 'Not configured • add your own key for online AI',
             ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _configureGroqApiKey,
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat_bubble_outline),
+            title: const Text('Open Retainly AI Chat'),
+            subtitle: const Text(
+              'Saved conversations with local history and book retrieval',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/ai/chat'),
           ),
           SwitchListTile(
-            secondary: const Icon(Icons.auto_awesome),
-            title: const Text('AI Assistance'),
+            secondary: const Icon(Icons.manage_search_outlined),
+            title: const Text('Search past chats for relevant context'),
             subtitle: const Text(
-              'Requires internet. AI task breakdown, quizzes, and flashcards',
+              'Retainly searches earlier conversations on this device. Matching excerpts may be sent to Groq when you submit an online AI request.',
+            ),
+            value: _chatHistoryMemoryEnabled,
+            onChanged: _setChatHistoryMemoryEnabled,
+          ),
+          ListTile(
+            leading: const Icon(Icons.psychology_alt_outlined),
+            title: const Text('Manage Local Memory'),
+            subtitle: const Text(
+              'Inspect, edit, disable or delete saved memories',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/ai/memory'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.menu_book_outlined),
+            title: const Text('Textbook Library'),
+            subtitle: const Text(
+              'Manage imported books and search recognized pages on this device',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/books'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('Exam-day Simulator'),
+            subtitle: const Text(
+              'Take a timed practice exam using indexed textbook passages',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => GoRouter.of(context).push('/exam-simulator'),
+          ),
+          if (_groqApiKeyConfigured)
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Remove Groq API Key'),
+              subtitle: const Text('Remove the key from this device'),
+              onTap: _removeGroqApiKey,
+            ),
+          SwitchListTile(
+            secondary: const Icon(Icons.auto_awesome),
+            title: const Text('Online AI Assistance'),
+            subtitle: const Text(
+              'Uses Groq over the internet. Questions and relevant context leave this device when you submit them.',
             ),
             value: _aiAssistance,
             onChanged: (v) async {
@@ -518,43 +670,41 @@ ValueListenableBuilder<bool>(
             leading: const Icon(Icons.warning_amber_rounded),
             title: const Text('AI Cost Warning'),
             subtitle: Text(_costWarningAccepted ? 'Accepted' : 'Not accepted'),
-            trailing:
-                !_costWarningAccepted
-                    ? ElevatedButton(
-                      onPressed: () async {
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          builder:
-                              (ctx) => AlertDialog(
-                                title: const Text('AI Usage Costs'),
-                                content: const Text(
-                                   'AI features use external APIs that may incur costs. '
-                                   'Quota: 10 requests per 24 hours. Verify AI responses with your textbook.',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text('I Understand'),
-                                  ),
-                                ],
-                              ),
-                        );
-                        if (confirmed == true) {
-                          await _acceptCostWarning();
-                        }
-                      },
-                      child: const Text('Accept'),
-                    )
-                    : null,
+            trailing: !_costWarningAccepted
+                ? ElevatedButton(
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('AI Usage Costs'),
+                          content: const Text(
+                            'Online AI uses your Groq account and may be subject to its rate limits or charges. '
+                            'Retainly tracks a local 10-request daily limit. Verify AI responses against your textbook.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('I Understand'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        await _acceptCostWarning();
+                      }
+                    },
+                    child: const Text('Accept'),
+                  )
+                : null,
           ),
           ListTile(
             leading: const Icon(Icons.speed),
             title: const Text('AI Quota Remaining'),
-            subtitle: Text('$_aiRemainingQuota / 10 requests (resets after 24 hours)'),
+            subtitle: Text('$_aiRemainingQuota / 10 requests remaining today'),
           ),
           ListTile(
             leading: const Icon(Icons.report_problem),
@@ -589,38 +739,38 @@ ValueListenableBuilder<bool>(
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-ListTile(
-             leading: const Icon(Icons.table_chart),
-             title: const Text('Export to CSV'),
-             onTap: () async {
-               final messenger = ScaffoldMessenger.of(context);
-               final db = ref.read(databaseRepositoryProvider).value;
-               if (db == null) return;
-               final consent = await _requestThirdPartyExportConsent();
-               if (!consent) return;
-               final message = await _exportCsv(db);
-               if (message == null) return;
-               if (mounted) {
-                 messenger.hideCurrentSnackBar();
-                 messenger.showSnackBar(SnackBar(content: Text(message)));
-               }
-             },
-           ),
-ListTile(
-             leading: const Icon(Icons.file_download),
-             title: const Text('Export Syllabus Template'),
-             onTap: () async {
-               final messenger = ScaffoldMessenger.of(context);
-               final db = ref.read(databaseRepositoryProvider).value;
-               if (db == null) return;
-               final message = await _exportSyllabusTemplateWithMetadata(db);
-               if (message == null) return;
-               if (mounted) {
-                 messenger.hideCurrentSnackBar();
-                 messenger.showSnackBar(SnackBar(content: Text(message)));
-               }
-             },
-           ),
+          ListTile(
+            leading: const Icon(Icons.table_chart),
+            title: const Text('Export to CSV'),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final db = ref.read(databaseRepositoryProvider).value;
+              if (db == null) return;
+              final consent = await _requestThirdPartyExportConsent();
+              if (!consent) return;
+              final message = await _exportCsv(db);
+              if (message == null) return;
+              if (mounted) {
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(SnackBar(content: Text(message)));
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.file_download),
+            title: const Text('Export Syllabus Template'),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final db = ref.read(databaseRepositoryProvider).value;
+              if (db == null) return;
+              final message = await _exportSyllabusTemplateWithMetadata(db);
+              if (message == null) return;
+              if (mounted) {
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(SnackBar(content: Text(message)));
+              }
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.file_upload),
             title: const Text('Import Syllabus Template'),
@@ -636,38 +786,38 @@ ListTile(
             subtitle: const Text('View imported templates'),
             onTap: _showTemplateHistory,
           ),
-ListTile(
-             leading: const Icon(Icons.file_download),
-             title: const Text('Export Anki CSV'),
-             subtitle: const Text('Anki-compatible flashcard export'),
-             onTap: () async {
-               final messenger = ScaffoldMessenger.of(context);
-               final db = ref.read(databaseRepositoryProvider).value;
-               if (db == null) return;
-               final message = await _exportAnkiCsv(db);
-               if (message == null) return;
-               if (mounted) {
-                 messenger.hideCurrentSnackBar();
-                 messenger.showSnackBar(SnackBar(content: Text(message)));
-               }
-             },
-           ),
-ListTile(
-             leading: const Icon(Icons.upload_file),
-             title: const Text('Import Anki CSV'),
-             subtitle: const Text('Import flashcards from Anki-compatible CSV'),
-             onTap: () async {
-               final messenger = ScaffoldMessenger.of(context);
-               final db = ref.read(databaseRepositoryProvider).value;
-               if (db == null) return;
-               final message = await _importAnkiCsv(db);
-               if (message == null) return;
-               if (mounted) {
-                 messenger.hideCurrentSnackBar();
-                 messenger.showSnackBar(SnackBar(content: Text(message)));
-               }
-             },
-           ),
+          ListTile(
+            leading: const Icon(Icons.file_download),
+            title: const Text('Export Anki CSV'),
+            subtitle: const Text('Anki-compatible flashcard export'),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final db = ref.read(databaseRepositoryProvider).value;
+              if (db == null) return;
+              final message = await _exportAnkiCsv(db);
+              if (message == null) return;
+              if (mounted) {
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(SnackBar(content: Text(message)));
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.upload_file),
+            title: const Text('Import Anki CSV'),
+            subtitle: const Text('Import flashcards from Anki-compatible CSV'),
+            onTap: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final db = ref.read(databaseRepositoryProvider).value;
+              if (db == null) return;
+              final message = await _importAnkiCsv(db);
+              if (message == null) return;
+              if (mounted) {
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(SnackBar(content: Text(message)));
+              }
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.upload_file),
             title: const Text('Import Document'),
@@ -702,11 +852,8 @@ ListTile(
           ListTile(
             leading: const Icon(Icons.info),
             title: const Text('About'),
-            onTap:
-                () => showAboutDialog(
-                  context: context,
-                  applicationName: 'Retainly',
-                ),
+            onTap: () =>
+                showAboutDialog(context: context, applicationName: 'Retainly'),
           ),
           ListTile(
             leading: const Icon(Icons.privacy_tip),
@@ -721,8 +868,8 @@ ListTile(
           ListTile(
             leading: const Icon(Icons.lock_clock),
             title: const Text('Data Retention Policy'),
-            onTap:
-                () => GoRouter.of(context).push('/legal/data_retention_policy'),
+            onTap: () =>
+                GoRouter.of(context).push('/legal/data_retention_policy'),
           ),
           ListTile(
             leading: const Icon(Icons.child_care),
@@ -735,7 +882,10 @@ ListTile(
             onTap: () => GoRouter.of(context).push('/legal/threat_model'),
           ),
           ListTile(
-            leading: Icon(Icons.delete_forever, color: Theme.of(context).colorScheme.error),
+            leading: Icon(
+              Icons.delete_forever,
+              color: Theme.of(context).colorScheme.error,
+            ),
             title: Text(
               'Delete All Local Data',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -767,23 +917,22 @@ ListTile(
     if (!mounted) return false;
     final result = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Third-Party Export Consent'),
-            content: const Text(
-              'Exporting data to a third-party format means your study data will leave this app and could be opened by external applications. Do you consent to proceed?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('I Understand'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Third-Party Export Consent'),
+        content: const Text(
+          'Exporting data to a third-party format means your study data will leave this app and could be opened by external applications. Do you consent to proceed?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('I Understand'),
+          ),
+        ],
+      ),
     );
     if (result == true) {
       await prefs.setBool('third_party_export_consent', true);
@@ -890,20 +1039,18 @@ ListTile(
     if (!await file.exists()) return;
     final content = await file.readAsString();
     final payload = jsonDecode(content) as Map<String, dynamic>;
-    final templateVersion =
-        payload['templateVersion'] is int
-            ? payload['templateVersion'] as int
-            : 1;
-    final exportedAt =
-        payload['exportedAt'] is String ? payload['exportedAt'] as String : '';
-    final sourceApp =
-        payload['sourceApp'] is String
-            ? payload['sourceApp'] as String
-            : 'unknown';
-    final sourceAttribution =
-        payload['sourceAttribution'] is String
-            ? payload['sourceAttribution'] as String
-            : '';
+    final templateVersion = payload['templateVersion'] is int
+        ? payload['templateVersion'] as int
+        : 1;
+    final exportedAt = payload['exportedAt'] is String
+        ? payload['exportedAt'] as String
+        : '';
+    final sourceApp = payload['sourceApp'] is String
+        ? payload['sourceApp'] as String
+        : 'unknown';
+    final sourceAttribution = payload['sourceAttribution'] is String
+        ? payload['sourceAttribution'] as String
+        : '';
     if (templateVersion != 1) {
       if (mounted) {
         messenger.hideCurrentSnackBar();
@@ -919,27 +1066,26 @@ ListTile(
     if (mounted) {
       confirmed = await showDialog<bool>(
         context: context,
-        builder:
-            (ctx) => AlertDialog(
-              title: const Text('Import syllabus template'),
-              content: Text(
-                'Source: $sourceAttribution\n'
-                'App: $sourceApp\n'
-                'Exported: $exportedAt\n'
-                'Template version: $templateVersion\n\n'
-                'This will import subjects and chapters.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Import'),
-                ),
-              ],
+        builder: (ctx) => AlertDialog(
+          title: const Text('Import syllabus template'),
+          content: Text(
+            'Source: $sourceAttribution\n'
+            'App: $sourceApp\n'
+            'Exported: $exportedAt\n'
+            'Template version: $templateVersion\n\n'
+            'This will import subjects and chapters.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
             ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Import'),
+            ),
+          ],
+        ),
       );
     }
     if (confirmed != true) return;
@@ -991,37 +1137,36 @@ ListTile(
     if (!mounted) return;
     showDialog<void>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Imported Templates'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: templates.length,
-                itemBuilder: (ctx, index) {
-                  final t = templates[index];
-                  return ListTile(
-                    title: Text(
-                      t.sourceAttribution.isEmpty
-                          ? 'Unknown source'
-                          : t.sourceAttribution,
-                    ),
-                    subtitle: Text(
-                      'Version ${t.templateVersion} • Imported ${t.importedAt}',
-                    ),
-                    isThreeLine: true,
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Imported Templates'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: templates.length,
+            itemBuilder: (ctx, index) {
+              final t = templates[index];
+              return ListTile(
+                title: Text(
+                  t.sourceAttribution.isEmpty
+                      ? 'Unknown source'
+                      : t.sourceAttribution,
+                ),
+                subtitle: Text(
+                  'Version ${t.templateVersion} • Imported ${t.importedAt}',
+                ),
+                isThreeLine: true,
+              );
+            },
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1139,27 +1284,49 @@ ListTile(
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Delete all data?'),
-            content: const Text(
-              'This will permanently delete your profile, tasks, chapters, focus sessions, revisions, resources, and practical records. This cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Delete'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete all data?'),
+        content: const Text(
+          'This permanently deletes your local profile, tasks, chapters, focus sessions, revisions, resources, chat history, saved memories, and textbook index, and attempts to remove the Groq key from secure storage. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
     if (confirmed != true) return;
 
     final rawDb = await DatabaseHelper.instance.database;
+    var textbookFilesRemoved = true;
+    try {
+      textbookFilesRemoved = await LocalAiRepository()
+          .deleteAllTextbooksAndFiles();
+    } catch (_) {
+      textbookFilesRemoved = false;
+    }
+    // Also remove orphaned copies left by interrupted imports or database errors.
+    // This directory is reserved for Retainly's private imported-book copies.
+    try {
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      final importedBooksDirectory = Directory(
+        p.join(documentsDirectory.path, 'textbooks'),
+      );
+      if (await importedBooksDirectory.exists()) {
+        await importedBooksDirectory.delete(recursive: true);
+      }
+    } catch (_) {
+      textbookFilesRemoved = false;
+    }
+    await rawDb.delete('chat_conversations');
+    await rawDb.delete('user_memories');
+    await rawDb.delete('textbooks');
     await rawDb.delete('backup_records');
     await rawDb.delete('practical_records');
     await rawDb.delete('resources');
@@ -1171,6 +1338,14 @@ ListTile(
     await rawDb.delete('user_profiles');
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    var groqKeyRemoved = true;
+    try {
+      await AIService().deleteGroqApiKey();
+    } catch (_) {
+      // Continue deleting local study data even if the platform credential
+      // store is unavailable; the user can separately remove the key.
+      groqKeyRemoved = false;
+    }
     ref.invalidate(userProfileProvider);
     ref.invalidate(databaseRepositoryProvider);
     ref.invalidate(todayTasksProvider);
@@ -1180,9 +1355,17 @@ ListTile(
     ref.invalidate(progressMetricsProvider);
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('All local data deleted')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            !groqKeyRemoved
+                ? 'Local data deleted, but Retainly could not remove the Groq key. Revoke it in Groq Console.'
+                : !textbookFilesRemoved
+                ? 'Local data deleted, but some imported book files could not be removed.'
+                : 'All local data deleted',
+          ),
+        ),
+      );
       GoRouter.of(context).go('/onboarding');
     }
   }

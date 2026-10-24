@@ -32,11 +32,10 @@ class LocalBackupStorageService implements BackupStorageService {
     final dir = Directory(await getBackupDirectory());
     if (!await dir.exists()) return;
     final entities = await dir.list().toList();
-    final files =
-        entities
-            .whereType<File>()
-            .where((f) => p.extension(f.path) == '.enc')
-            .toList();
+    final files = entities
+        .whereType<File>()
+        .where((f) => p.extension(f.path) == '.enc')
+        .toList();
     files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     for (var i = keepCount; i < files.length; i++) {
       try {

@@ -39,28 +39,27 @@ class _HallucinationReportsScreenState
   Future<void> _clearAll() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Clear all reports?'),
-            content: const Text(
-              'This will permanently delete all local hallucination reports. '
-              'This cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  foregroundColor: Theme.of(context).colorScheme.onError,
-                ),
-                child: const Text('Clear All'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear all reports?'),
+        content: const Text(
+          'This will permanently delete all local hallucination reports. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
     );
     if (confirmed != true) return;
     setState(() => _isDeletingAll = true);
@@ -140,11 +139,17 @@ class _HallucinationReportsScreenState
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.report_off, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.report_off,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   SizedBox(height: 16),
                   Text(
                     'No hallucination reports yet.',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -159,18 +164,17 @@ class _HallucinationReportsScreenState
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final report = reports[index];
-                final contentId =
-                    report is Map
-                        ? report['contentId'] as String? ?? 'Unknown'
-                        : 'Unknown';
-                final feedback =
-                    report is Map ? report['feedback'] as String? ?? '' : '';
-                final reportedAt =
-                    report is Map
-                        ? report['reportedAt'] as String? ??
-                            report['createdAt'] as String? ??
-                            ''
-                        : '';
+                final contentId = report is Map
+                    ? report['contentId'] as String? ?? 'Unknown'
+                    : 'Unknown';
+                final feedback = report is Map
+                    ? report['feedback'] as String? ?? ''
+                    : '';
+                final reportedAt = report is Map
+                    ? report['reportedAt'] as String? ??
+                          report['createdAt'] as String? ??
+                          ''
+                    : '';
                 return Dismissible(
                   key: Key('report_$index'),
                   direction: DismissDirection.endToStart,
@@ -178,33 +182,39 @@ class _HallucinationReportsScreenState
                     color: Theme.of(context).colorScheme.error,
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
+                    child: Icon(
+                      Icons.delete,
+                      color: Theme.of(context).colorScheme.onError,
+                    ),
                   ),
                   onDismissed: (_) => _deleteReport(index),
                   confirmDismiss: (_) async {
                     return await showDialog<bool>(
                           context: context,
-                          builder:
-                              (ctx) => AlertDialog(
-                                title: const Text('Delete report?'),
-                                content: const Text(
-                                  'Remove this hallucination report from local storage?',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Theme.of(context).colorScheme.error,
-                                      foregroundColor: Theme.of(context).colorScheme.onError,
-                                    ),
-                                    child: const Text('Delete'),
-                                  ),
-                                ],
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete report?'),
+                            content: const Text(
+                              'Remove this hallucination report from local storage?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
                               ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.error,
+                                  foregroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.onError,
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
                         ) ??
                         false;
                   },
@@ -231,39 +241,36 @@ class _HallucinationReportsScreenState
                     onTap: () {
                       showDialog(
                         context: context,
-                        builder:
-                            (ctx) => AlertDialog(
-                              title: const Text('Report Details'),
-                              content: SingleChildScrollView(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Content ID: $contentId',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      feedback.isEmpty
-                                          ? 'No feedback provided.'
-                                          : 'Feedback: $feedback',
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Reported: ${_formatDate(reportedAt)}',
-                                    ),
-                                  ],
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Report Details'),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Content ID: $contentId',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx),
-                                  child: const Text('Close'),
+                                const SizedBox(height: 8),
+                                Text(
+                                  feedback.isEmpty
+                                      ? 'No feedback provided.'
+                                      : 'Feedback: $feedback',
                                 ),
+                                const SizedBox(height: 8),
+                                Text('Reported: ${_formatDate(reportedAt)}'),
                               ],
                             ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Close'),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),

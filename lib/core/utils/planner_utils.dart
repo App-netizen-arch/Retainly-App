@@ -24,10 +24,9 @@ int _busyMinutesForDate(DateTime date, List<TaskModel> tasks) {
     if (!intervals[i].start.isAfter(current.end)) {
       current = _TimeInterval(
         start: current.start,
-        end:
-            current.end.isAfter(intervals[i].end)
-                ? current.end
-                : intervals[i].end,
+        end: current.end.isAfter(intervals[i].end)
+            ? current.end
+            : intervals[i].end,
       );
     } else {
       merged.add(current);

@@ -21,44 +21,43 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Password Required'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('This PDF is password-protected.'),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: controller,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter password',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Password Required'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('This PDF is password-protected.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: 'Enter password',
+                border: OutlineInputBorder(),
+              ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final pw = controller.text;
-                  if (pw.isNotEmpty) {
-                    Navigator.pop(ctx);
-                    setState(() {
-                      _password = pw;
-                      _needPassword = false;
-                    });
-                  }
-                },
-                child: const Text('OK'),
-              ),
-            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
           ),
+          ElevatedButton(
+            onPressed: () {
+              final pw = controller.text;
+              if (pw.isNotEmpty) {
+                Navigator.pop(ctx);
+                setState(() {
+                  _password = pw;
+                  _needPassword = false;
+                });
+              }
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -92,16 +91,20 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
           } else if (!context.mounted) {
             return;
           } else {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Error loading PDF. Please try again.')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Error loading PDF. Please try again.'),
+              ),
+            );
           }
         },
         onPageError: (page, e) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Error loading page. Please try again.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error loading page. Please try again.'),
+            ),
+          );
         },
       ),
     );

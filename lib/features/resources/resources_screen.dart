@@ -76,28 +76,27 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('New Folder'),
-            content: TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Folder name',
-                hintText: 'e.g., Biology Notes',
-              ),
-              maxLength: 30,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Create'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('New Folder'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Folder name',
+            hintText: 'e.g., Biology Notes',
           ),
+          maxLength: 30,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
     );
     if (confirmed == true && controller.text.trim().isNotEmpty) {
       await _createCustomNoteFolder(controller.text.trim());
@@ -113,9 +112,7 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
         if (!mounted) return;
         final messenger = ScaffoldMessenger.of(context);
         messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          SnackBar(content: Text(gate)),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(gate)));
         return;
       }
       final answer = await service.askAiAboutSubject(
@@ -128,19 +125,16 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
           : (answer ?? 'Could not generate suggestion.');
       showDialog(
         context: context,
-        builder:
-            (ctx) => AlertDialog(
-              title: const Text('AI Notes Assistant'),
-              content: SingleChildScrollView(
-                child: Text(display),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close'),
-                ),
-              ],
+        builder: (ctx) => AlertDialog(
+          title: const Text('AI Notes Assistant'),
+          content: SingleChildScrollView(child: Text(display)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
             ),
+          ],
+        ),
       );
     } catch (_) {
       if (!mounted) return;
@@ -246,54 +240,49 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final tagsController = TextEditingController();
     return await showDialog<_ResourceMeta>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Resource details'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: folderController,
-                  decoration: const InputDecoration(
-                    labelText: 'Folder (optional)',
-                  ),
-                ),
-                TextField(
-                  controller: tagsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tags (comma-separated)',
-                  ),
-                ),
-              ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Resource details'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: folderController,
+              decoration: const InputDecoration(labelText: 'Folder (optional)'),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Skip'),
+            TextField(
+              controller: tagsController,
+              decoration: const InputDecoration(
+                labelText: 'Tags (comma-separated)',
               ),
-              ElevatedButton(
-                onPressed: () {
-                  final tags =
-                      tagsController.text
-                          .split(',')
-                          .map((t) => t.trim())
-                          .where((t) => t.isNotEmpty)
-                          .toList();
-                  Navigator.pop(
-                    ctx,
-                    _ResourceMeta(
-                      folder:
-                          folderController.text.trim().isEmpty
-                              ? null
-                              : folderController.text.trim(),
-                      tags: tags,
-                    ),
-                  );
-                },
-                child: const Text('Save'),
-              ),
-            ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Skip'),
           ),
+          ElevatedButton(
+            onPressed: () {
+              final tags = tagsController.text
+                  .split(',')
+                  .map((t) => t.trim())
+                  .where((t) => t.isNotEmpty)
+                  .toList();
+              Navigator.pop(
+                ctx,
+                _ResourceMeta(
+                  folder: folderController.text.trim().isEmpty
+                      ? null
+                      : folderController.text.trim(),
+                  tags: tags,
+                ),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -303,29 +292,28 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
     final fabEnabled = dbAsync.value != null;
     return Scaffold(
       appBar: AppBar(title: const Text('Resources')),
-      floatingActionButton:
-          fabEnabled
-              ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Semantics(
-                    label: 'AI notes',
-                    button: true,
-                    child: FloatingActionButton(
-                      heroTag: 'ai_notes',
-                      tooltip: 'AI notes',
-                      onPressed: _showAISidebar,
-                      child: const Icon(Icons.auto_awesome),
-                    ),
+      floatingActionButton: fabEnabled
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  label: 'AI notes',
+                  button: true,
+                  child: FloatingActionButton(
+                    heroTag: 'ai_notes',
+                    tooltip: 'AI notes',
+                    onPressed: _showAISidebar,
+                    child: const Icon(Icons.auto_awesome),
                   ),
-                  const SizedBox(height: 12),
-                  Semantics(
-                    label: 'Add resource',
-                    button: true,
-                    child: FloatingActionButton(
-                      heroTag: 'add_resource',
-                      tooltip: 'Add resource',
-                      onPressed: () async {
+                ),
+                const SizedBox(height: 12),
+                Semantics(
+                  label: 'Add resource',
+                  button: true,
+                  child: FloatingActionButton(
+                    heroTag: 'add_resource',
+                    tooltip: 'Add resource',
+                    onPressed: () async {
                       final db = dbAsync.value;
                       if (db == null) return;
                       final result = await FilePicker.pickFiles(
@@ -346,228 +334,230 @@ class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
                       final file = result.files.first;
                       await _importResource(db: db, file: file);
                     },
-                     child: const Icon(Icons.attach_file),
-                   ),
-                 ),
-                 ],
-              )
-              : null,
+                    child: const Icon(Icons.attach_file),
+                  ),
+                ),
+              ],
+            )
+          : null,
       body: dbAsync.when(
-        data:
-            (db) => FutureBuilder<List<ResourceModel>>(
-              future: _loadResources(db),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      children: [
-                        const Text('Something went wrong. Please try again.'),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            if (context.mounted) {
-                              final dbAsync = ref.read(databaseRepositoryProvider);
-                              if (dbAsync.value != null) {
-                                _loadResources(dbAsync.value!);
-                              }
-                            }
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final items = snapshot.data!;
-
-                final customNotes =
-                    items.where((r) => r.folder == 'Custom Notes').toList();
-                final otherResources =
-                    items.where((r) => r.folder != 'Custom Notes').toList();
-
-                return ListView(
-                  padding: const EdgeInsets.all(16),
+        data: (db) => FutureBuilder<List<ResourceModel>>(
+          future: _loadResources(db),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
                   children: [
-                    Row(
-                      children: [
-                         Icon(Icons.folder_special, color: Theme.of(context).colorScheme.tertiary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Custom Notes',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: _showCreateFolderDialog,
-                          icon: const Icon(Icons.create_new_folder),
-                          label: const Text('New Folder'),
-                        ),
-                      ],
-                    ),
+                    const Text('Something went wrong. Please try again.'),
                     const SizedBox(height: 8),
-                    if (customNotes.isEmpty)
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            'No custom notes yet. Import documents or create folders to get started.',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                          ),
-                        ),
-                      )
-                    else
-                      ...customNotes.map(
-                        (item) => Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                               child: Icon(
-                                 Icons.note,
-                                 color: Theme.of(context).colorScheme.onPrimaryContainer,
-                               ),
-                            ),
-                            title: Text(item.title),
-                            subtitle: Text(item.folder ?? 'Custom Notes'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.visibility, size: 20),
-                              tooltip: 'View resource',
-                              onPressed: () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                final file = File(item.localPath);
-                                if (!await file.exists()) {
-                                  messenger.hideCurrentSnackBar();
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('File not found'),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                if (!context.mounted) return;
-                                if (item.type.toLowerCase() == 'pdf') {
-                                  final router = GoRouter.of(context);
-                                  router.push(
-                                    '/pdf',
-                                    extra: {
-                                      'path': item.localPath,
-                                      'title': item.title,
-                                    },
-                                  );
-                                } else {
-                                  messenger.hideCurrentSnackBar();
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('File not found'),
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 24),
-                    const Divider(height: 32),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        if (context.mounted) {
+                          final dbAsync = ref.read(databaseRepositoryProvider);
+                          if (dbAsync.value != null) {
+                            _loadResources(dbAsync.value!);
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final items = snapshot.data!;
+
+            final customNotes = items
+                .where((r) => r.folder == 'Custom Notes')
+                .toList();
+            final otherResources = items
+                .where((r) => r.folder != 'Custom Notes')
+                .toList();
+
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.folder_special,
+                      color: Theme.of(context).colorScheme.tertiary,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
-                      'Other Resources',
+                      'Custom Notes',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    const SizedBox(height: 8),
-                    if (otherResources.isEmpty)
-                      Card(
-child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                            'No other resources yet.',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _showCreateFolderDialog,
+                      icon: const Icon(Icons.create_new_folder),
+                      label: const Text('New Folder'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (customNotes.isEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        'No custom notes yet. Import documents or create folders to get started.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...customNotes.map(
+                    (item) => Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer,
+                          child: Icon(
+                            Icons.note,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
                           ),
                         ),
-                      )
-                    else
-                      ...otherResources.map((item) {
-                        final isImage =
-                            item.type.toLowerCase().endsWith('jpg') ||
-                            item.type.toLowerCase().endsWith('jpeg') ||
-                            item.type.toLowerCase().endsWith('png') ||
-                            item.type.toLowerCase().endsWith('gif');
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  isImage ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary,
-                              child: Icon(
-                                isImage ? Icons.image : Icons.picture_as_pdf,
-                              ),
-                            ),
-                            title: Text(item.title),
-                            subtitle: Text(item.folder ?? 'General'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.visibility, size: 20),
-                              tooltip: 'View resource',
-                              onPressed: () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                final file = File(item.localPath);
-                                if (!await file.exists()) {
-                                  messenger.hideCurrentSnackBar();
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('File not found'),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                if (!context.mounted) return;
-                                if (isImage) {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (ctx) => ImagePreviewScreen(
-                                            path: item.localPath,
-                                          ),
-                                    ),
-                                  );
-                                  if (!context.mounted) return;
-                                } else if (item.type.toLowerCase() == 'pdf') {
-                                  if (!context.mounted) return;
-                                  final router = GoRouter.of(context);
-                                  router.push(
-                                    '/pdf',
-                                    extra: {
-                                      'path': item.localPath,
-                                      'title': item.title,
-                                    },
-                                  );
-                                } else {
-                                  if (!context.mounted) return;
-                                  messenger.hideCurrentSnackBar();
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Opening: ${item.localPath}',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
-                            ),
+                        title: Text(item.title),
+                        subtitle: Text(item.folder ?? 'Custom Notes'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.visibility, size: 20),
+                          tooltip: 'View resource',
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final file = File(item.localPath);
+                            if (!await file.exists()) {
+                              messenger.hideCurrentSnackBar();
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('File not found')),
+                              );
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            if (item.type.toLowerCase() == 'pdf') {
+                              final router = GoRouter.of(context);
+                              router.push(
+                                '/pdf',
+                                extra: {
+                                  'path': item.localPath,
+                                  'title': item.title,
+                                },
+                              );
+                            } else {
+                              messenger.hideCurrentSnackBar();
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('File not found')),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 24),
+                const Divider(height: 32),
+                Text(
+                  'Other Resources',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                if (otherResources.isEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        'No other resources yet.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...otherResources.map((item) {
+                    final isImage =
+                        item.type.toLowerCase().endsWith('jpg') ||
+                        item.type.toLowerCase().endsWith('jpeg') ||
+                        item.type.toLowerCase().endsWith('png') ||
+                        item.type.toLowerCase().endsWith('gif');
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isImage
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.secondary,
+                          child: Icon(
+                            isImage ? Icons.image : Icons.picture_as_pdf,
                           ),
-                        );
-                      }),
-                  ],
-                );
-              },
-            ),
+                        ),
+                        title: Text(item.title),
+                        subtitle: Text(item.folder ?? 'General'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.visibility, size: 20),
+                          tooltip: 'View resource',
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final file = File(item.localPath);
+                            if (!await file.exists()) {
+                              messenger.hideCurrentSnackBar();
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('File not found')),
+                              );
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            if (isImage) {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (ctx) =>
+                                      ImagePreviewScreen(path: item.localPath),
+                                ),
+                              );
+                              if (!context.mounted) return;
+                            } else if (item.type.toLowerCase() == 'pdf') {
+                              if (!context.mounted) return;
+                              final router = GoRouter.of(context);
+                              router.push(
+                                '/pdf',
+                                extra: {
+                                  'path': item.localPath,
+                                  'title': item.title,
+                                },
+                              );
+                            } else {
+                              if (!context.mounted) return;
+                              messenger.hideCurrentSnackBar();
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Opening: ${item.localPath}'),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  }),
+              ],
+            );
+          },
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:
-            (e, _) =>
-                Center(child: Text('Something went wrong. Please try again.')),
+        error: (e, _) =>
+            Center(child: Text('Something went wrong. Please try again.')),
       ),
     );
   }
@@ -593,10 +583,10 @@ class ImagePreviewScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Image Preview')),
       body: Center(
         child: InteractiveViewer(
-           child: Semantics(
-             label: 'Resource image',
-             child: Image.file(File(path), fit: BoxFit.contain),
-           ),
+          child: Semantics(
+            label: 'Resource image',
+            child: Image.file(File(path), fit: BoxFit.contain),
+          ),
         ),
       ),
     );

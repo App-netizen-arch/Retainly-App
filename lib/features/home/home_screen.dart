@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../providers/database_provider.dart';
 import '../../data/models/app_models.dart';
 import '../../services/ai_service.dart';
-import 'ai_sidebar_panel.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -23,102 +22,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('Study Now'),
         leading: Builder(
-          builder:
-               (ctx) => IconButton(
-                 icon: Container(
-                   width: 36,
-                   height: 36,
-                   decoration: BoxDecoration(
-                     shape: BoxShape.circle,
-                     gradient: LinearGradient(
-                       colors: [
-                         Theme.of(context).colorScheme.primary,
-                         Theme.of(context).colorScheme.tertiary,
-                       ],
-                     ),
-                   ),
-                   child: Icon(
-                     Icons.auto_awesome,
-                     size: 20,
-                     color: Theme.of(context).colorScheme.onPrimary,
-                   ),
-                 ),
-                 tooltip: 'Open AI assistant',
-                 onPressed: () async {
-                  final service = AIService();
-                  final consented = await service.hasAiConsent();
-                  final accepted = await service.hasAcceptedAiPolicy();
-                  if (!consented || !accepted) {
-                    if (!ctx.mounted) return;
-                    final proceed = await showDialog<bool>(
-                      context: ctx,
-                      builder:
-                          (dctx) => AlertDialog(
-                            title: const Text('AI Assistant Policy'),
-                            content: SingleChildScrollView(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'This AI study assistant uses online AI services to answer questions, generate quizzes, and create flashcards.',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'Key points:\n'
-                                    '• AI content is a draft only — you must review before adding to your study plan.\n'
-                                    '• Responses are based on your uploaded subjects and chapters.\n'
-                                    '• We do not store personal data in AI requests.\n'
-                                    '• AI may occasionally make mistakes; always verify with your textbook.',
-                                    style: TextStyle(fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(dctx, false),
-                                child: const Text('Decline'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  await service.acceptAiPolicy();
-                                  if (ctx.mounted) {
-                                    Navigator.pop(dctx, true);
-                                    Scaffold.of(ctx).openDrawer();
-                                  }
-                                },
-                                child: const Text('Accept & Continue'),
-                              ),
-                            ],
-                          ),
-                    );
-                    if (!ctx.mounted) return;
-                    if (proceed != true && ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'You must accept the AI policy to use the assistant.',
-                          ),
-                        ),
-                      );
-                    }
-                    return;
-                  }
-                  if (ctx.mounted) {
-                    Scaffold.of(ctx).openDrawer();
-                  }
-                },
+          builder: (ctx) => IconButton(
+            icon: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.tertiary,
+                  ],
+                ),
               ),
+              child: Icon(
+                Icons.auto_awesome,
+                size: 20,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
+            tooltip: 'Open AI assistant',
+            onPressed: () async {
+              final service = AIService();
+              final accepted = await service.hasAcceptedAiPolicy();
+              if (!accepted) {
+                if (!ctx.mounted) return;
+                final proceed = await showDialog<bool>(
+                  context: ctx,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Retainly AI privacy notice'),
+                    content: const SingleChildScrollView(
+                      child: Text(
+                        'Retainly stores chats, memories and textbook indexes on this device. If Online AI is enabled, the question you submit and relevant recent chat turns, saved memories, selected textbook passages, and—if past-chat search is enabled—matching excerpts from other conversations may be sent to Groq for inference. Groq Zero Data Retention is a setting on the account that owns your API key and must be enabled separately in Groq Console > Data Controls. Retainly cannot verify that setting. Do not send content that must never leave your phone.\n\nOnline AI also requires a Groq API key and explicit consent in Settings. OCR and local search do not send the book to Groq.',
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext, false);
+                          GoRouter.of(ctx).push('/settings');
+                        },
+                        child: const Text('Open Settings'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: const Text('Accept & Continue'),
+                      ),
+                    ],
+                  ),
+                );
+                if (!ctx.mounted || proceed != true) return;
+                await service.acceptAiPolicy();
+              }
+              if (ctx.mounted) {
+                GoRouter.of(ctx).push('/ai/chat');
+              }
+            },
+          ),
         ),
         actions: [
-           IconButton(
+          IconButton(
+            icon: const Icon(Icons.timer_outlined),
+            tooltip: 'Exam-day Simulator',
+            onPressed: () => GoRouter.of(context).push('/exam-simulator'),
+          ),
+          IconButton(
             icon: const Icon(Icons.search),
             tooltip: 'Search',
             onPressed: () => GoRouter.of(context).push('/search'),
           ),
         ],
       ),
-      drawer: const AiSidebarPanel(),
       body: dashboardAsync.when(
         data: (data) {
           final examDate = data['examDate'] as String?;
@@ -220,8 +198,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 children: [
                                   Text(
                                     'Recommended next task',
-                                    style:
-                                        Theme.of(context).textTheme.bodySmall,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -234,8 +213,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '${recommended.estimatedMinutes} min',
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -252,13 +232,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Semantics(
                               label: 'Start ${recommended.title}',
                               child: ElevatedButton(
-                                onPressed:
-                                    recommended.id != null
-                                        ? () => GoRouter.of(context).push(
-                                          '/focus',
-                                          extra: {'taskId': recommended.id},
-                                        )
-                                        : null,
+                                onPressed: recommended.id != null
+                                    ? () => GoRouter.of(context).push(
+                                        '/focus',
+                                        extra: {'taskId': recommended.id},
+                                      )
+                                    : null,
                                 child: const Text('Start'),
                               ),
                             ),
@@ -271,7 +250,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
               if (minimumViableDay != null && overflowToday.isNotEmpty) ...[
                 Card(
-                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.1),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -288,13 +269,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                         const SizedBox(height: 8),
                         ElevatedButton(
-                          onPressed:
-                              minimumViableDay.id != null
-                                  ? () => GoRouter.of(context).push(
-                                    '/focus',
-                                    extra: {'taskId': minimumViableDay.id},
-                                  )
-                                  : null,
+                          onPressed: minimumViableDay.id != null
+                              ? () => GoRouter.of(context).push(
+                                  '/focus',
+                                  extra: {'taskId': minimumViableDay.id},
+                                )
+                              : null,
                           child: const Text('Start this task'),
                         ),
                       ],
@@ -325,12 +305,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       title: Text(t.title),
                       subtitle: Text('${t.estimatedMinutes} min'),
                       trailing: ElevatedButton(
-                        onPressed:
-                            t.id != null
-                                ? () => GoRouter.of(
-                                  context,
-                                ).push('/focus', extra: {'taskId': t.id})
-                                : null,
+                        onPressed: t.id != null
+                            ? () => GoRouter.of(
+                                context,
+                              ).push('/focus', extra: {'taskId': t.id})
+                            : null,
                         child: const Text('Start'),
                       ),
                     ),
@@ -346,18 +325,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ...overflowToday.map(
                   (t) => Card(
                     margin: const EdgeInsets.only(bottom: 8),
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     child: ListTile(
                       title: Text(t.title),
                       subtitle: Text('${t.estimatedMinutes} min'),
                       trailing: ElevatedButton(
-                        onPressed:
-                            t.id != null
-                                ? () => GoRouter.of(
-                                  context,
-                                ).push('/focus', extra: {'taskId': t.id})
-                                : null,
+                        onPressed: t.id != null
+                            ? () => GoRouter.of(
+                                context,
+                              ).push('/focus', extra: {'taskId': t.id})
+                            : null,
                         child: const Text('Start'),
                       ),
                     ),
@@ -374,8 +353,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ...revisions.map(
                   (r) => Card(
                     margin: const EdgeInsets.only(bottom: 8),
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     child: ListTile(
                       leading: const Icon(Icons.refresh),
                       title: Text(
@@ -411,7 +391,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           Text(
                             'Online AI (Internet Required)',
-                            style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
+                            ),
                           ),
                         ],
                       ),
@@ -427,7 +411,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               onTap: () async {
                                 try {
                                   final service = AIService();
-                                  final gate = await service.checkAiGate('local_user');
+                                  final gate = await service.checkAiGate(
+                                    'local_user',
+                                  );
                                   if (gate != null) {
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context)
@@ -444,23 +430,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     databaseRepositoryProvider.future,
                                   );
                                   final subjects = await db.getSubjects();
-                                  final contextStr =
-                                      subjects.isEmpty
-                                          ? 'No subjects yet.'
-                                          : subjects
-                                              .map((s) => s.name)
-                                              .join(', ');
+                                  final contextStr = subjects.isEmpty
+                                      ? 'No subjects yet.'
+                                      : subjects.map((s) => s.name).join(', ');
                                   final answer = await service.askAiAboutSubject(
                                     'local_user',
                                     'Based on my subjects ($contextStr), what should I study right now?',
                                   );
                                   if (!context.mounted) return;
-                                  final messenger = ScaffoldMessenger.of(context);
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
                                   messenger.hideCurrentSnackBar();
                                   final display =
-                                      answer != null && answer.startsWith('AI_ERROR:')
-                                          ? answer.substring('AI_ERROR:'.length).trim()
-                                          : (answer ?? 'Could not generate a suggestion.');
+                                      answer != null &&
+                                          answer.startsWith('AI_ERROR:')
+                                      ? answer
+                                            .substring('AI_ERROR:'.length)
+                                            .trim()
+                                      : (answer ??
+                                            'Could not generate a suggestion.');
                                   messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(display),
@@ -489,7 +478,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               onTap: () async {
                                 try {
                                   final service = AIService();
-                                  final gate = await service.checkAiGate('local_user');
+                                  final gate = await service.checkAiGate(
+                                    'local_user',
+                                  );
                                   if (gate != null) {
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context)
@@ -506,23 +497,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     databaseRepositoryProvider.future,
                                   );
                                   final subjects = await db.getSubjects();
-                                  final contextStr =
-                                      subjects.isEmpty
-                                          ? 'my subjects'
-                                          : subjects
-                                              .map((s) => s.name)
-                                              .join(', ');
+                                  final contextStr = subjects.isEmpty
+                                      ? 'my subjects'
+                                      : subjects.map((s) => s.name).join(', ');
                                   final answer = await service.askAiAboutSubject(
                                     'local_user',
                                     'Generate a short quiz for my subjects: $contextStr',
                                   );
                                   if (!context.mounted) return;
-                                  final messenger = ScaffoldMessenger.of(context);
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
                                   messenger.hideCurrentSnackBar();
                                   final display =
-                                      answer != null && answer.startsWith('AI_ERROR:')
-                                          ? answer.substring('AI_ERROR:'.length).trim()
-                                          : (answer ?? 'Could not generate a quiz.');
+                                      answer != null &&
+                                          answer.startsWith('AI_ERROR:')
+                                      ? answer
+                                            .substring('AI_ERROR:'.length)
+                                            .trim()
+                                      : (answer ??
+                                            'Could not generate a quiz.');
                                   messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(display),
@@ -551,7 +545,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               onTap: () async {
                                 try {
                                   final service = AIService();
-                                  final gate = await service.checkAiGate('local_user');
+                                  final gate = await service.checkAiGate(
+                                    'local_user',
+                                  );
                                   if (gate != null) {
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context)
@@ -568,18 +564,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     databaseRepositoryProvider.future,
                                   );
                                   final subjects = await db.getSubjects();
-                                  final contextStr =
-                                      subjects.isEmpty
-                                          ? 'my subjects'
-                                          : subjects
-                                              .map((s) => s.name)
-                                              .join(', ');
+                                  final contextStr = subjects.isEmpty
+                                      ? 'my subjects'
+                                      : subjects.map((s) => s.name).join(', ');
                                   if (!context.mounted) return;
                                   GoRouter.of(context).push(
                                     '/ai/flashcards',
                                     extra: {
-                                      'sourceText': 'Create 5 flashcards for my subjects: $contextStr',
-                                      'sourceTitle': 'AI Flashcards - $contextStr',
+                                      'sourceText':
+                                          'Create 5 flashcards for my subjects: $contextStr',
+                                      'sourceTitle':
+                                          'AI Flashcards - $contextStr',
                                     },
                                   );
                                 } catch (_) {
@@ -604,7 +599,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               onTap: () async {
                                 try {
                                   final service = AIService();
-                                  final gate = await service.checkAiGate('local_user');
+                                  final gate = await service.checkAiGate(
+                                    'local_user',
+                                  );
                                   if (gate != null) {
                                     if (!context.mounted) return;
                                     ScaffoldMessenger.of(context)
@@ -621,23 +618,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     databaseRepositoryProvider.future,
                                   );
                                   final subjects = await db.getSubjects();
-                                  final contextStr =
-                                      subjects.isEmpty
-                                          ? 'my subjects'
-                                          : subjects
-                                              .map((s) => s.name)
-                                              .join(', ');
+                                  final contextStr = subjects.isEmpty
+                                      ? 'my subjects'
+                                      : subjects.map((s) => s.name).join(', ');
                                   final answer = await service.askAiAboutSubject(
                                     'local_user',
                                     'Create a 3-day study plan for my subjects: $contextStr',
                                   );
                                   if (!context.mounted) return;
-                                  final messenger = ScaffoldMessenger.of(context);
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
                                   messenger.hideCurrentSnackBar();
                                   final display =
-                                      answer != null && answer.startsWith('AI_ERROR:')
-                                          ? answer.substring('AI_ERROR:'.length).trim()
-                                          : (answer ?? 'Could not generate a study plan.');
+                                      answer != null &&
+                                          answer.startsWith('AI_ERROR:')
+                                      ? answer
+                                            .substring('AI_ERROR:'.length)
+                                            .trim()
+                                      : (answer ??
+                                            'Could not generate a study plan.');
                                   messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(display),
@@ -707,16 +707,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Semantics(
                           label: 'Next action suggestion',
                           child: Card(
-                            color:
-                                Theme.of(context).colorScheme.primaryContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
                             child: Padding(
                               padding: const EdgeInsets.all(12),
                               child: Row(
                                 children: [
-Icon(
-    Icons.tips_and_updates,
-    color: Theme.of(context).colorScheme.tertiary,
-),
+                                  Icon(
+                                    Icons.tips_and_updates,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.tertiary,
+                                  ),
                                   const SizedBox(width: 8),
                                   Expanded(child: Text(nextAction)),
                                 ],
@@ -739,9 +742,8 @@ Icon(
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:
-            (e, _) =>
-                Center(child: Text('Something went wrong. Please try again.')),
+        error: (e, _) =>
+            Center(child: Text('Something went wrong. Please try again.')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => GoRouter.of(context).push('/planner'),

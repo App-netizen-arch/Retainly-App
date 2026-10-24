@@ -53,38 +53,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   List<dynamic> _applyFilters(List<dynamic> results) {
     var filtered = results;
     if (_filter != 'all') {
-      filtered =
-          filtered.where((item) {
-            if (_filter == 'tasks') return item is TaskModel;
-            if (_filter == 'subjects') return item is SubjectModel;
-            if (_filter == 'chapters') return item is ChapterModel;
-            if (_filter == 'resources') return item is ResourceModel;
-            if (_filter == 'practicals') return item is PracticalRecordModel;
-            return true;
-          }).toList();
+      filtered = filtered.where((item) {
+        if (_filter == 'tasks') return item is TaskModel;
+        if (_filter == 'subjects') return item is SubjectModel;
+        if (_filter == 'chapters') return item is ChapterModel;
+        if (_filter == 'resources') return item is ResourceModel;
+        if (_filter == 'practicals') return item is PracticalRecordModel;
+        return true;
+      }).toList();
     }
     if (_subjectFilter != 'all') {
       final subjectId = int.tryParse(_subjectFilter);
       if (subjectId != null) {
-        filtered =
-            filtered.where((item) {
-              if (item is TaskModel) return item.subjectId == subjectId;
-              if (item is ChapterModel) return item.subjectId == subjectId;
-              if (item is ResourceModel) return item.subjectId == subjectId;
-              if (item is PracticalRecordModel) {
-                return item.subjectId == subjectId;
-              }
-              return true;
-            }).toList();
+        filtered = filtered.where((item) {
+          if (item is TaskModel) return item.subjectId == subjectId;
+          if (item is ChapterModel) return item.subjectId == subjectId;
+          if (item is ResourceModel) return item.subjectId == subjectId;
+          if (item is PracticalRecordModel) {
+            return item.subjectId == subjectId;
+          }
+          return true;
+        }).toList();
       }
     }
     if (_statusFilter != 'all') {
-      filtered =
-          filtered.where((item) {
-            if (item is TaskModel) return item.status == _statusFilter;
-            if (item is ChapterModel) return item.status == _statusFilter;
-            return true;
-          }).toList();
+      filtered = filtered.where((item) {
+        if (item is TaskModel) return item.status == _statusFilter;
+        if (item is ChapterModel) return item.status == _statusFilter;
+        return true;
+      }).toList();
     }
     return filtered;
   }
@@ -101,11 +98,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               controller: _controller,
               decoration: InputDecoration(
                 hintText: 'Search tasks, subjects, chapters, resources...',
-                 suffixIcon: IconButton(
-                   icon: const Icon(Icons.search),
-                   tooltip: 'Search',
-                   onPressed: () => _performSearch(_controller.text),
-                 ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: 'Search',
+                  onPressed: () => _performSearch(_controller.text),
+                ),
               ),
               onChanged: _performSearch,
             ),
@@ -118,61 +115,55 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 _FilterChip(
                   label: 'All',
                   selected: _filter == 'all',
-                  onTap:
-                      () => setState(() {
-                        _filter = 'all';
-                        _performSearch(_controller.text);
-                      }),
+                  onTap: () => setState(() {
+                    _filter = 'all';
+                    _performSearch(_controller.text);
+                  }),
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'Tasks',
                   selected: _filter == 'tasks',
-                  onTap:
-                      () => setState(() {
-                        _filter = 'tasks';
-                        _performSearch(_controller.text);
-                      }),
+                  onTap: () => setState(() {
+                    _filter = 'tasks';
+                    _performSearch(_controller.text);
+                  }),
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'Subjects',
                   selected: _filter == 'subjects',
-                  onTap:
-                      () => setState(() {
-                        _filter = 'subjects';
-                        _performSearch(_controller.text);
-                      }),
+                  onTap: () => setState(() {
+                    _filter = 'subjects';
+                    _performSearch(_controller.text);
+                  }),
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'Chapters',
                   selected: _filter == 'chapters',
-                  onTap:
-                      () => setState(() {
-                        _filter = 'chapters';
-                        _performSearch(_controller.text);
-                      }),
+                  onTap: () => setState(() {
+                    _filter = 'chapters';
+                    _performSearch(_controller.text);
+                  }),
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'Resources',
                   selected: _filter == 'resources',
-                  onTap:
-                      () => setState(() {
-                        _filter = 'resources';
-                        _performSearch(_controller.text);
-                      }),
+                  onTap: () => setState(() {
+                    _filter = 'resources';
+                    _performSearch(_controller.text);
+                  }),
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'Practicals',
                   selected: _filter == 'practicals',
-                  onTap:
-                      () => setState(() {
-                        _filter = 'practicals';
-                        _performSearch(_controller.text);
-                      }),
+                  onTap: () => setState(() {
+                    _filter = 'practicals';
+                    _performSearch(_controller.text);
+                  }),
                 ),
               ],
             ),
@@ -214,85 +205,80 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Expanded(
             child:
                 _results.isEmpty && _controller.text.isNotEmpty && !_searching
-                    ? const Center(child: Text('No results found'))
-                    : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _results.length,
-                      itemBuilder: (context, index) {
-                        final item = _results[index];
-                        if (item is TaskModel) {
-                          return Card(
-                            child: ListTile(
-                              title: Text(item.title),
-                              subtitle: Text(
-                                'Task • ${item.estimatedMinutes} min',
-                              ),
-                              onTap:
-                                  () => GoRouter.of(
-                                    context,
-                                  ).push('/focus', extra: {'taskId': item.id}),
+                ? const Center(child: Text('No results found'))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _results.length,
+                    itemBuilder: (context, index) {
+                      final item = _results[index];
+                      if (item is TaskModel) {
+                        return Card(
+                          child: ListTile(
+                            title: Text(item.title),
+                            subtitle: Text(
+                              'Task • ${item.estimatedMinutes} min',
                             ),
-                          );
-                        } else if (item is SubjectModel) {
-                          return Card(
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Color(item.color),
-                                child: const Icon(Icons.book),
-                              ),
-                              title: Text(item.name),
-                              onTap: () {
-                                if (item.id == null) return;
-                                GoRouter.of(
-                                  context,
-                                ).push('/subjects/${item.id}');
-                              },
+                            onTap: () => GoRouter.of(
+                              context,
+                            ).push('/focus', extra: {'taskId': item.id}),
+                          ),
+                        );
+                      } else if (item is SubjectModel) {
+                        return Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Color(item.color),
+                              child: const Icon(Icons.book),
                             ),
-                          );
-                        } else if (item is ChapterModel) {
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.menu_book),
-                              title: Text(item.title),
-                              subtitle: Text('Chapter • ${item.status}'),
-                              onTap: () {
-                                final subjectId = item.subjectId;
-                                GoRouter.of(
-                                  context,
-                                ).push('/subjects/$subjectId');
-                              },
-                            ),
-                          );
-                        } else if (item is ResourceModel) {
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.picture_as_pdf),
-                              title: Text(item.title),
-                              subtitle: Text('Resource • ${item.type}'),
-                              onTap: () {
-                                if (!item.localPath.startsWith('/')) return;
-                                GoRouter.of(context).push(
-                                  '/pdf',
-                                  extra: {
-                                    'path': item.localPath,
-                                    'title': item.title,
-                                  },
-                                );
-                              },
-                            ),
-                          );
-                        } else if (item is PracticalRecordModel) {
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.science),
-                              title: Text(item.title),
-                              subtitle: Text('Practical • ${item.status}'),
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
+                            title: Text(item.name),
+                            onTap: () {
+                              if (item.id == null) return;
+                              GoRouter.of(context).push('/subjects/${item.id}');
+                            },
+                          ),
+                        );
+                      } else if (item is ChapterModel) {
+                        return Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.menu_book),
+                            title: Text(item.title),
+                            subtitle: Text('Chapter • ${item.status}'),
+                            onTap: () {
+                              final subjectId = item.subjectId;
+                              GoRouter.of(context).push('/subjects/$subjectId');
+                            },
+                          ),
+                        );
+                      } else if (item is ResourceModel) {
+                        return Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.picture_as_pdf),
+                            title: Text(item.title),
+                            subtitle: Text('Resource • ${item.type}'),
+                            onTap: () {
+                              if (!item.localPath.startsWith('/')) return;
+                              GoRouter.of(context).push(
+                                '/pdf',
+                                extra: {
+                                  'path': item.localPath,
+                                  'title': item.title,
+                                },
+                              );
+                            },
+                          ),
+                        );
+                      } else if (item is PracticalRecordModel) {
+                        return Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.science),
+                            title: Text(item.title),
+                            subtitle: Text('Practical • ${item.status}'),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
           ),
         ],
       ),

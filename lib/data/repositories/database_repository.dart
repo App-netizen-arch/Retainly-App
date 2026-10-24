@@ -60,12 +60,10 @@ class DatabaseRepository {
       newEaseFactor,
       currentInterval,
     );
-    final baseDate =
-        lastReviewAt != null && lastReviewAt.isNotEmpty
-            ? DateTime.parse(lastReviewAt)
-            : DateTime.now();
-    final dueAt =
-        baseDate.add(Duration(days: newInterval)).toIso8601String();
+    final baseDate = lastReviewAt != null && lastReviewAt.isNotEmpty
+        ? DateTime.parse(lastReviewAt)
+        : DateTime.now();
+    final dueAt = baseDate.add(Duration(days: newInterval)).toIso8601String();
     return {
       'ease_factor': newEaseFactor,
       'interval_days': newInterval,
@@ -103,10 +101,9 @@ class DatabaseRepository {
         'repetitions': sm2['repetitions'],
         'due_at': sm2['due_at'],
         'last_review_at': sm2['last_review_at'],
-        'completed_at':
-            status == 'completed'
-                ? DateTime.now().millisecondsSinceEpoch
-                : null,
+        'completed_at': status == 'completed'
+            ? DateTime.now().millisecondsSinceEpoch
+            : null,
       },
       where: 'id = ?',
       whereArgs: [revisionId],
@@ -363,6 +360,19 @@ class DatabaseRepository {
     return result;
   }
 
+  Future<List<SubjectModel>> getAllSubjects() async {
+    final maps = await db.getAllSubjects();
+    return maps.map((map) => SubjectModel.fromMap(map)).toList();
+  }
+
+  Future<int> setSubjectActive(int id, bool active) {
+    return db.setSubjectActive(id, active);
+  }
+
+  Future<int> updateSubject(int id, SubjectModel subject) {
+    return db.updateSubject(id, subject.toMap());
+  }
+
   Future<List<ChapterModel>> getChaptersBySubject(int subjectId) async {
     final maps = await db.getChaptersBySubject(subjectId);
     return maps.map((m) => ChapterModel.fromMap(m)).toList();
@@ -377,8 +387,9 @@ class DatabaseRepository {
     final result = await db.updateChapterStatus(
       id,
       status,
-      completedAt:
-          status == 'completed' ? DateTime.now().millisecondsSinceEpoch : null,
+      completedAt: status == 'completed'
+          ? DateTime.now().millisecondsSinceEpoch
+          : null,
     );
     return result;
   }
@@ -674,8 +685,9 @@ class DatabaseRepository {
     final buffer = StringBuffer();
     buffer.writeln('Front,Back,Tags');
     for (final subject in subjects) {
-      final subjectChapters =
-          chapters.where((c) => c.subjectId == subject.id).toList();
+      final subjectChapters = chapters
+          .where((c) => c.subjectId == subject.id)
+          .toList();
       for (final chapter in subjectChapters) {
         final front = chapter.title.replaceAll(',', '，');
         final back = subject.name;
@@ -726,5 +738,4 @@ class DatabaseRepository {
     result.add(current.toString());
     return result;
   }
-
 }

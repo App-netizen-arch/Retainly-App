@@ -33,7 +33,8 @@ Future<void> main() async {
   try {
     prefs = await SharedPreferences.getInstance().timeout(
       const Duration(seconds: 10),
-      onTimeout: () => throw TimeoutException('SharedPreferences initialization timed out'),
+      onTimeout: () =>
+          throw TimeoutException('SharedPreferences initialization timed out'),
     );
   } on Exception {
     prefs = await SharedPreferences.getInstance();
@@ -68,7 +69,8 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
-  Brightness _platformBrightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+  Brightness _platformBrightness =
+      WidgetsBinding.instance.platformDispatcher.platformBrightness;
 
   @override
   void initState() {
@@ -79,7 +81,8 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   @override
   void didChangePlatformBrightness() {
     setState(() {
-      _platformBrightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+      _platformBrightness =
+          WidgetsBinding.instance.platformDispatcher.platformBrightness;
     });
   }
 
@@ -98,10 +101,15 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     final bool dynamicType = ref.watch(dynamicTypeProvider);
     final bool highContrast = ref.watch(highContrastProvider);
     final systemTextScaler = MediaQuery.textScalerOf(context);
-    final TextScaler textScaler =
-        dynamicType ? _SystemCompoundedTextScaler(systemTextScaler, 1.3) : systemTextScaler;
+    final TextScaler textScaler = dynamicType
+        ? _SystemCompoundedTextScaler(systemTextScaler, 1.3)
+        : systemTextScaler;
 
-    final targetTheme = computeTargetTheme(highContrast, themeMode, _platformBrightness);
+    final targetTheme = computeTargetTheme(
+      highContrast,
+      themeMode,
+      _platformBrightness,
+    );
 
     return MediaQuery(
       data: MediaQuery.of(
@@ -180,12 +188,11 @@ ThemeData computeTargetTheme(
   ThemeMode themeMode,
   Brightness platformBrightness,
 ) {
-  final brightness =
-      themeMode == ThemeMode.dark
-          ? Brightness.dark
-          : themeMode == ThemeMode.light
-          ? Brightness.light
-          : platformBrightness;
+  final brightness = themeMode == ThemeMode.dark
+      ? Brightness.dark
+      : themeMode == ThemeMode.light
+      ? Brightness.light
+      : platformBrightness;
   if (highContrast) {
     return brightness == Brightness.dark
         ? AppTheme.highContrastDarkTheme()

@@ -29,7 +29,15 @@ class LocalRestoreService implements RestoreService {
     'chapters': ['subject_id', 'title', 'status', 'priority', 'created_at'],
     'tasks': ['title', 'status', 'priority', 'created_at'],
     'focusSessions': ['status', 'started_at', 'created_at'],
-    'revisions': ['chapter_id', 'status', 'ease_factor', 'interval_days', 'repetitions', 'due_at', 'created_at'],
+    'revisions': [
+      'chapter_id',
+      'status',
+      'ease_factor',
+      'interval_days',
+      'repetitions',
+      'due_at',
+      'created_at',
+    ],
     'resources': ['title', 'type', 'status', 'created_at'],
     'practicals': ['subject_id', 'title', 'status', 'created_at'],
     'syllabusTemplates': ['name', 'content', 'created_at'],
@@ -90,10 +98,9 @@ class LocalRestoreService implements RestoreService {
     try {
       final json = await _decryptAndValidateBackup(path);
       final schemaVersion = json['schemaVersion'] as int;
-      final backupVersion =
-          json['backupVersion'] is String
-              ? json['backupVersion'] as String
-              : 'unknown';
+      final backupVersion = json['backupVersion'] is String
+          ? json['backupVersion'] as String
+          : 'unknown';
       final backupInfo = BackupRecord(
         fileName: p.basename(path),
         createdAt:
@@ -104,10 +111,9 @@ class LocalRestoreService implements RestoreService {
         sizeBytes: File(path).lengthSync(),
         schemaVersion: schemaVersion,
         backupVersion: backupVersion,
-        deviceInfo:
-            json['deviceInfo'] is Map<String, dynamic>
-                ? Map<String, String>.from(json['deviceInfo'])
-                : const {},
+        deviceInfo: json['deviceInfo'] is Map<String, dynamic>
+            ? Map<String, String>.from(json['deviceInfo'])
+            : const {},
         encrypted: true,
         status: 'valid',
       );
@@ -172,17 +178,16 @@ class LocalRestoreService implements RestoreService {
   Future<List<String>> getBackupTables(String path) async {
     try {
       final json = await _decryptAndValidateBackup(path);
-      final keys =
-          json.keys
-              .where(
-                (key) =>
-                    key != 'exportedAt' &&
-                    key != 'schemaVersion' &&
-                    key != 'backupVersion' &&
-                    key != 'deviceInfo' &&
-                    key != 'settings',
-              )
-              .toList();
+      final keys = json.keys
+          .where(
+            (key) =>
+                key != 'exportedAt' &&
+                key != 'schemaVersion' &&
+                key != 'backupVersion' &&
+                key != 'deviceInfo' &&
+                key != 'settings',
+          )
+          .toList();
       return keys.toList();
     } on Exception {
       return [];
@@ -222,7 +227,8 @@ class LocalRestoreService implements RestoreService {
   }
 
   void _validateImportPayload(Map<String, dynamic> payload) {
-    if (payload['profile'] != null && payload['profile'] is! Map<String, dynamic>) {
+    if (payload['profile'] != null &&
+        payload['profile'] is! Map<String, dynamic>) {
       throw const FormatException('Invalid backup: profile must be a map');
     }
     for (final entry in _collectionFields.entries) {
@@ -239,7 +245,9 @@ class LocalRestoreService implements RestoreService {
         }
         for (final key in requiredKeys) {
           if (!item.containsKey(key)) {
-            throw FormatException('Invalid backup: $field item missing required field "$key"');
+            throw FormatException(
+              'Invalid backup: $field item missing required field "$key"',
+            );
           }
         }
       }

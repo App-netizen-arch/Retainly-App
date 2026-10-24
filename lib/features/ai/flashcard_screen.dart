@@ -106,12 +106,14 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
         currentAnswer = null;
       } else if (withoutNumber.toLowerCase().startsWith('q:') ||
           withoutNumber.toLowerCase().startsWith('question:')) {
-        currentQuestion =
-            withoutNumber.replaceFirst(RegExp(r'^[Qq]?:?\s*'), '').trim();
+        currentQuestion = withoutNumber
+            .replaceFirst(RegExp(r'^[Qq]?:?\s*'), '')
+            .trim();
       } else if (withoutNumber.toLowerCase().startsWith('a:') ||
           withoutNumber.toLowerCase().startsWith('answer:')) {
-        currentAnswer =
-            withoutNumber.replaceFirst(RegExp(r'^[Aa]?:?\s*'), '').trim();
+        currentAnswer = withoutNumber
+            .replaceFirst(RegExp(r'^[Aa]?:?\s*'), '')
+            .trim();
         if (currentQuestion != null) {
           final question = currentQuestion;
           cards.add(Flashcard(question: question, answer: currentAnswer));
@@ -181,29 +183,28 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
     _sourceController.clear();
     final ref = await showDialog<String>(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Attach Source'),
-            content: TextField(
-              controller: _sourceController,
-              decoration: const InputDecoration(
-                hintText: 'Textbook reference, page, etc.',
-              ),
-              onSubmitted: (v) => Navigator.pop(ctx, v),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx, _sourceController.text.trim());
-                },
-                child: const Text('Save'),
-              ),
-            ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('Attach Source'),
+        content: TextField(
+          controller: _sourceController,
+          decoration: const InputDecoration(
+            hintText: 'Textbook reference, page, etc.',
           ),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx, _sourceController.text.trim());
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
     if (ref != null && mounted) {
       setState(() => _sourceRef = ref);
@@ -234,48 +235,42 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
     if (!mounted) return;
     showDialog(
       context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Review History'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 300,
-              child:
-                  existing.isEmpty
-                      ? const Center(child: Text('No history yet'))
-                      : ListView.builder(
-                        itemCount: existing.length,
-                        itemBuilder: (context, index) {
-                          final item = existing[index] as Map<String, dynamic>;
-                          final completedAt =
-                              item['completedAt'] as String? ?? '';
-                          final known = item['knownCount'] as int? ?? 0;
-                          final total = item['totalCards'] as int? ?? 0;
-                          final score =
-                              total > 0
-                                  ? '${((known / total) * 100).round()}%'
-                                  : 'N/A';
-                          return ListTile(
-                            title: Text(
-                              item['sourceTitle'] as String? ?? 'Unknown',
-                            ),
-                            subtitle: Text(
-                              'Score: $score ($known/$total known)\n'
-                              'Completed: ${completedAt.substring(0, completedAt.length < 16 ? completedAt.length : 16)}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            isThreeLine: true,
-                          );
-                        },
+      builder: (ctx) => AlertDialog(
+        title: const Text('Review History'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: existing.isEmpty
+              ? const Center(child: Text('No history yet'))
+              : ListView.builder(
+                  itemCount: existing.length,
+                  itemBuilder: (context, index) {
+                    final item = existing[index] as Map<String, dynamic>;
+                    final completedAt = item['completedAt'] as String? ?? '';
+                    final known = item['knownCount'] as int? ?? 0;
+                    final total = item['totalCards'] as int? ?? 0;
+                    final score = total > 0
+                        ? '${((known / total) * 100).round()}%'
+                        : 'N/A';
+                    return ListTile(
+                      title: Text(item['sourceTitle'] as String? ?? 'Unknown'),
+                      subtitle: Text(
+                        'Score: $score ($known/$total known)\n'
+                        'Completed: ${completedAt.substring(0, completedAt.length < 16 ? completedAt.length : 16)}',
+                        style: const TextStyle(fontSize: 12),
                       ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
-              ),
-            ],
+                      isThreeLine: true,
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
           ),
+        ],
+      ),
     );
   }
 
@@ -292,166 +287,184 @@ class _FlashcardScreenState extends ConsumerState<FlashcardScreen> {
           ),
         ],
       ),
-      body:
-          _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _generateFlashcards,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              )
-              : _flashcards.isEmpty
-              ? const Center(child: Text('No flashcards generated'))
-              : Column(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${_currentIndex + 1} / ${_flashcards.length}'),
-                        Text('Known: $_knownCount | Unknown: $_unknownCount'),
-                      ],
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
                     ),
                   ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _flipCard,
-                      child: Card(
-                        margin: const EdgeInsets.all(16),
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (!_isFlipped) ...[
-                                Text(
-                                  'Question',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _flashcards[_currentIndex].question,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 18),
-                                ),
-                              ] else ...[
-                                Text(
-                                  'Answer',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _flashcards[_currentIndex].answer,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 18),
-                                ),
-                              ],
-                              const SizedBox(height: 16),
-                               Text(
-                                 _isFlipped
-                                     ? 'Tap to flip'
-                                     : 'Tap to reveal answer',
-                                 style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _generateFlashcards,
+                    child: const Text('Retry'),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _flipCard,
-                            icon: const Icon(Icons.flip),
-                            label: const Text('Flip'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _markKnown,
-                              icon: const Icon(Icons.check),
-                              label: const Text('Known'),
-style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.primary,
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                textStyle: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _markUnknown,
-                              icon: const Icon(Icons.close),
-                              label: const Text('Unknown'),
-style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.error,
-                              foregroundColor: Theme.of(context).colorScheme.onError,
-                                textStyle: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (_flashcards.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            onPressed: _attachSource,
-                            icon: const Icon(Icons.link),
-                            tooltip: 'Attach source',
-                          ),
-                          if (_sourceRef.isNotEmpty)
-                            Expanded(
-                              child: Text(
-                                'Source: $_sourceRef',
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                            ),
-                          const Spacer(),
-                          IconButton(
-                            onPressed: _reportError,
-                            icon: const Icon(Icons.report_problem),
-                            tooltip: 'Report incorrect',
-                          ),
-                          IconButton(
-                            onPressed: _saveResults,
-                            icon: const Icon(Icons.save),
-                            tooltip: 'Save results',
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
               ),
+            )
+          : _flashcards.isEmpty
+          ? const Center(child: Text('No flashcards generated'))
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('${_currentIndex + 1} / ${_flashcards.length}'),
+                      Text('Known: $_knownCount | Unknown: $_unknownCount'),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _flipCard,
+                    child: Card(
+                      margin: const EdgeInsets.all(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (!_isFlipped) ...[
+                              Text(
+                                'Question',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _flashcards[_currentIndex].question,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 18),
+                              ),
+                            ] else ...[
+                              Text(
+                                'Answer',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _flashcards[_currentIndex].answer,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 18),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
+                            Text(
+                              _isFlipped
+                                  ? 'Tap to flip'
+                                  : 'Tap to reveal answer',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _flipCard,
+                          icon: const Icon(Icons.flip),
+                          label: const Text('Flip'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _markKnown,
+                          icon: const Icon(Icons.check),
+                          label: const Text('Known'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onPrimary,
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _markUnknown,
+                          icon: const Icon(Icons.close),
+                          label: const Text('Unknown'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.error,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onError,
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_flashcards.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: _attachSource,
+                          icon: const Icon(Icons.link),
+                          tooltip: 'Attach source',
+                        ),
+                        if (_sourceRef.isNotEmpty)
+                          Expanded(
+                            child: Text(
+                              'Source: $_sourceRef',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: _reportError,
+                          icon: const Icon(Icons.report_problem),
+                          tooltip: 'Report incorrect',
+                        ),
+                        IconButton(
+                          onPressed: _saveResults,
+                          icon: const Icon(Icons.save),
+                          tooltip: 'Save results',
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }

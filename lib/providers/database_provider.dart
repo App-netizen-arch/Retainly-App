@@ -165,8 +165,9 @@ final analyticsDetailProvider =
       final subjectAccuracy = await db.getSubjectEstimateAccuracy();
       final weakTopics = await db.getWeakTopics();
       final pastPaperTasks = await db.getPastPaperTasks();
-      final completedPastPapers =
-          pastPaperTasks.where((t) => t.status == 'completed').length;
+      final completedPastPapers = pastPaperTasks
+          .where((t) => t.status == 'completed')
+          .length;
       return {
         'taskAccuracy': accuracy,
         'productiveTime': productiveTime,
@@ -230,8 +231,8 @@ Future<Map<String, dynamic>> _loadDashboard(
     insight =
         'Tasks usually take longer: $sample. Consider planning more time.';
   } else if (allSessions.length >= 3) {
-    final medianAll =
-        allSessions.map((s) => s.completedMinutes).toList()..sort();
+    final medianAll = allSessions.map((s) => s.completedMinutes).toList()
+      ..sort();
     final median = medianAll[medianAll.length ~/ 2];
     insight = 'Your typical study session is around $median min.';
   }
@@ -261,11 +262,10 @@ Future<Map<String, dynamic>> _loadDashboard(
   }
 
   final dailyMinutes = profile?.dailyStudyMinutes ?? 120;
-  final scored =
-      pendingTasks.map((t) {
-        final score = db.computeTaskScore(t, dailyMinutes);
-        return MapEntry(t, score);
-      }).toList();
+  final scored = pendingTasks.map((t) {
+    final score = db.computeTaskScore(t, dailyMinutes);
+    return MapEntry(t, score);
+  }).toList();
   scored.sort((a, b) => b.value.compareTo(a.value));
   final recommended = scored.isNotEmpty ? scored.first.key : null;
 
@@ -273,8 +273,9 @@ Future<Map<String, dynamic>> _loadDashboard(
   final todayTasks = todayRaw;
   final selected = _getTodayTasksWithLimit(db, todayTasks, dailyMinutes);
   final selectedIds = selected.map((t) => t.id).toSet();
-  final overflow =
-      todayTasks.where((t) => !selectedIds.contains(t.id)).toList();
+  final overflow = todayTasks
+      .where((t) => !selectedIds.contains(t.id))
+      .toList();
 
   return {
     'totalMinutes': totalMinutes,
@@ -346,13 +347,12 @@ Future<Map<String, dynamic>> _loadWeeklyAnalytics(DatabaseRepository db) async {
   final weekEndDate = weekStartDate.add(const Duration(days: 7));
 
   final allSessions = await db.getFocusSessions();
-  final weekSessions =
-      allSessions.where((s) {
-        final started = DateTime.tryParse(s.startedAt);
-        return started != null &&
-            started.isAfter(weekStartDate.subtract(const Duration(days: 1))) &&
-            started.isBefore(weekEndDate);
-      }).toList();
+  final weekSessions = allSessions.where((s) {
+    final started = DateTime.tryParse(s.startedAt);
+    return started != null &&
+        started.isAfter(weekStartDate.subtract(const Duration(days: 1))) &&
+        started.isBefore(weekEndDate);
+  }).toList();
 
   final weekMinutes = weekSessions.fold<int>(
     0,
@@ -403,10 +403,9 @@ Future<Map<String, dynamic>> _loadWeeklyAnalytics(DatabaseRepository db) async {
   }
 
   final revisions = await db.getDueRevisions();
-  final revisionBacklogCount =
-      revisions
-          .where((r) => DateTime.tryParse(r.dueAt)?.isBefore(now) ?? false)
-          .length;
+  final revisionBacklogCount = revisions
+      .where((r) => DateTime.tryParse(r.dueAt)?.isBefore(now) ?? false)
+      .length;
 
   String nextAction = '';
   if (revisionBacklogCount > 0) {

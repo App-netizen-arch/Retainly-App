@@ -9,7 +9,10 @@ class AiTextSanitizer {
   static final _italicPattern = RegExp(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)');
   static final _headerPattern = RegExp(r'^#{1,6}\s+', multiLine: true);
   static final _bulletPattern = RegExp(r'^(\s*)([-*+])\s+', multiLine: true);
-  static final _numberedListPattern = RegExp(r'^\s*\d+[\.\)]\s*', multiLine: true);
+  static final _numberedListPattern = RegExp(
+    r'^\s*\d+[\.\)]\s*',
+    multiLine: true,
+  );
   static final _quotePattern = RegExp(r'^>\s+', multiLine: true);
   static final _codePattern = RegExp(r'`(.+?)`');
   static final _strikePattern = RegExp(r'~~(.+?)~~');
@@ -70,15 +73,30 @@ class AiTextSanitizer {
       }
 
       var processed = trimmed;
-      processed = processed.replaceAllMapped(_boldPattern, (match) => match.group(1) ?? '');
-      processed = processed.replaceAllMapped(_italicPattern, (match) => match.group(1) ?? '');
+      processed = processed.replaceAllMapped(
+        _boldPattern,
+        (match) => match.group(1) ?? '',
+      );
+      processed = processed.replaceAllMapped(
+        _italicPattern,
+        (match) => match.group(1) ?? '',
+      );
       processed = processed.replaceAll(_headerPattern, '');
       processed = processed.replaceAllMapped(_bulletPattern, (match) => '');
       processed = processed.replaceAll(_numberedListPattern, '');
       processed = processed.replaceAll(_quotePattern, '');
-      processed = processed.replaceAllMapped(_codePattern, (match) => match.group(1) ?? '');
-      processed = processed.replaceAllMapped(_strikePattern, (match) => match.group(1) ?? '');
-      processed = processed.replaceAllMapped(_linkPattern, (match) => match.group(1) ?? '');
+      processed = processed.replaceAllMapped(
+        _codePattern,
+        (match) => match.group(1) ?? '',
+      );
+      processed = processed.replaceAllMapped(
+        _strikePattern,
+        (match) => match.group(1) ?? '',
+      );
+      processed = processed.replaceAllMapped(
+        _linkPattern,
+        (match) => match.group(1) ?? '',
+      );
 
       stripped.add(processed);
       lastWasEmpty = false;
@@ -126,7 +144,8 @@ class SubTaskCleaner {
     final lines = text.split('\n');
     for (var i = 0; i < lines.length; i++) {
       final trimmed = lines[i].trim();
-      if (_dividerPattern.hasMatch(trimmed) || _tableRowPattern.hasMatch(trimmed)) {
+      if (_dividerPattern.hasMatch(trimmed) ||
+          _tableRowPattern.hasMatch(trimmed)) {
         lines[i] = lines[i].replaceAll(_pipePattern, ' ');
       }
     }

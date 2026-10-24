@@ -13,19 +13,16 @@ class AppTheme {
         labelStyle: TextStyle(color: colorScheme.onSurface),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: colorScheme.outline,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: colorScheme.outline, width: 2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: colorScheme.primary,
-            width: 2.5,
-          ),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
       ),
     );
   }

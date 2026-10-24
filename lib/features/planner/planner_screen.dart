@@ -68,9 +68,9 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           return _buildWeekView(context, db);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:
-            (e, _) =>
-                Center(child: const Text('Something went wrong. Please try again.')),
+        error: (e, _) => Center(
+          child: const Text('Something went wrong. Please try again.'),
+        ),
       ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
@@ -94,12 +94,11 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
               if (db == null) return;
               final pending = await db.getAllPendingTasks();
               final nowUtc = DateTime.now().toUtc();
-              final overdue =
-                  pending.where((t) {
-                    if (t.dueAt == null) return false;
-                    final due = DateTime.parse(t.dueAt!);
-                    return due.isBefore(nowUtc) && t.status != 'completed';
-                  }).toList();
+              final overdue = pending.where((t) {
+                if (t.dueAt == null) return false;
+                final due = DateTime.parse(t.dueAt!);
+                return due.isBefore(nowUtc) && t.status != 'completed';
+              }).toList();
               if (overdue.isEmpty) {
                 if (context.mounted) {
                   final messenger = ScaffoldMessenger.of(context);
@@ -144,8 +143,9 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           date: selectedDate,
         );
         final selectedIds = selected.map((t) => t.id).toSet();
-        final overflow =
-            tasks.where((t) => !selectedIds.contains(t.id)).toList();
+        final overflow = tasks
+            .where((t) => !selectedIds.contains(t.id))
+            .toList();
 
         return Column(
           children: [
@@ -279,17 +279,16 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           itemCount: weekDays.length,
           itemBuilder: (context, index) {
             final date = weekDays[index];
-            final tasks =
-                allTasks.where((t) {
-                  final scheduled = DateTime.tryParse(t.scheduledAt);
-                  if (scheduled == null) return false;
-                  final taskDay = DateTime(
-                    scheduled.year,
-                    scheduled.month,
-                    scheduled.day,
-                  );
-                  return taskDay == date;
-                }).toList();
+            final tasks = allTasks.where((t) {
+              final scheduled = DateTime.tryParse(t.scheduledAt);
+              if (scheduled == null) return false;
+              final taskDay = DateTime(
+                scheduled.year,
+                scheduled.month,
+                scheduled.day,
+              );
+              return taskDay == date;
+            }).toList();
             final totalMinutes = tasks.fold<int>(
               0,
               (sum, t) => sum + t.estimatedMinutes,
@@ -298,12 +297,11 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
 
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
-              color:
-                  isToday
-                      ? Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer.withValues(alpha: 0.3)
-                      : null,
+              color: isToday
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                  : null,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -323,11 +321,13 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                       if (tasks.isEmpty)
-                         Text(
-                           'No tasks',
-                           style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                         )
+                    if (tasks.isEmpty)
+                      Text(
+                        'No tasks',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      )
                     else
                       ...tasks.map(
                         (t) => Padding(
@@ -340,8 +340,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                                   if (v == null || t.id == null) return;
                                   await db.updateTask(t.id!, {
                                     'status': v ? 'completed' : 'not_started',
-                                    'updated_at':
-                                        DateTime.now().toIso8601String(),
+                                    'updated_at': DateTime.now()
+                                        .toIso8601String(),
                                   });
                                   ref.invalidate(tasksForDateProvider(date));
                                   ref.invalidate(todayTasksProvider);
@@ -351,10 +351,9 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                                 child: Text(
                                   t.title,
                                   style: TextStyle(
-                                    decoration:
-                                        t.status == 'completed'
-                                            ? TextDecoration.lineThrough
-                                            : null,
+                                    decoration: t.status == 'completed'
+                                        ? TextDecoration.lineThrough
+                                        : null,
                                   ),
                                 ),
                               ),
@@ -439,120 +438,129 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                   ),
                   margin: const EdgeInsets.only(right: 4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.15),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.tertiary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     '$originalEstimate→${task.estimatedMinutes}',
-                    style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.tertiary),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(context).colorScheme.tertiary,
+                    ),
                   ),
                 ),
               IconButton(
-                 icon: Icon(Icons.autorenew, color: Theme.of(context).colorScheme.tertiary),
+                icon: Icon(
+                  Icons.autorenew,
+                  color: Theme.of(context).colorScheme.tertiary,
+                ),
                 tooltip: 'Reschedule',
-onPressed:
-                     task.id != null
-                         ? () async {
-                           final selectedDate = ref.read(selectedDateProvider);
-                           await ref
-                               .read(databaseRepositoryProvider)
-                               .value
-                               ?.updateTask(task.id!, {
-                                 'scheduled_at': selectedDate.toIso8601String(),
-                                 'is_rescheduled': 1,
-                               });
-                           ref.invalidate(todayTasksProvider);
-                           ref.invalidate(allPendingTasksProvider);
-                           ref.invalidate(dashboardProvider);
-                           ref.invalidate(tasksForDateProvider(selectedDate));
-                           if (context.mounted) {
-                             final messenger = ScaffoldMessenger.of(context);
-                             messenger.hideCurrentSnackBar();
-                             messenger.showSnackBar(
-                               SnackBar(
-                                 content: Text(
-                                   'Task rescheduled to ${DateFormat('MMM d').format(selectedDate)}',
-                                 ),
-                               ),
-                             );
-                           }
-                         }
-                        : null,
+                onPressed: task.id != null
+                    ? () async {
+                        final selectedDate = ref.read(selectedDateProvider);
+                        await ref
+                            .read(databaseRepositoryProvider)
+                            .value
+                            ?.updateTask(task.id!, {
+                              'scheduled_at': selectedDate.toIso8601String(),
+                              'is_rescheduled': 1,
+                            });
+                        ref.invalidate(todayTasksProvider);
+                        ref.invalidate(allPendingTasksProvider);
+                        ref.invalidate(dashboardProvider);
+                        ref.invalidate(tasksForDateProvider(selectedDate));
+                        if (context.mounted) {
+                          final messenger = ScaffoldMessenger.of(context);
+                          messenger.hideCurrentSnackBar();
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Task rescheduled to ${DateFormat('MMM d').format(selectedDate)}',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    : null,
               ),
               IconButton(
-                 icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                icon: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.error,
+                ),
                 tooltip: 'Delete',
-                onPressed:
-                    task.id != null
-                        ? () async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder:
-                                (ctx) => AlertDialog(
-                                  title: const Text('Delete Plan'),
-                                  content: const Text(
-                                    'Are you sure you want to delete this plan? This action cannot be undone.',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed:
-                                          () => Navigator.pop(ctx, false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    FilledButton.icon(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      icon: const Icon(Icons.delete_outline),
-                                      label: const Text('Delete'),
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor:
-                                            Theme.of(context).colorScheme.error,
-                                      ),
-                                    ),
-                                  ],
+                onPressed: task.id != null
+                    ? () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Plan'),
+                            content: const Text(
+                              'Are you sure you want to delete this plan? This action cannot be undone.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton.icon(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Delete'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.error,
                                 ),
-                          );
-                          if (confirmed != true) return;
-                          try {
-                            await ref
-                                .read(databaseRepositoryProvider)
-                                .value
-                                ?.deleteTask(task.id!);
-                            ref.invalidate(todayTasksProvider);
-                            ref.invalidate(allPendingTasksProvider);
-                            ref.invalidate(dueRevisionsProvider);
-                            ref.invalidate(dashboardProvider);
-                              if (context.mounted) {
-                                final messenger = ScaffoldMessenger.of(context);
-                                messenger.hideCurrentSnackBar();
-                                messenger.showSnackBar(
-                                  const SnackBar(content: Text('Plan deleted')),
-                                );
-                              }
-                            } on Exception catch (_) {
-                              if (context.mounted) {
-                                final messenger = ScaffoldMessenger.of(context);
-                                messenger.hideCurrentSnackBar();
-                                messenger.showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Failed to delete plan. Please try again.'),
-                                  ),
-                                );
-                              }
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed != true) return;
+                        try {
+                          await ref
+                              .read(databaseRepositoryProvider)
+                              .value
+                              ?.deleteTask(task.id!);
+                          ref.invalidate(todayTasksProvider);
+                          ref.invalidate(allPendingTasksProvider);
+                          ref.invalidate(dueRevisionsProvider);
+                          ref.invalidate(dashboardProvider);
+                          if (context.mounted) {
+                            final messenger = ScaffoldMessenger.of(context);
+                            messenger.hideCurrentSnackBar();
+                            messenger.showSnackBar(
+                              const SnackBar(content: Text('Plan deleted')),
+                            );
+                          }
+                        } on Exception catch (_) {
+                          if (context.mounted) {
+                            final messenger = ScaffoldMessenger.of(context);
+                            messenger.hideCurrentSnackBar();
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Failed to delete plan. Please try again.',
+                                ),
+                              ),
+                            );
                           }
                         }
-                        : null,
+                      }
+                    : null,
               ),
               Checkbox(
                 value: task.status == 'completed',
                 onChanged: (v) async {
                   if (v == null || task.id == null) return;
                   try {
-                    final newStatus =
-                        v
-                            ? 'completed'
-                            : (task.completedMinutes > 0
-                                ? 'in_progress'
-                                : 'not_started');
+                    final newStatus = v
+                        ? 'completed'
+                        : (task.completedMinutes > 0
+                              ? 'in_progress'
+                              : 'not_started');
                     await ref
                         .read(databaseRepositoryProvider)
                         .value
@@ -568,7 +576,9 @@ onPressed:
                     if (context.mounted) {
                       final messenger = ScaffoldMessenger.of(context);
                       messenger.hideCurrentSnackBar();
-                      messenger.showSnackBar(const SnackBar(content: Text('Updated')));
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Updated')),
+                      );
                     }
                   } on Exception catch (_) {
                     if (context.mounted) {
@@ -584,12 +594,11 @@ onPressed:
                 },
               ),
               ElevatedButton(
-                onPressed:
-                    task.id != null
-                        ? () => GoRouter.of(
-                          context,
-                        ).push('/focus', extra: {'taskId': task.id})
-                        : null,
+                onPressed: task.id != null
+                    ? () => GoRouter.of(
+                        context,
+                      ).push('/focus', extra: {'taskId': task.id})
+                    : null,
                 child: const Text('Start'),
               ),
             ],

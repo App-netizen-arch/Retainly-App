@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/database_provider.dart';
 import '../../data/models/app_models.dart';
 
@@ -32,7 +33,11 @@ class ProgressScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                           Icon(Icons.timer, size: 48, color: Theme.of(context).colorScheme.primary),
+                          Icon(
+                            Icons.timer,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -40,15 +45,15 @@ class ProgressScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   'Total Study Time',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                                 Text(
                                   '$totalMinutes min',
-                                  style:
-                                      Theme.of(
-                                        context,
-                                      ).textTheme.headlineMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineMedium,
                                 ),
                               ],
                             ),
@@ -63,11 +68,11 @@ class ProgressScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
- Icon(
-     Icons.check_circle,
-     size: 48,
-     color: Theme.of(context).colorScheme.tertiary,
-   ),
+                          Icon(
+                            Icons.check_circle,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -75,15 +80,15 @@ class ProgressScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   'Chapters Completed',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                                 Text(
                                   '$completedChapters / $totalChapters',
-                                  style:
-                                      Theme.of(
-                                        context,
-                                      ).textTheme.headlineMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineMedium,
                                 ),
                               ],
                             ),
@@ -96,10 +101,8 @@ class ProgressScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error:
-                (e, _) => Center(
-                  child: Text('Something went wrong. Please try again.'),
-                ),
+            error: (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
           ),
           const SizedBox(height: 24),
           weeklyAsync.when(
@@ -127,10 +130,10 @@ class ProgressScreen extends ConsumerWidget {
                       child: Row(
                         children: [
                           Icon(
-                          Icons.assessment_outlined,
-                          size: 36,
-                          color: Theme.of(context).colorScheme.tertiary,
-                        ),
+                            Icons.assessment_outlined,
+                            size: 36,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -138,13 +141,15 @@ class ProgressScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   'Study Time',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                                 Text(
                                   '$weekMinutes min',
-                                  style:
-                                      Theme.of(context).textTheme.headlineSmall,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineSmall,
                                 ),
                               ],
                             ),
@@ -192,7 +197,7 @@ class ProgressScreen extends ConsumerWidget {
                           children: [
                             Icon(
                               Icons.tips_and_updates,
- color: Theme.of(context).colorScheme.tertiary,
+                              color: Theme.of(context).colorScheme.tertiary,
                             ),
                             const SizedBox(width: 8),
                             Expanded(child: Text(data['nextAction'] as String)),
@@ -215,8 +220,9 @@ class ProgressScreen extends ConsumerWidget {
                                 ),
                                 Text(
                                   '$sessionCount',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                               ],
                             ),
@@ -236,8 +242,9 @@ class ProgressScreen extends ConsumerWidget {
                                 ),
                                 Text(
                                   '$revisionBacklog',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                               ],
                             ),
@@ -286,10 +293,8 @@ class ProgressScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error:
-                (e, _) => Center(
-                  child: Text('Something went wrong. Please try again.'),
-                ),
+            error: (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
           ),
           const SizedBox(height: 24),
           analyticsAsync.when(
@@ -338,10 +343,9 @@ class ProgressScreen extends ConsumerWidget {
                                   row['estimated_minutes'] as int? ?? 0;
                               final actual = row['actual_minutes'] as int? ?? 0;
                               final diff = actual - estimated;
-                              final pct =
-                                  estimated > 0
-                                      ? ((actual / estimated) * 100).round()
-                                      : 0;
+                              final pct = estimated > 0
+                                  ? ((actual / estimated) * 100).round()
+                                  : 0;
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 2,
@@ -362,27 +366,24 @@ class ProgressScreen extends ConsumerWidget {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-color:
-                                               diff > 10
-                                                   ? Theme.of(context)
-                                                       .colorScheme
-                                                       .error
-                                                       .withValues(
-                                                         alpha: 0.1,
-                                                       )
-                                                   : (diff < -5
-                                                       ? Theme.of(context)
-                                                           .colorScheme
-                                                           .primary
-                                                           .withValues(
-                                                             alpha: 0.1,
-                                                           )
-                                                       : Theme.of(context)
-                                                           .colorScheme
-                                                           .secondary
-                                                           .withValues(
-                                                             alpha: 0.1,
-                                                           )),
+                                          color: diff > 10
+                                              ? Theme.of(context)
+                                                    .colorScheme
+                                                    .error
+                                                    .withValues(alpha: 0.1)
+                                              : (diff < -5
+                                                    ? Theme.of(context)
+                                                          .colorScheme
+                                                          .primary
+                                                          .withValues(
+                                                            alpha: 0.1,
+                                                          )
+                                                    : Theme.of(context)
+                                                          .colorScheme
+                                                          .secondary
+                                                          .withValues(
+                                                            alpha: 0.1,
+                                                          )),
                                           borderRadius: BorderRadius.circular(
                                             4,
                                           ),
@@ -390,16 +391,15 @@ color:
                                         child: Text(
                                           '$pct%',
                                           style: TextStyle(
-                                            color:
-                                                diff > 10
-                                                    ? Theme.of(context)
-                                                        .colorScheme
-                                                        .error
-                                                    : (diff < -5
-                                                        ? Theme.of(context)
-                                                            .colorScheme
-                                                            .primary
-                                                        : Theme.of(context)
+                                            color: diff > 10
+                                                ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.error
+                                                : (diff < -5
+                                                      ? Theme.of(
+                                                          context,
+                                                        ).colorScheme.primary
+                                                      : Theme.of(context)
                                                             .colorScheme
                                                             .secondary),
                                             fontWeight: FontWeight.bold,
@@ -428,13 +428,16 @@ color:
                               children: [
                                 Icon(
                                   Icons.warning_amber,
-                                  color: Theme.of(context).colorScheme.secondary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.secondary,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Weak Topics',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                               ],
                             ),
@@ -451,10 +454,12 @@ color:
                                 child: Row(
                                   children: [
                                     Icon(
-                                       Icons.bookmark,
-                                       size: 16,
-                                       color: Theme.of(context).colorScheme.secondary,
-                                     ),
+                                      Icons.bookmark,
+                                      size: 16,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.secondary,
+                                    ),
                                     const SizedBox(width: 8),
                                     Expanded(child: Text(c.title)),
                                   ],
@@ -464,6 +469,23 @@ color:
                           ],
                         ),
                       ),
+                    ),
+                  ],
+                  if (weakTopics.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        final focusTopics = weakTopics
+                            .whereType<ChapterModel>()
+                            .map((chapter) => chapter.title)
+                            .toList();
+                        GoRouter.of(context).push(
+                          '/exam-simulator',
+                          extra: <String, dynamic>{'focusTopics': focusTopics},
+                        );
+                      },
+                      icon: const Icon(Icons.track_changes),
+                      label: const Text('Build a targeted practice exam'),
                     ),
                   ],
                   if (productive.isNotEmpty) ...[
@@ -527,10 +549,9 @@ color:
                                   (row['planned_count'] as int?) ?? 0;
                               final done = (row['done_count'] as int?) ?? 0;
                               if (planned == 0) return const SizedBox.shrink();
-                              final ratio =
-                                  planned > 0
-                                      ? (done / planned * 100).round()
-                                      : 0;
+                              final ratio = planned > 0
+                                  ? (done / planned * 100).round()
+                                  : 0;
                               return Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 2,
@@ -552,10 +573,8 @@ color:
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error:
-                (e, _) => Center(
-                  child: Text('Something went wrong. Please try again.'),
-                ),
+            error: (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
           ),
           const SizedBox(height: 24),
           recallTrendsAsync.when(
@@ -590,7 +609,8 @@ color:
                                 width: 80,
                                 height: 12,
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                                 child: FractionallySizedBox(
@@ -598,18 +618,17 @@ color:
                                   widthFactor: (avgConf / 100).clamp(0.0, 1.0),
                                   child: Container(
                                     decoration: BoxDecoration(
-color:
-                                            avgConf >= 70
-                                                ? Theme.of(context)
-                                                    .colorScheme
-                                                    .tertiary
-                                                : (avgConf >= 40
-                                                    ? Theme.of(context)
-                                                        .colorScheme
-                                                        .secondary
-                                                    : Theme.of(context)
-                                                        .colorScheme
-                                                        .error),
+                                      color: avgConf >= 70
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary
+                                          : (avgConf >= 40
+                                                ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.secondary
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.error),
                                       borderRadius: BorderRadius.circular(2),
                                     ),
                                   ),
@@ -627,10 +646,8 @@ color:
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error:
-                (e, _) => Center(
-                  child: Text('Something went wrong. Please try again.'),
-                ),
+            error: (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
           ),
           const SizedBox(height: 24),
           decayAsync.when(
@@ -670,22 +687,23 @@ color:
                                     Expanded(
                                       child: LinearProgressIndicator(
                                         value: (avgConf / 100).clamp(0.0, 1.0),
-                                        backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(
-                                          alpha: 0.2,
-                                        ),
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.2),
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
                                               avgConf >= 70
-                                                  ? Theme.of(context)
-                                                      .colorScheme
-                                                      .tertiary
+                                                  ? Theme.of(
+                                                      context,
+                                                    ).colorScheme.tertiary
                                                   : (avgConf >= 40
-                                                      ? Theme.of(context)
-                                                          .colorScheme
-                                                          .secondary
-                                                      : Theme.of(context)
-                                                          .colorScheme
-                                                          .error),
+                                                        ? Theme.of(context)
+                                                              .colorScheme
+                                                              .secondary
+                                                        : Theme.of(
+                                                            context,
+                                                          ).colorScheme.error),
                                             ),
                                       ),
                                     ),
@@ -706,10 +724,8 @@ color:
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error:
-                (e, _) => Center(
-                  child: Text('Something went wrong. Please try again.'),
-                ),
+            error: (e, _) =>
+                Center(child: Text('Something went wrong. Please try again.')),
           ),
         ],
       ),
@@ -726,7 +742,11 @@ color:
           children: [
             Row(
               children: [
-                Icon(Icons.assignment, size: 36, color: Theme.of(context).colorScheme.tertiary),
+                Icon(
+                  Icons.assignment,
+                  size: 36,
+                  color: Theme.of(context).colorScheme.tertiary,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

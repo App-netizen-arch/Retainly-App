@@ -72,16 +72,15 @@ class BackupRecord {
           ) ??
           DateTime.now(),
       sizeBytes: map['size_bytes'] is int ? map['size_bytes'] as int : 0,
-      schemaVersion:
-          map['schema_version'] is int ? map['schema_version'] as int : 1,
-      backupVersion:
-          map['backup_version'] is String
-              ? map['backup_version'] as String
-              : '1.0.0',
-      deviceInfo:
-          map['device_info'] is Map<String, dynamic>
-              ? Map<String, String>.from(map['device_info'])
-              : const {},
+      schemaVersion: map['schema_version'] is int
+          ? map['schema_version'] as int
+          : 1,
+      backupVersion: map['backup_version'] is String
+          ? map['backup_version'] as String
+          : '1.0.0',
+      deviceInfo: map['device_info'] is Map<String, dynamic>
+          ? Map<String, String>.from(map['device_info'])
+          : const {},
       encrypted: (map['encrypted'] is int ? map['encrypted'] as int : 0) == 1,
       status: map['status'] is String ? map['status'] as String : 'unknown',
     );
@@ -172,8 +171,9 @@ class BackupSettings {
       lastBackupAt: DateTime.tryParse(
         map['last_backup_at'] is String ? map['last_backup_at'] as String : '',
       ),
-      storagePath:
-          map['storage_path'] is String ? map['storage_path'] as String : null,
+      storagePath: map['storage_path'] is String
+          ? map['storage_path'] as String
+          : null,
     );
   }
 
@@ -227,10 +227,9 @@ class RestoreConflict {
         (e) => e.name == map['conflict_type'],
         orElse: () => RestoreConflictType.cancel,
       ),
-      currentDataWarning:
-          map['current_data_warning'] is String
-              ? map['current_data_warning'] as String
-              : '',
+      currentDataWarning: map['current_data_warning'] is String
+          ? map['current_data_warning'] as String
+          : '',
     );
   }
 
@@ -280,12 +279,12 @@ class RestoreResult {
     return RestoreResult(
       success: (map['success'] is int ? map['success'] as int : 0) == 1,
       message: map['message'] is String ? map['message'] as String : '',
-      recordsRestored:
-          map['records_restored'] is int ? map['records_restored'] as int : 0,
-      conflictsEncountered:
-          map['conflicts_encountered'] is int
-              ? map['conflicts_encountered'] as int
-              : 0,
+      recordsRestored: map['records_restored'] is int
+          ? map['records_restored'] as int
+          : 0,
+      conflictsEncountered: map['conflicts_encountered'] is int
+          ? map['conflicts_encountered'] as int
+          : 0,
     );
   }
 

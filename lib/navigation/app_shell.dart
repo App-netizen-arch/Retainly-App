@@ -83,18 +83,20 @@ class _AppShellState extends ConsumerState<AppShell> {
           Container(
             width: MediaQuery.of(context).size.width,
             color: Theme.of(context).colorScheme.error,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                Icon(Icons.wifi_off_rounded, color: Theme.of(context).colorScheme.onError),
+                Icon(
+                  Icons.wifi_off_rounded,
+                  color: Theme.of(context).colorScheme.onError,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'You are offline. Some features may be limited.',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onError),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onError,
+                    ),
                   ),
                 ),
                 TextButton(
@@ -120,7 +122,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                   },
                   child: Text(
                     'RETRY',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onError),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onError,
+                    ),
                   ),
                 ),
               ],

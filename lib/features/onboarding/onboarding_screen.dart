@@ -36,21 +36,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         }
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Step ${_step + 1}/4',
-          style: Theme.of(context).textTheme.titleMedium,
+        appBar: AppBar(
+          title: Text(
+            'Step ${_step + 1}/4',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
-      ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Padding(
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Padding(
                 padding: const EdgeInsets.all(16.0),
-                 child: _buildStepContent(),
-               ),
-       ),
-     );
+                child: _buildStepContent(),
+              ),
+      ),
+    );
   }
 
   Widget _buildStepContent() {
@@ -85,23 +84,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             });
           },
           child: Column(
-            children:
-                MatricSubjects.electiveGroups.keys
-                    .map(
-                      (group) => RadioListTile<String>(
-                        title: Text(group),
-                        value: group,
-                      ),
-                    )
-                    .toList(),
+            children: MatricSubjects.electiveGroups.keys
+                .map(
+                  (group) =>
+                      RadioListTile<String>(title: Text(group), value: group),
+                )
+                .toList(),
           ),
         ),
         const SizedBox(height: 32),
         Align(
           alignment: Alignment.centerRight,
           child: ElevatedButton(
-            onPressed:
-                _academicGroup != null ? () => setState(() => _step = 1) : null,
+            onPressed: _academicGroup != null
+                ? () => setState(() => _step = 1)
+                : null,
             child: const Text('Next'),
           ),
         ),
@@ -120,7 +117,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         const SizedBox(height: 24),
         Text(
           'This determines whether you will study Islamiyat or Ethics.',
-          style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: 16,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 24),
         RadioGroup<String>(
@@ -152,8 +152,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             const Spacer(),
             ElevatedButton(
-              onPressed:
-                  _religion != null ? () => setState(() => _step = 2) : null,
+              onPressed: _religion != null
+                  ? () => setState(() => _step = 2)
+                  : null,
               child: const Text('Next'),
             ),
           ],
@@ -175,31 +176,34 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         const SizedBox(height: 16),
         Text(
           'Choose 2-3 elective subjects based on your academic group:',
-          style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: 16,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 24),
         Wrap(
           spacing: 12,
           runSpacing: 12,
-          children:
-              electives
-                  .map(
-                    (subject) => ChoiceChip(
-                      label: Text(subject['name']!),
-                      selected: _selectedElectives.contains(subject['name']),
-                      tooltip: 'Select${_selectedElectives.contains(subject['name']) ? 'ed' : ''} elective: ${subject['name']}',
-                      onSelected: (selected) {
-                        setState(() {
-                          if (selected) {
-                            _selectedElectives.add(subject['name']!);
-                          } else {
-                            _selectedElectives.remove(subject['name']);
-                          }
-                        });
-                      },
-                    ),
-                  )
-                  .toList(),
+          children: electives
+              .map(
+                (subject) => ChoiceChip(
+                  label: Text(subject['name']!),
+                  selected: _selectedElectives.contains(subject['name']),
+                  tooltip:
+                      'Select${_selectedElectives.contains(subject['name']) ? 'ed' : ''} elective: ${subject['name']}',
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedElectives.add(subject['name']!);
+                      } else {
+                        _selectedElectives.remove(subject['name']);
+                      }
+                    });
+                  },
+                ),
+              )
+              .toList(),
         ),
         const SizedBox(height: 32),
         Row(
@@ -210,10 +214,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             const Spacer(),
             ElevatedButton(
-              onPressed:
-                  _selectedElectives.isNotEmpty
-                      ? () => setState(() => _step = 3)
-                      : null,
+              onPressed: _selectedElectives.isNotEmpty
+                  ? () => setState(() => _step = 3)
+                  : null,
               child: const Text('Next'),
             ),
           ],
@@ -236,10 +239,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
 
     // Get selected elective subjects
-    final List<Map<String, String>> selectedElectives =
-        MatricSubjects.electiveGroups[_academicGroup]!
-            .where((subject) => _selectedElectives.contains(subject['name']!))
-            .toList();
+    final List<Map<String, String>> selectedElectives = MatricSubjects
+        .electiveGroups[_academicGroup]!
+        .where((subject) => _selectedElectives.contains(subject['name']!))
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +262,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             padding: const EdgeInsets.symmetric(vertical: 4.0),
             child: Row(
               children: [
-                Icon(Icons.check_circle, color: Theme.of(context).colorScheme.tertiary, size: 16),
+                Icon(
+                  Icons.check_circle,
+                  color: Theme.of(context).colorScheme.tertiary,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(child: Text(subject['name']!)),
               ],
@@ -277,7 +284,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             padding: const EdgeInsets.symmetric(vertical: 4.0),
             child: Row(
               children: [
-                Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary, size: 16),
+                Icon(
+                  Icons.check_circle,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Expanded(child: Text(subject['name']!)),
               ],
@@ -289,27 +300,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             padding: const EdgeInsets.symmetric(vertical: 4.0),
             child: Text(
               'No electives selected',
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
         const SizedBox(height: 32),
         ElevatedButton(
-          onPressed:
-              _isLoading
-                  ? null
-                  : () => _saveSubjectSelection(
-                    compulsoryWithReligion,
-                    selectedElectives,
-                    context,
-                  ),
-          child:
-              _isLoading
-                  ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                  : const Text('Start Studying'),
+          onPressed: _isLoading
+              ? null
+              : () => _saveSubjectSelection(
+                  compulsoryWithReligion,
+                  selectedElectives,
+                  context,
+                ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Start Studying'),
         ),
       ],
     );
@@ -400,9 +412,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     } catch (e) {
       if (!context.mounted) return;
       setState(() => _isLoading = false);
-       ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving subjects. Please try again.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving subjects. Please try again.')),
+      );
     } finally {
       if (context.mounted) setState(() => _isLoading = false);
     }

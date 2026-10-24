@@ -35,20 +35,39 @@ class DatabaseHelper {
     final path = join(dbPath.path, filePath);
     final db = await openDatabase(
       path,
-      version: 3,
-      onCreate: _createDB,
-      onUpgrade: (db, oldVersion, newVersion) async => _extendSchema(db),
+      version: 4,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
+      onCreate: (db, version) async {
+        await _createDB(db, version);
+        await _createLocalAiTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        await _extendSchema(db);
+        await _createLocalAiTables(db);
+      },
     );
     return db;
   }
 
   Future<void> _extendSchema(Database db) async {
     await db.transaction((txn) async {
+      final subjectColumns = await txn.rawQuery('PRAGMA table_info(subjects)');
+      final subjectNames = subjectColumns
+          .map((c) => c['name'] as String)
+          .toList();
+      if (!subjectNames.contains('is_active')) {
+        await txn.execute(
+          'ALTER TABLE subjects ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1',
+        );
+      }
       final profileColumns = await txn.rawQuery(
         "PRAGMA table_info(user_profiles)",
       );
-      final profileNames =
-          profileColumns.map((c) => c['name'] as String).toList();
+      final profileNames = profileColumns
+          .map((c) => c['name'] as String)
+          .toList();
       if (!profileNames.contains('student_name')) {
         await txn.execute(
           "ALTER TABLE user_profiles ADD COLUMN student_name TEXT NOT NULL DEFAULT ''",
@@ -84,8 +103,9 @@ class DatabaseHelper {
       final practicalColumns = await txn.rawQuery(
         "PRAGMA table_info(practical_records)",
       );
-      final practicalNames =
-          practicalColumns.map((c) => c['name'] as String).toList();
+      final practicalNames = practicalColumns
+          .map((c) => c['name'] as String)
+          .toList();
       if (!practicalNames.contains('objective')) {
         await txn.execute(
           "ALTER TABLE practical_records ADD COLUMN objective TEXT",
@@ -115,8 +135,9 @@ class DatabaseHelper {
       final resourceColumns = await txn.rawQuery(
         "PRAGMA table_info(resources)",
       );
-      final resourceNames =
-          resourceColumns.map((c) => c['name'] as String).toList();
+      final resourceNames = resourceColumns
+          .map((c) => c['name'] as String)
+          .toList();
       if (!resourceNames.contains('file_size')) {
         await txn.execute("ALTER TABLE resources ADD COLUMN file_size INTEGER");
       }
@@ -146,8 +167,9 @@ class DatabaseHelper {
       }
 
       final chapterColumns = await txn.rawQuery("PRAGMA table_info(chapters)");
-      final chapterNames =
-          chapterColumns.map((c) => c['name'] as String).toList();
+      final chapterNames = chapterColumns
+          .map((c) => c['name'] as String)
+          .toList();
       if (!chapterNames.contains('exam_weight')) {
         await txn.execute(
           "ALTER TABLE chapters ADD COLUMN exam_weight INTEGER",
@@ -201,8 +223,9 @@ class DatabaseHelper {
       final revisionColumns = await txn.rawQuery(
         "PRAGMA table_info(revision_items)",
       );
-      final revisionNames =
-          revisionColumns.map((c) => c['name'] as String).toList();
+      final revisionNames = revisionColumns
+          .map((c) => c['name'] as String)
+          .toList();
       if (!revisionNames.contains('recall_confidence')) {
         await txn.execute(
           "ALTER TABLE revision_items ADD COLUMN recall_confidence INTEGER NOT NULL DEFAULT 0",
@@ -224,6 +247,88 @@ class DatabaseHelper {
         );
       }
     });
+  }
+
+  Future<void> _createLocalAiTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS chat_conversations(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        is_archived INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS chat_messages(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        citations_json TEXT,
+        FOREIGN KEY(conversation_id) REFERENCES chat_conversations(id)
+          ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_created
+      ON chat_messages(conversation_id, created_at, id)
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS user_memories(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT 'preference',
+        source_conversation_id INTEGER,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        last_used_at TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY(source_conversation_id) REFERENCES chat_conversations(id)
+          ON DELETE SET NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_user_memories_active
+      ON user_memories(is_active, category)
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS textbooks(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        local_path TEXT NOT NULL,
+        board TEXT,
+        class_level TEXT,
+        subject TEXT,
+        edition TEXT,
+        language TEXT NOT NULL DEFAULT 'unknown',
+        checksum TEXT,
+        imported_at TEXT NOT NULL,
+        processing_state TEXT NOT NULL DEFAULT 'imported',
+        page_count INTEGER
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS textbook_chunks(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        textbook_id INTEGER NOT NULL,
+        page_number INTEGER NOT NULL,
+        chapter_title TEXT,
+        heading TEXT,
+        content TEXT NOT NULL,
+        language TEXT NOT NULL DEFAULT 'unknown',
+        extraction_method TEXT NOT NULL DEFAULT 'pdf_text',
+        confidence REAL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(textbook_id) REFERENCES textbooks(id)
+          ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_textbook_chunks_document_page
+      ON textbook_chunks(textbook_id, page_number)
+    ''');
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -248,7 +353,8 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         color INTEGER NOT NULL,
         sort_order INTEGER NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1
       )
     ''');
     await db.execute('''
@@ -376,7 +482,32 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getSubjects() async {
     final db = await instance.database;
-    return await db.query('subjects', orderBy: 'sort_order ASC');
+    return await db.query(
+      'subjects',
+      where: 'is_active = 1',
+      orderBy: 'sort_order ASC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getAllSubjects() async {
+    final db = await instance.database;
+    return db.query('subjects', orderBy: 'sort_order ASC');
+  }
+
+  Future<int> setSubjectActive(int id, bool isActive) async {
+    final db = await instance.database;
+    return db.update(
+      'subjects',
+      {'is_active': isActive ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> updateSubject(int id, Map<String, dynamic> data) async {
+    final db = await instance.database;
+    final values = Map<String, dynamic>.from(data)..remove('id');
+    return db.update('subjects', values, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<int> deleteSubject(int id) async {
@@ -452,7 +583,8 @@ class DatabaseHelper {
     final tomorrow = today.add(const Duration(days: 1));
     return await db.query(
       'study_tasks',
-      where: 'date(scheduled_at) >= date(?) AND date(scheduled_at) < date(?) AND status != ?',
+      where:
+          'date(scheduled_at) >= date(?) AND date(scheduled_at) < date(?) AND status != ?',
       whereArgs: [
         today.toIso8601String(),
         tomorrow.toIso8601String(),

@@ -13,7 +13,7 @@ void main() {
       expect(prefs.getString('app_locale'), isNull);
       final service = AIService();
       final provider = await service.getAiProvider();
-      expect(provider, 'openrouter');
+      expect(provider, 'groq');
     });
 
     test('locale can be set to ur', () async {
@@ -94,17 +94,6 @@ void main() {
       final service = AIService();
       await service.setAiConsent(true);
       expect(await service.hasAiConsent(), isTrue);
-    });
-
-    test('OCR consent defaults to false', () async {
-      final service = AIService();
-      expect(await service.hasOcrConsent(), isFalse);
-    });
-
-    test('OCR consent can be enabled', () async {
-      final service = AIService();
-      await service.setOcrConsent(true);
-      expect(await service.hasOcrConsent(), isTrue);
     });
 
     test('cost warning defaults to not accepted', () async {

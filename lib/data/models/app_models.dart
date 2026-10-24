@@ -44,19 +44,21 @@ class UserModel {
   static UserModel fromMap(Map<String, dynamic> map) {
     return UserModel(
       id: map['id'] is int ? map['id'] as int : null,
-      studentName:
-          map['student_name'] is String ? map['student_name'] as String : '',
+      studentName: map['student_name'] is String
+          ? map['student_name'] as String
+          : '',
       studentId: map['student_id'] is String ? map['student_id'] as String : '',
-      institution:
-          map['institution'] is String ? map['institution'] as String : '',
-      classLevel:
-          map['class_level'] is String ? map['class_level'] as String : '',
+      institution: map['institution'] is String
+          ? map['institution'] as String
+          : '',
+      classLevel: map['class_level'] is String
+          ? map['class_level'] as String
+          : '',
       board: map['board'] is String ? map['board'] as String : '',
       examDate: map['exam_date'] is String ? map['exam_date'] as String : '',
-      dailyStudyMinutes:
-          map['daily_study_minutes'] is int
-              ? map['daily_study_minutes'] as int
-              : 120,
+      dailyStudyMinutes: map['daily_study_minutes'] is int
+          ? map['daily_study_minutes'] as int
+          : 120,
       theme: map['theme'] is String ? map['theme'] as String : 'light',
       createdAt: map['created_at'] is String ? map['created_at'] as String : '',
       updatedAt: map['updated_at'] is String ? map['updated_at'] as String : '',
@@ -165,35 +167,32 @@ class ChapterModel {
       title: map['title'] is String ? map['title'] as String : '',
       status: map['status'] is String ? map['status'] as String : 'not_started',
       priority: map['priority'] is int ? map['priority'] as int : 2,
-      estimatedMinutes:
-          map['estimated_minutes'] is int
-              ? map['estimated_minutes'] as int
-              : 30,
-      revisionDates:
-          map['revision_dates'] is String
-              ? map['revision_dates'] as String
-              : '[]',
-      completedAt:
-          map['completed_at'] is int ? map['completed_at'] as int : null,
+      estimatedMinutes: map['estimated_minutes'] is int
+          ? map['estimated_minutes'] as int
+          : 30,
+      revisionDates: map['revision_dates'] is String
+          ? map['revision_dates'] as String
+          : '[]',
+      completedAt: map['completed_at'] is int
+          ? map['completed_at'] as int
+          : null,
       createdAt: map['created_at'] is String ? map['created_at'] as String : '',
       examWeight: map['exam_weight'] is int ? map['exam_weight'] as int : null,
       confidence: map['confidence'] is int ? map['confidence'] as int : null,
-      contentSource:
-          map['content_source'] is String
-              ? map['content_source'] as String
-              : null,
-      contentVersion:
-          map['content_version'] is String
-              ? map['content_version'] as String
-              : null,
-      reviewDate:
-          map['review_date'] is String ? map['review_date'] as String : null,
+      contentSource: map['content_source'] is String
+          ? map['content_source'] as String
+          : null,
+      contentVersion: map['content_version'] is String
+          ? map['content_version'] as String
+          : null,
+      reviewDate: map['review_date'] is String
+          ? map['review_date'] as String
+          : null,
       isWeakTopic:
           (map['is_weak_topic'] is int ? map['is_weak_topic'] as int : 0) == 1,
-      contentTier:
-          map['content_tier'] is String
-              ? map['content_tier'] as String
-              : 'official',
+      contentTier: map['content_tier'] is String
+          ? map['content_tier'] as String
+          : 'official',
     );
   }
 }
@@ -268,14 +267,15 @@ class TaskModel {
       title: map['title'] is String ? map['title'] as String : '',
       type: map['type'] is String ? map['type'] as String : 'custom',
       dueAt: map['due_at'] is String ? map['due_at'] as String : null,
-      scheduledAt:
-          map['scheduled_at'] is String ? map['scheduled_at'] as String : '',
-      estimatedMinutes:
-          map['estimated_minutes'] is int
-              ? map['estimated_minutes'] as int
-              : 30,
-      completedMinutes:
-          map['completed_minutes'] is int ? map['completed_minutes'] as int : 0,
+      scheduledAt: map['scheduled_at'] is String
+          ? map['scheduled_at'] as String
+          : '',
+      estimatedMinutes: map['estimated_minutes'] is int
+          ? map['estimated_minutes'] as int
+          : 30,
+      completedMinutes: map['completed_minutes'] is int
+          ? map['completed_minutes'] as int
+          : 0,
       priority: map['priority'] is int ? map['priority'] as int : 2,
       status: map['status'] is String ? map['status'] as String : 'not_started',
       isRescheduled:
@@ -287,10 +287,9 @@ class TaskModel {
           (map['is_template'] is int ? map['is_template'] as int : 0) == 1,
       createdAt: map['created_at'] is String ? map['created_at'] as String : '',
       updatedAt: map['updated_at'] is String ? map['updated_at'] as String : '',
-      originalEstimatedMinutes:
-          map['original_estimated_minutes'] is int
-              ? map['original_estimated_minutes'] as int
-              : null,
+      originalEstimatedMinutes: map['original_estimated_minutes'] is int
+          ? map['original_estimated_minutes'] as int
+          : null,
     );
   }
 }
@@ -344,21 +343,21 @@ class FocusSessionModel {
       taskId: map['task_id'] is int ? map['task_id'] as int : null,
       startedAt: map['started_at'] is String ? map['started_at'] as String : '',
       endedAt: map['ended_at'] is String ? map['ended_at'] as String : null,
-      plannedMinutes:
-          map['planned_minutes'] is int ? map['planned_minutes'] as int : 25,
-      completedMinutes:
-          map['completed_minutes'] is int ? map['completed_minutes'] as int : 0,
+      plannedMinutes: map['planned_minutes'] is int
+          ? map['planned_minutes'] as int
+          : 25,
+      completedMinutes: map['completed_minutes'] is int
+          ? map['completed_minutes'] as int
+          : 0,
       status: map['status'] is String ? map['status'] as String : 'running',
       createdAt: map['created_at'] is String ? map['created_at'] as String : '',
       notes: map['notes'] is String ? map['notes'] as String : null,
-      reflectionStatus:
-          map['reflection_status'] is String
-              ? map['reflection_status'] as String
-              : null,
-      parkingLotNotes:
-          map['parking_lot_notes'] is String
-              ? map['parking_lot_notes'] as String
-              : null,
+      reflectionStatus: map['reflection_status'] is String
+          ? map['reflection_status'] as String
+          : null,
+      parkingLotNotes: map['parking_lot_notes'] is String
+          ? map['parking_lot_notes'] as String
+          : null,
     );
   }
 }
@@ -411,25 +410,26 @@ class RevisionItemModel {
       id: map['id'] is int ? map['id'] as int : null,
       chapterId: map['chapter_id'] is int ? map['chapter_id'] as int : 0,
       dueAt: map['due_at'] is String ? map['due_at'] as String : '',
-      intervalDays:
-          map['interval_days'] is int ? map['interval_days'] as int : 1,
+      intervalDays: map['interval_days'] is int
+          ? map['interval_days'] as int
+          : 1,
       status: map['status'] is String ? map['status'] as String : 'pending',
-      completedAt:
-          map['completed_at'] is int ? map['completed_at'] as int : null,
+      completedAt: map['completed_at'] is int
+          ? map['completed_at'] as int
+          : null,
       createdAt: map['created_at'] is String ? map['created_at'] as String : '',
-      recallConfidence:
-          map['recall_confidence'] is int ? map['recall_confidence'] as int : 0,
-      easeFactor:
-          map['ease_factor'] is double
-              ? map['ease_factor'] as double
-              : (map['ease_factor'] is int
-                  ? (map['ease_factor'] as int).toDouble()
-                  : 2.5),
+      recallConfidence: map['recall_confidence'] is int
+          ? map['recall_confidence'] as int
+          : 0,
+      easeFactor: map['ease_factor'] is double
+          ? map['ease_factor'] as double
+          : (map['ease_factor'] is int
+                ? (map['ease_factor'] as int).toDouble()
+                : 2.5),
       repetitions: map['repetitions'] is int ? map['repetitions'] as int : 0,
-      lastReviewAt:
-          map['last_review_at'] is String
-              ? map['last_review_at'] as String
-              : null,
+      lastReviewAt: map['last_review_at'] is String
+          ? map['last_review_at'] as String
+          : null,
     );
   }
 }
@@ -489,8 +489,9 @@ class ResourceModel {
       subjectId: map['subject_id'] is int ? map['subject_id'] as int : 0,
       chapterId: map['chapter_id'] is int ? map['chapter_id'] as int : null,
       taskId: map['task_id'] is int ? map['task_id'] as int : null,
-      practicalId:
-          map['practical_id'] is int ? map['practical_id'] as int : null,
+      practicalId: map['practical_id'] is int
+          ? map['practical_id'] as int
+          : null,
       type: map['type'] is String ? map['type'] as String : 'other',
       title: map['title'] is String ? map['title'] as String : '',
       localPath: map['local_path'] is String ? map['local_path'] as String : '',
@@ -561,12 +562,12 @@ class PracticalRecordModel {
       objective: map['objective'] is String ? map['objective'] as String : null,
       apparatus: map['apparatus'] is String ? map['apparatus'] as String : null,
       procedure: map['procedure'] is String ? map['procedure'] as String : null,
-      observation:
-          map['observation'] is String ? map['observation'] as String : null,
-      vivaQuestions:
-          map['viva_questions'] is String
-              ? map['viva_questions'] as String
-              : null,
+      observation: map['observation'] is String
+          ? map['observation'] as String
+          : null,
+      vivaQuestions: map['viva_questions'] is String
+          ? map['viva_questions'] as String
+          : null,
     );
   }
 }
@@ -594,12 +595,12 @@ class SubjectProgressModel {
       name: map['name'] is String ? map['name'] as String : '',
       color: map['color'] is int ? map['color'] as int : 0,
       sortOrder: map['sort_order'] is int ? map['sort_order'] as int : 0,
-      totalChapters:
-          map['total_chapters'] is int ? map['total_chapters'] as int : 0,
-      completedChapters:
-          map['completed_chapters'] is int
-              ? map['completed_chapters'] as int
-              : 0,
+      totalChapters: map['total_chapters'] is int
+          ? map['total_chapters'] as int
+          : 0,
+      completedChapters: map['completed_chapters'] is int
+          ? map['completed_chapters'] as int
+          : 0,
     );
   }
 }
@@ -636,19 +637,19 @@ class ChapterWithSubjectModel {
       title: map['title'] is String ? map['title'] as String : '',
       status: map['status'] is String ? map['status'] as String : 'not_started',
       priority: map['priority'] is int ? map['priority'] as int : 2,
-      estimatedMinutes:
-          map['estimated_minutes'] is int
-              ? map['estimated_minutes'] as int
-              : 30,
-      revisionDates:
-          map['revision_dates'] is String
-              ? map['revision_dates'] as String
-              : '[]',
-      completedAt:
-          map['completed_at'] is int ? map['completed_at'] as int : null,
+      estimatedMinutes: map['estimated_minutes'] is int
+          ? map['estimated_minutes'] as int
+          : 30,
+      revisionDates: map['revision_dates'] is String
+          ? map['revision_dates'] as String
+          : '[]',
+      completedAt: map['completed_at'] is int
+          ? map['completed_at'] as int
+          : null,
       createdAt: map['created_at'] is String ? map['created_at'] as String : '',
-      subjectName:
-          map['subject_name'] is String ? map['subject_name'] as String : '',
+      subjectName: map['subject_name'] is String
+          ? map['subject_name'] as String
+          : '',
     );
   }
 }
@@ -690,25 +691,25 @@ class SyllabusTemplateModel {
   static SyllabusTemplateModel fromMap(Map<String, dynamic> map) {
     return SyllabusTemplateModel(
       id: map['id'] is int ? map['id'] as int : null,
-      templateVersion:
-          map['template_version'] is int ? map['template_version'] as int : 1,
-      exportedAt:
-          map['exported_at'] is String ? map['exported_at'] as String : '',
-      sourceApp:
-          map['source_app'] is String
-              ? map['source_app'] as String
-              : 'retainly',
-      sourceAttribution:
-          map['source_attribution'] is String
-              ? map['source_attribution'] as String
-              : '',
-      importedAt:
-          map['imported_at'] is String ? map['imported_at'] as String : '',
+      templateVersion: map['template_version'] is int
+          ? map['template_version'] as int
+          : 1,
+      exportedAt: map['exported_at'] is String
+          ? map['exported_at'] as String
+          : '',
+      sourceApp: map['source_app'] is String
+          ? map['source_app'] as String
+          : 'retainly',
+      sourceAttribution: map['source_attribution'] is String
+          ? map['source_attribution'] as String
+          : '',
+      importedAt: map['imported_at'] is String
+          ? map['imported_at'] as String
+          : '',
       content: map['content'] is String ? map['content'] as String : '',
-      contentTier:
-          map['content_tier'] is String
-              ? map['content_tier'] as String
-              : 'official',
+      contentTier: map['content_tier'] is String
+          ? map['content_tier'] as String
+          : 'official',
     );
   }
 }

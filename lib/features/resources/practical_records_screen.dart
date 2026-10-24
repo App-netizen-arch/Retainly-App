@@ -14,70 +14,67 @@ class PracticalRecordsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Practical Records')),
       body: dbAsync.when(
-        data:
-            (db) => FutureBuilder<List<SubjectModel>>(
-              future: db.getSubjects(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      children: [
-                        const Text('Something went wrong. Please try again.'),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            if (context.mounted) {
-                              ref.invalidate(databaseRepositoryProvider);
-                            }
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ],
+        data: (db) => FutureBuilder<List<SubjectModel>>(
+          future: db.getSubjects(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  children: [
+                    const Text('Something went wrong. Please try again.'),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        if (context.mounted) {
+                          ref.invalidate(databaseRepositoryProvider);
+                        }
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
                     ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final subjects = snapshot.data!;
-                if (subjects.isEmpty) {
-                  return const Center(
-                    child: Text('No subjects found. Add subjects first.'),
-                  );
-                }
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: subjects.length,
-                  itemBuilder: (context, index) {
-                    final subject = subjects[index];
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Color(subject.color),
-                          child: const Icon(Icons.science),
-                        ),
-                        title: Text(subject.name),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          if (subject.id == null) return;
-                          showDialog(
-                            context: context,
-                            builder:
-                                (context) =>
-                                    _PracticalDialog(subjectId: subject.id!),
-                          );
-                        },
-                      ),
-                    );
-                  },
+                  ],
+                ),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final subjects = snapshot.data!;
+            if (subjects.isEmpty) {
+              return const Center(
+                child: Text('No subjects found. Add subjects first.'),
+              );
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: subjects.length,
+              itemBuilder: (context, index) {
+                final subject = subjects[index];
+                return Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Color(subject.color),
+                      child: const Icon(Icons.science),
+                    ),
+                    title: Text(subject.name),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      if (subject.id == null) return;
+                      showDialog(
+                        context: context,
+                        builder: (context) =>
+                            _PracticalDialog(subjectId: subject.id!),
+                      );
+                    },
+                  ),
                 );
               },
-            ),
+            );
+          },
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:
-            (e, _) =>
-                Center(child: Text('Something went wrong. Please try again.')),
+        error: (e, _) =>
+            Center(child: Text('Something went wrong. Please try again.')),
       ),
     );
   }
@@ -139,26 +136,21 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
         title: _titleController.text.trim(),
         status: _status,
         dueAt: _dueAt?.toIso8601String(),
-        objective:
-            _objectiveController.text.trim().isEmpty
-                ? null
-                : _objectiveController.text.trim(),
-        apparatus:
-            _apparatusController.text.trim().isEmpty
-                ? null
-                : _apparatusController.text.trim(),
-        procedure:
-            _procedureController.text.trim().isEmpty
-                ? null
-                : _procedureController.text.trim(),
-        observation:
-            _observationController.text.trim().isEmpty
-                ? null
-                : _observationController.text.trim(),
-        vivaQuestions:
-            _vivaController.text.trim().isEmpty
-                ? null
-                : _vivaController.text.trim(),
+        objective: _objectiveController.text.trim().isEmpty
+            ? null
+            : _objectiveController.text.trim(),
+        apparatus: _apparatusController.text.trim().isEmpty
+            ? null
+            : _apparatusController.text.trim(),
+        procedure: _procedureController.text.trim().isEmpty
+            ? null
+            : _procedureController.text.trim(),
+        observation: _observationController.text.trim().isEmpty
+            ? null
+            : _observationController.text.trim(),
+        vivaQuestions: _vivaController.text.trim().isEmpty
+            ? null
+            : _vivaController.text.trim(),
         createdAt: DateTime.now().toIso8601String(),
       ),
     );
@@ -185,12 +177,11 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             FutureBuilder<List<PracticalRecordModel>>(
-              future:
-                  dbAsync.value != null
-                      ? dbAsync.value!.getPracticalRecordsBySubject(
-                        widget.subjectId,
-                      )
-                      : Future.value(const []),
+              future: dbAsync.value != null
+                  ? dbAsync.value!.getPracticalRecordsBySubject(
+                      widget.subjectId,
+                    )
+                  : Future.value(const []),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(
@@ -211,7 +202,9 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                     ),
                   );
                 }
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
                 final records = snapshot.data!;
                 return Column(
                   children: [
@@ -253,11 +246,8 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                                 child: Text('Due: ${r.dueAt}'),
                               ),
                             StatefulBuilder(
-                              builder:
-                                  (
-                                    ctx,
-                                    setDialogState,
-                                  ) => DropdownButtonFormField<String>(
+                              builder: (ctx, setDialogState) =>
+                                  DropdownButtonFormField<String>(
                                     initialValue: r.status,
                                     items: const [
                                       DropdownMenuItem(
@@ -284,17 +274,17 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                                           );
                                         }
                                         setDialogState(() {});
-                                       } on Exception catch (_) {
-                                       if (context.mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Failed to update. Please try again.',
-                                                ),
+                                      } on Exception catch (_) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Failed to update. Please try again.',
                                               ),
-                                            );
+                                            ),
+                                          );
                                         }
                                       }
                                     },
@@ -309,7 +299,9 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                       controller: _titleController,
                       decoration: InputDecoration(
                         labelText: 'Practical title',
-                        errorText: _titleController.text.isEmpty ? 'Title is required' : null,
+                        errorText: _titleController.text.isEmpty
+                            ? 'Title is required'
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -391,8 +383,8 @@ class _PracticalDialogState extends ConsumerState<_PracticalDialog> {
                           child: Text('Missing'),
                         ),
                       ],
-                      onChanged:
-                          (v) => setState(() => _status = v ?? 'pending'),
+                      onChanged: (v) =>
+                          setState(() => _status = v ?? 'pending'),
                     ),
                   ],
                 );

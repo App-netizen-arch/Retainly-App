@@ -30,13 +30,12 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Subject Setup')),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: _buildContent(),
-              ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _buildContent(),
+            ),
     );
   }
 
@@ -45,108 +44,107 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-        const Text(
-          'Academic Group',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _academicGroup,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          const Text(
+            'Academic Group',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          items:
-              MatricSubjects.electiveGroups.keys
-                  .map(
-                    (group) =>
-                        DropdownMenuItem(value: group, child: Text(group)),
-                  )
-                  .toList(),
-          onChanged: (value) {
-            setState(() {
-              _academicGroup = value;
-              _selectedElectives = [];
-            });
-          },
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'Religion',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            ChoiceChip(
-              label: const Text('Muslim'),
-              selected: _religion == 'Muslim',
-              onSelected: (selected) {
-                if (selected) setState(() => _religion = 'Muslim');
-              },
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _academicGroup,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
-            const SizedBox(width: 12),
-            ChoiceChip(
-              label: const Text('Non-Muslim'),
-              selected: _religion == 'Non-Muslim',
-              onSelected: (selected) {
-                if (selected) setState(() => _religion = 'Non-Muslim');
-              },
+            items: MatricSubjects.electiveGroups.keys
+                .map(
+                  (group) => DropdownMenuItem(value: group, child: Text(group)),
+                )
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                _academicGroup = value;
+                _selectedElectives = [];
+              });
+            },
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Religion',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ChoiceChip(
+                label: const Text('Muslim'),
+                selected: _religion == 'Muslim',
+                onSelected: (selected) {
+                  if (selected) setState(() => _religion = 'Muslim');
+                },
+              ),
+              const SizedBox(width: 12),
+              ChoiceChip(
+                label: const Text('Non-Muslim'),
+                selected: _religion == 'Non-Muslim',
+                onSelected: (selected) {
+                  if (selected) setState(() => _religion = 'Non-Muslim');
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Elective Subjects',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select your elective subjects:',
+            style: TextStyle(
+              fontSize: 14,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Elective Subjects',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Select your elective subjects:',
-          style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children:
-              (MatricSubjects.electiveGroups[_academicGroup] ?? [])
-                  .map(
-                    (subject) => FilterChip(
-                      label: Text(subject['name']!),
-                      selected: _selectedElectives.contains(subject['name']),
-                      onSelected: (selected) {
-                        setState(() {
-                          if (selected) {
-                            _selectedElectives.add(subject['name']!);
-                          } else {
-                            _selectedElectives.remove(subject['name']!);
-                          }
-                        });
-                      },
-                    ),
-                  )
-                  .toList(),
-        ),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _selectedElectives.isNotEmpty ? _saveSubjects : null,
-            child:
-                _isLoading
-                    ? const SizedBox(
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: (MatricSubjects.electiveGroups[_academicGroup] ?? [])
+                .map(
+                  (subject) => FilterChip(
+                    label: Text(subject['name']!),
+                    selected: _selectedElectives.contains(subject['name']),
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedElectives.add(subject['name']!);
+                        } else {
+                          _selectedElectives.remove(subject['name']!);
+                        }
+                      });
+                    },
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _selectedElectives.isNotEmpty ? _saveSubjects : null,
+              child: _isLoading
+                  ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                    : const Text('Save Subjects'),
+                  : const Text('Save Subjects'),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Future<void> _saveSubjects() async {
     setState(() => _isLoading = true);
@@ -178,23 +176,49 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
       }
 
       // Add selected electives
-      final selectedElectives =
-          MatricSubjects.electiveGroups[_academicGroup]!
-              .where((subject) => _selectedElectives.contains(subject['name']!))
-              .toList();
+      final selectedElectives = MatricSubjects.electiveGroups[_academicGroup]!
+          .where((subject) => _selectedElectives.contains(subject['name']!))
+          .toList();
       allSubjects.addAll(selectedElectives);
 
-      // Clear existing subjects
-      final existingSubjects = await db.getSubjects();
-      for (final subject in existingSubjects) {
-        if (subject.id != null) {
-          await db.deleteSubject(subject.id!);
-        }
+      // Preserve subject identities and history. Unselected subjects are
+      // archived, not deleted, because chapters/tasks/revisions reference them.
+      final existingSubjects = await db.getAllSubjects();
+      final selectedByName = <String, Map<String, String>>{
+        for (final subject in allSubjects)
+          subject['name']!.trim().toLowerCase(): subject,
+      };
+      final keptNames = <String>{};
+
+      for (final existing in existingSubjects) {
+        final id = existing.id;
+        if (id == null) continue;
+        final key = existing.name.trim().toLowerCase();
+        final selected = selectedByName[key];
+        await db.setSubjectActive(id, selected != null);
+        if (selected == null) continue;
+
+        final index = allSubjects.indexWhere(
+          (subject) => subject['name']!.trim().toLowerCase() == key,
+        );
+        await db.updateSubject(
+          id,
+          SubjectModel(
+            id: id,
+            name: selected['name']!,
+            color: _getColorForSubject(selected['name']!),
+            sortOrder: index < 0 ? existing.sortOrder : index,
+            createdAt: existing.createdAt,
+          ),
+        );
+        keptNames.add(key);
       }
 
-      // Insert all subjects
+      // Only create a record if this subject has never existed on this device.
       for (int i = 0; i < allSubjects.length; i++) {
         final subject = allSubjects[i];
+        final name = subject['name']!.trim().toLowerCase();
+        if (keptNames.contains(name)) continue;
         await db.insertSubject(
           SubjectModel(
             name: subject['name']!,
@@ -216,9 +240,9 @@ class _SubjectSetupScreenState extends ConsumerState<SubjectSetupScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving subjects. Please try again.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving subjects. Please try again.')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
