@@ -62,14 +62,27 @@ jobs:
           sha256sum release/retainly.apk > release/SHA256SUMS.txt
           ls -lh release/retainly.apk release/SHA256SUMS.txt
 
-      - name: Move v1.0.1 tag to this verified commit
+      - name: Move v1.0.1 tag to the release source snapshot
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag --force v1.0.1 "$GITHUB_SHA"
+          set -euo pipefail
+          git fetch origin "refs/tags/v1.0.1:refs/tags/v1.0.1"
+          OLD_TAG_SHA="$(git rev-parse "refs/tags/v1.0.1^{commit}")"
+
+          # The Actions token cannot retag a commit whose diff adds or changes
+          # workflow files without the separate workflow permission. Construct a
+          # release snapshot commit directly on the current tag, carrying this
+          # build's application source while retaining the tag's workflow files.
+          git restore --source="$OLD_TAG_SHA" --worktree -- .github/workflows
+          git add -u
+          TREE_SHA="$(git write-tree)"
+          RELEASE_COMMIT="$(printf '%s\n' "Retainly v1.0.1 source snapshot (built from ${GITHUB_SHA})" | git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit-tree "$TREE_SHA" -p "$OLD_TAG_SHA")"
+
+          git tag --force v1.0.1 "$RELEASE_COMMIT"
           git push --force origin refs/tags/v1.0.1
+          echo "Release tag now points to source snapshot $RELEASE_COMMIT (built from $GITHUB_SHA)."
 
       - name: Update GitHub release assets and notes
         env:
